@@ -18,7 +18,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-added-large-files
-        args: [--maxkb=2048]
+        args: [--maxkb=4096]  # the component map workbook is 3.3 MB and is a source of record
       - id: check-merge-conflict
       - id: check-yaml
       - id: end-of-file-fixer
