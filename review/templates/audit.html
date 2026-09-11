@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Audit — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Audit</h1>
+<p class="summary">
+  Every transition, newest first. Append only by grant: no role holds delete on this table.
+</p>
+
+<p class="filters">
+  <a class="filter {{ 'on' if not entity_type }}" href="/audit">All</a>
+  {% for kind in entity_types %}
+    <a class="filter {{ 'on' if entity_type == kind }}" href="/audit?entity_type={{ kind }}">{{ kind }}</a>
+  {% endfor %}
+</p>
+
+<table>
+  <thead><tr><th>When</th><th>Entity</th><th>Action</th><th>Actor</th><th>Before</th><th>After</th></tr></thead>
+  <tbody>
+  {% for e in events %}
+    <tr>
+      <td>{{ e[6].strftime('%Y-%m-%d %H:%M:%S') }}</td>
+      <td>{{ e[0] }} <span class="id">{{ e[1] }}</span></td>
+      <td>{{ e[2] }}</td>
+      <td>{{ e[3] }}</td>
+      <td class="muted">{{ e[4] or '' }}</td>
+      <td>{{ e[5] or '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

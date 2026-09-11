@@ -1,0 +1,192 @@
+/* One stylesheet. No framework, no build step, no second file.
+ *
+ * Orange is the decision panel and nothing else (BUILD_ORDER step 10). The one
+ * place on the site where a click writes to approved_records is the one place that
+ * is orange, so a reviewer never mistakes a navigation link for a decision. */
+
+:root {
+  --ink: #16181d;
+  --muted: #6b7280;
+  --line: #e2e5ea;
+  --paper: #ffffff;
+  --ground: #f7f8fa;
+  --link: #1a4d8f;
+  --decision: #c2410c;
+  --decision-ground: #fff5ef;
+  --approve: #15803d;
+  --reject: #9f1239;
+  --warn: #b45309;
+  --bad: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  gap: 2rem;
+  padding: 0.9rem 1.5rem;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.wordmark { font-weight: 600; letter-spacing: -0.01em; }
+nav a { margin-right: 1.1rem; color: var(--link); text-decoration: none; }
+nav a:hover { text-decoration: underline; }
+
+main { max-width: 68rem; margin: 0 auto; padding: 1.5rem; }
+footer {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+h1 { font-size: 1.35rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
+h2 { font-size: 1rem; margin: 1.75rem 0 0.5rem; }
+h3 { font-size: 0.9rem; margin: 1rem 0 0.25rem; }
+h4 { font-size: 0.8rem; margin: 0.75rem 0 0.25rem; color: var(--muted); }
+
+.summary { color: var(--muted); margin: 0.25rem 0 1.25rem; }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); padding: 2rem 0; }
+.id { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; margin-left: 0.4rem; }
+.tags { color: var(--muted); font-size: 0.75rem; margin-left: 0.4rem; }
+
+.filters { margin: 0 0 1rem; }
+.filter {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--link);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.filter.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+th, td { text-align: left; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+tbody tr:last-child td { border-bottom: none; }
+td a { color: var(--link); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.score { font-variant-numeric: tabular-nums; font-weight: 600; }
+.score.big {
+  display: inline-block;
+  min-width: 2.4rem;
+  padding: 0.1rem 0.4rem;
+  margin-right: 0.4rem;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 4px;
+  text-align: center;
+}
+
+section { margin-bottom: 0.5rem; }
+.facts dl { display: grid; grid-template-columns: 12rem 1fr; gap: 0.2rem 1rem; margin: 1rem 0; }
+.facts dt { color: var(--muted); font-size: 0.85rem; }
+.facts dd { margin: 0; }
+
+.functions { list-style: none; padding: 0; }
+.functions li { padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.evidence { display: block; color: var(--muted); font-size: 0.88rem; }
+
+.original { background: var(--paper); border: 1px solid var(--line); padding: 0.75rem 1rem; margin-top: 0.75rem; }
+.original-title { font-weight: 600; margin: 0.25rem 0; }
+.original-body { color: var(--muted); font-size: 0.88rem; white-space: pre-wrap; margin: 0.25rem 0; }
+
+.json {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  max-height: 28rem;
+}
+
+.error {
+  background: #fff1f1;
+  border: 1px solid var(--reject);
+  color: var(--reject);
+  padding: 0.6rem 0.9rem;
+}
+
+/* The decision panel, and the only orange on the site. */
+.decision {
+  background: var(--decision-ground);
+  border: 2px solid var(--decision);
+  padding: 1rem 1.25rem 1.25rem;
+  margin: 1.5rem 0;
+}
+.decision h2 { margin-top: 0; color: var(--decision); }
+.decision .reminder {
+  border-left: 3px solid var(--decision);
+  padding-left: 0.8rem;
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+.decision form { margin-bottom: 1rem; }
+.decision summary { cursor: pointer; font-weight: 600; margin: 0.5rem 0; }
+.reviewer { display: block; margin: 0.5rem 0; font-size: 0.85rem; color: var(--muted); }
+.reviewer input, .reviewer select {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  margin-top: 0.2rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font: inherit;
+  color: var(--ink);
+}
+
+.payload { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: 0.5rem; margin: 0.75rem 0; }
+.field { display: block; font-size: 0.78rem; }
+.field-name { display: block; color: var(--muted); }
+.field input {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  font: inherit;
+  color: var(--ink);
+}
+/* Appendix E's three categories, so the reviewer can see at a glance which values
+   the Monitor derived, which it guessed, and which are placeholders for BD. */
+.field.cat-D .field-name::after { content: " derived"; color: var(--approve); }
+.field.cat-S .field-name::after { content: " suggested"; color: var(--warn); }
+.field.cat-B .field-name::after { content: " BD placeholder"; color: var(--muted); }
+
+button {
+  padding: 0.5rem 1.2rem;
+  border: none;
+  border-radius: 3px;
+  color: var(--paper);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.approve { background: var(--approve); }
+button.reject { background: var(--reject); }
+
+.decided-already { background: var(--paper); border: 1px solid var(--line); padding: 0.75rem 1rem; }
+.status-rejected td { color: var(--muted); }
+.health-unhealthy td { background: #fff1f1; }
+.health-watch td { background: #fffbeb; }

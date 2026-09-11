@@ -83,3 +83,115 @@ sentences:
 
 # Eligibility flags that mean the reviewer has to register interest before bidding.
 register_interest_flags: ["local_registration", "consortium_required"]
+
+# The export column specification: Architecture v0.4 appendix E, in its order.
+#
+# One ordered list, read by monitor/stage/record.py to build a record and by
+# review/export.py at step 11 to write the CSV header, so the record and the export
+# cannot disagree about what a column is called or where it sits. Zoho's import
+# mapper matches on headers, so the order and the spelling are the contract.
+#
+# category, from appendix E:
+#   D  derived from the notice or candidate, written with confidence
+#   S  a heuristic suggestion, written but expected to change; the reviewer sees it
+#      in the record preview before approving and edits it there like any other field
+#   B  BD judgement only. The exporter writes the same placeholder the CRM already
+#      shows for an unfilled field and never guesses. 39 of the 73 columns are this,
+#      which is the point: an imported Monitor record should read like an early
+#      record a person started, not a machine's guess dressed up as fact.
+#
+# Generated from the appendix on 2026-09-12 and checked in; the three slash-joined
+# rows in the document ("Licenses / Implementation Services / ...") are expanded
+# into their individual columns here, which is what the CRM actually has.
+columns:
+
+  # Opportunity information
+  - {name: "Opportunity Name", category: D}
+  - {name: "Opportunity Owner", category: B}
+  - {name: "Stage", category: S}
+  - {name: "Closing Date", category: B}
+  - {name: "Finance Project ID", category: D}
+  - {name: "Account Name", category: S}
+  - {name: "Is this a Partner or Reseller-led opportunity?", category: S}
+  - {name: "Level of Government", category: D}
+  - {name: "Sales Forecasting", category: B}
+  - {name: "Proposal Type", category: S}
+  - {name: "Original Closing Date", category: B}
+  - {name: "Lead Source", category: S}
+  - {name: "Partners Involved", category: D}
+  - {name: "Pipeline", category: S}
+  - {name: "Industry", category: D}
+  - {name: "Shipping Country", category: D}
+  - {name: "Funding Source", category: D}
+  - {name: "Currency", category: S}
+
+  # Deal classification
+  - {name: "Deal Tier", category: S}
+  - {name: "Delivery Model", category: S}
+  - {name: "Expected Close Year", category: B}
+  - {name: "Customer Type", category: S}
+
+  # Eligibility requirements
+  - {name: "Eligibility Requirements Met?", category: S}
+  - {name: "Eligibility Requirements Comments", category: D}
+
+  # Partner and legal information
+  - {name: "Partner Required?", category: S}
+  - {name: "Partner Required Comments", category: D}
+  - {name: "Legal Support Required?", category: B}
+  - {name: "Legal Support Comments", category: B}
+
+  # Submission information
+  - {name: "Expected Release of RFP/EOI?", category: S}
+  - {name: "Proposal Due or Submitted", category: D}
+  - {name: "Proposal Documents Received", category: B}
+  - {name: "Pre-Bid Meeting", category: B}
+  - {name: "Deadline for Questions", category: B}
+  - {name: "Delivery Logistics and Visa Requirements", category: B}
+  - {name: "Do we need to register our interest?", category: S}
+  - {name: "Number of Copies?", category: B}
+  - {name: "Is Bid Bond Required", category: B}
+  - {name: "Format of Bid Bond", category: B}
+  - {name: "Amount of Bid Bond (if known)", category: B}
+  - {name: "Estimated Duration of Contract in Months", category: B}
+
+  # Pricing summary
+  - {name: "Licenses", category: B}
+  - {name: "Implementation Services", category: B}
+  - {name: "Software Maintenance", category: B}
+  - {name: "Academy-Training", category: B}
+  - {name: "Sustainability-Help Desk", category: B}
+  - {name: "Third Party Licenses", category: B}
+  - {name: "FreeBalance Amount", category: B}
+  - {name: "Total Opportunity Amount", category: S}
+  - {name: "Probability (%)", category: S}
+  - {name: "Tax Amount", category: B}
+  - {name: "Pricing Notes", category: D}
+
+  # Hardware and products required
+  - {name: "Hardware/Hosting", category: B}
+  - {name: "Standard or Custom Product Required?", category: S}
+  - {name: "FreeBalance Products Required", category: D}
+  - {name: "Product Gaps", category: D}
+  - {name: "Are gaps critical", category: B}
+  - {name: "Mandatory Requirements", category: B}
+  - {name: "Evaluation Weighting", category: B}
+  - {name: "Do we pass the 80/20 rule?", category: B}
+  - {name: "Third Party Software", category: B}
+  - {name: "Hardware and Systems Software", category: B}
+  - {name: "Level of Effort", category: B}
+
+  # Implementation and pricing
+  - {name: "Implementation Period", category: B}
+  - {name: "Number of Users", category: B}
+  - {name: "System Go Live", category: B}
+  - {name: "Available Budget", category: B}
+  - {name: "Warranty Period", category: B}
+  - {name: "Post-Warranty Period", category: B}
+  - {name: "Budget Notes", category: B}
+
+  # Additional information
+  - {name: "Created By", category: D}
+  - {name: "Next Steps", category: D}
+  - {name: "monitor_candidate_id", category: D}
+  - {name: "monitor_export_batch", category: D}

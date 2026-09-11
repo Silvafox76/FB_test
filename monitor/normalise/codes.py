@@ -159,3 +159,99 @@ def language_alpha2(code: str) -> str:
     if value not in LANGUAGE_ALPHA3:
         raise ValueError(f"unknown language code {code!r}; add it to LANGUAGE_ALPHA3 in monitor/normalise/codes.py")
     return LANGUAGE_ALPHA3[value]
+
+
+# ISO 3166-1 alpha-2 to the country's English short name, for appendix E's Shipping
+# Country column. The candidates table carries the two-letter code because every
+# lookup in the pipeline keys on it; the record builder needs the name because the
+# CRM's field is a picklist of names and an import that writes `GH` matches nothing.
+#
+# Scope is the same as COUNTRY_ALPHA3's values, plus the two-letter codes the
+# registry uses directly. Same rule as above: a code that is not here raises.
+COUNTRY_NAMES = {
+    "AT": "Austria",
+    "BE": "Belgium",
+    "BG": "Bulgaria",
+    "CH": "Switzerland",
+    "CY": "Cyprus",
+    "CZ": "Czechia",
+    "DE": "Germany",
+    "DK": "Denmark",
+    "ES": "Spain",
+    "EE": "Estonia",
+    "FI": "Finland",
+    "FR": "France",
+    "GB": "United Kingdom",
+    "GR": "Greece",
+    "HR": "Croatia",
+    "HU": "Hungary",
+    "IE": "Ireland",
+    "IS": "Iceland",
+    "IT": "Italy",
+    "LI": "Liechtenstein",
+    "LT": "Lithuania",
+    "LU": "Luxembourg",
+    "LV": "Latvia",
+    "MT": "Malta",
+    "NL": "Netherlands",
+    "NO": "Norway",
+    "PL": "Poland",
+    "PT": "Portugal",
+    "RO": "Romania",
+    "SK": "Slovakia",
+    "SI": "Slovenia",
+    "SE": "Sweden",
+    # West Africa
+    "BJ": "Benin",
+    "BF": "Burkina Faso",
+    "CI": "Côte d'Ivoire",
+    "GM": "Gambia",
+    "GH": "Ghana",
+    "LR": "Liberia",
+    "ML": "Mali",
+    "MR": "Mauritania",
+    "NE": "Niger",
+    "NG": "Nigeria",
+    "SN": "Senegal",
+    "SL": "Sierra Leone",
+    "TG": "Togo",
+    # Ukraine and the Western Balkans
+    "UA": "Ukraine",
+    "AL": "Albania",
+    "BA": "Bosnia and Herzegovina",
+    "XK": "Kosovo",
+    "ME": "Montenegro",
+    "MK": "North Macedonia",
+    "RS": "Serbia",
+    # Others the sources carry
+    "AR": "Argentina",
+    "MW": "Malawi",
+    "ZM": "Zambia",
+    "US": "United States",
+    "CA": "Canada",
+    "TR": "Türkiye",
+    "MA": "Morocco",
+    "TN": "Tunisia",
+    "EG": "Egypt",
+    "ZA": "South Africa",
+    "IN": "India",
+    "AU": "Australia",
+    "JP": "Japan",
+    "IL": "Israel",
+    "MD": "Moldova",
+    "GE": "Georgia",
+    "AM": "Armenia",
+    "AZ": "Azerbaijan",
+    # Not a country: TED's own notices carry EU where the buyer is an EU body, and
+    # a donor source covering many countries carries `multi`. Both reach the record
+    # builder and neither is a Shipping Country a person would key by hand.
+    "EU": "European Union",
+}
+
+
+def country_name(code: str) -> str:
+    """'GH' -> 'Ghana'. Anything unknown raises rather than exporting a bare code."""
+    value = country_alpha2(code)
+    if value not in COUNTRY_NAMES:
+        raise ValueError(f"unknown country code {code!r}; add it to COUNTRY_NAMES in monitor/normalise/codes.py")
+    return COUNTRY_NAMES[value]

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Queue — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Queue</h1>
+
+<p class="summary">
+  {{ candidates|length }} candidate{{ '' if candidates|length == 1 else 's' }} waiting,
+  about {{ minutes }} minutes of review.
+  {% if region %}<span class="muted">{{ total }} across all regions.</span>{% endif %}
+</p>
+
+<p class="filters">
+  <a class="filter {{ 'on' if not region }}" href="/">All regions</a>
+  {% for name in regions %}
+    <a class="filter {{ 'on' if region == name }}" href="/?region={{ name|urlencode }}">{{ name }}</a>
+  {% endfor %}
+</p>
+
+{% if not candidates %}
+  <p class="empty">Nothing pending. The pipeline stages on its schedule; this page is where it arrives.</p>
+{% else %}
+<table>
+  <thead>
+    <tr>
+      <th>Score</th><th>Candidate</th><th>Buyer</th><th>Country</th>
+      <th>Region</th><th>Deadline</th><th>Value (USD)</th><th>Sources</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for c in candidates %}
+    <tr>
+      <td class="score">{{ c[1] }}</td>
+      <td><a href="/candidate/{{ c[0] }}">{{ c[2] }}</a>
+          <span class="id">{{ c[0] }}</span>
+          {% if c[9] %}<span class="tags">{{ c[9]|join(', ') }}</span>{% endif %}</td>
+      <td>{{ c[3] or '—' }}</td>
+      <td>{{ c[4] }}</td>
+      <td>{{ c[5] }}</td>
+      <td>{{ c[7].date() if c[7] else '—' }}</td>
+      <td class="num">{{ '{:,}'.format(c[8]) if c[8] is not none else '—' }}</td>
+      <td>{{ c[11] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

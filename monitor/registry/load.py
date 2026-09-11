@@ -39,6 +39,7 @@ CONFIG_KINDS = {
     "thresholds.yaml": "thresholds",
     "record_defaults.yaml": "record_defaults",
     "system_names.yaml": "system_names",
+    "review.yaml": "review",
 }
 
 

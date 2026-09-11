@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Decided — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Decided</h1>
+<p class="summary">The last {{ decided|length }} decisions, newest first.</p>
+
+{% if not decided %}
+  <p class="empty">Nothing decided yet.</p>
+{% else %}
+<table>
+  <thead>
+    <tr><th>When</th><th>Status</th><th>Score</th><th>Candidate</th><th>Buyer</th>
+        <th>Country</th><th>Reviewer</th><th>Record</th><th>Exported</th></tr>
+  </thead>
+  <tbody>
+  {% for d in decided %}
+    <tr class="status-{{ d[1] }}">
+      <td>{{ d[8].strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ d[1] }}{% if d[10] %} <span class="tags">edited</span>{% endif %}</td>
+      <td class="score">{{ d[2] }}</td>
+      <td><a href="/candidate/{{ d[0] }}">{{ d[3] }}</a> <span class="id">{{ d[0] }}</span>
+          {% if d[7] %}<span class="muted">{{ d[7] }}</span>{% endif %}</td>
+      <td>{{ d[4] or '—' }}</td>
+      <td>{{ d[5] }}</td>
+      <td>{{ d[6] }}</td>
+      <td>{{ d[9] or '—' }}</td>
+      <td>{{ d[11].date() if d[11] else '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

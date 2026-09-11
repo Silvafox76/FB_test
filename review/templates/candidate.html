@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ c[0] }} — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<h1><span class="score big">{{ c[1] }}</span> {{ c[3] }}</h1>
+<p class="id">{{ c[0] }} · {{ c[2] }}</p>
+
+<section class="facts">
+  <dl>
+    <dt>Buyer</dt><dd>{{ c[4] or '—' }}</dd>
+    <dt>Country</dt><dd>{{ c[5] }} · {{ c[6] }}</dd>
+    <dt>Level of government</dt><dd>{{ c[8] }}</dd>
+    <dt>Language</dt><dd>{{ c[7] }}</dd>
+    <dt>Procurement type</dt><dd>{{ c[12] }}</dd>
+    <dt>Deadline</dt><dd>{{ c[15].strftime('%Y-%m-%d %H:%M %Z') if c[15] else 'not stated in the notice' }}</dd>
+    <dt>Estimated value</dt><dd>{{ 'USD {:,}'.format(c[13]) if c[13] is not none else 'not stated' }}</dd>
+    <dt>System names</dt><dd>{{ c[11]|join(', ') if c[11] else '—' }}</dd>
+    <dt>Eligibility flags</dt><dd>{{ c[14]|join(', ') if c[14] else 'none detected' }}</dd>
+  </dl>
+</section>
+
+<section>
+  <h2>Summary</h2>
+  <p>{{ c[9] }}</p>
+</section>
+
+<section>
+  <h2>Matched functions</h2>
+  {% if functions %}
+  <ul class="functions">
+    {% for f in functions %}
+      <li><strong>{{ f.name }}</strong><span class="evidence">“{{ f.evidence }}”</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">The model matched no function. That is worth a rejection reason of its own.</p>{% endif %}
+</section>
+
+<section>
+  <h2>Notices in this candidate</h2>
+  <table>
+    <thead><tr><th>Source</th><th>Published</th><th>Joined by</th><th>Notice</th></tr></thead>
+    <tbody>
+    {% for n in cluster %}
+      <tr>
+        <td>{{ n[1] }}</td>
+        <td>{{ n[5].date() if n[5] else '—' }}</td>
+        <td>{{ n[7] }} <span class="muted">{{ n[8] }}</span></td>
+        <td><a href="{{ n[2] }}" rel="noreferrer">{{ n[3] }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  {# Rule 9: the notice as published is the record. The English rendering is shown
+     beside it, never instead of it, and only where the two differ. #}
+  {% for n in cluster %}
+    {% if n[4] != 'en' %}
+      <div class="original">
+        <h3>{{ n[1] }} — as published ({{ n[4] }})</h3>
+        <p class="original-title">{{ n[3] }}</p>
+        {% if n[6] %}<p class="original-body">{{ n[6][:2000] }}{{ '…' if n[6]|length > 2000 }}</p>{% endif %}
+        {% if n[9] %}
+          <h4>English rendering</h4>
+          <p class="original-title">{{ n[9] }}</p>
+          {% if n[10] %}<p class="original-body">{{ n[10][:2000] }}{{ '…' if n[10]|length > 2000 }}</p>{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</section>
+
+{% if c[2] != 'pending_review' %}
+  <section class="decided-already">
+    <h2>Already decided</h2>
+    <p>{{ c[2] }} by {{ c[16] }}{% if c[17] %} — {{ c[17] }}{% endif %}
+       {% if c[18] %}(record {{ c[18] }}){% endif %}</p>
+  </section>
+{% else %}
+
+<section class="decision">
+  <h2>Decision</h2>
+
+  {# D31: permanent for the pilot. Not a placeholder for an automated check in week 5. #}
+  <p class="reminder">
+    Before approving, check Zoho for an existing Opportunity on this buyer.
+    The Monitor never searches the CRM (D31); this check is the only duplicate control.
+  </p>
+
+  <form method="post" action="/candidate/{{ c[0] }}/approve" id="approve">
+    <label class="reviewer">
+      Reviewer name
+      <input type="text" name="reviewer" required autocomplete="off" placeholder="your name, as it goes in the audit log">
+    </label>
+
+    <details>
+      <summary>Proposed record — {{ payload|length }} columns, all editable</summary>
+      <p class="muted">
+        This is what would be written to <code>approved_records</code>. Change anything here and the change is
+        stored with the record, flagged as edited and written to the audit log field by field.
+      </p>
+      <div class="payload">
+        {% for column in columns %}
+          {% set name = column.name %}
+          <label class="field cat-{{ column.category }}">
+            <span class="field-name">{{ name }}</span>
+            <input type="text" name="field:{{ name }}" value="{{ payload[name] }}">
+          </label>
+        {% endfor %}
+      </div>
+    </details>
+
+    <button type="submit" class="approve">Approve</button>
+  </form>
+
+  <form method="post" action="/candidate/{{ c[0] }}/reject"
+        onsubmit="return confirm('Reject {{ c[0] }}? This cannot be undone.')">
+    <label class="reviewer">
+      Reviewer name
+      <input type="text" name="reviewer" required autocomplete="off">
+    </label>
+    <label class="reviewer">
+      Reason
+      <select name="reason" required>
+        <option value="">choose a reason</option>
+        {% for reason in reasons %}<option value="{{ reason }}">{{ reason }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="reviewer">
+      Note (optional)
+      <input type="text" name="note" autocomplete="off" placeholder="anything the reason does not say">
+    </label>
+    <button type="submit" class="reject">Reject</button>
+  </form>
+</section>
+{% endif %}
+
+<section>
+  <h2>Proposed payload</h2>
+  <pre class="json">{{ payload|tojson(indent=2) }}</pre>
+</section>
+
+{% endblock %}

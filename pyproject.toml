@@ -10,6 +10,9 @@ dependencies = [
     "jinja2>=3.1",
     "psycopg[binary]>=3.2",
     "pydantic>=2.9",
+    # FastAPI parses no form without it: the decision form is the whole point of
+    # review/app.py, so this is not an optional extra.
+    "python-multipart>=0.0.32",
     "pyyaml>=6.0",
     "rapidfuzz>=3.10",
     "selectolax>=0.3.21",
@@ -22,6 +25,10 @@ monitor = "monitor.cli:main"
 
 [dependency-groups]
 dev = [
+    # The anthropic SDK and Starlette's TestClient are both built on httpx2 rather
+    # than httpx, so the score-client tests and the review-app page tests import it
+    # directly. It arrived transitively; naming it here says that is deliberate.
+    "httpx2>=2.12.0",
     # Read once, by scripts/export_function_map.py, to generate config/function_map.yaml
     # from the component map workbook. Nothing at runtime opens a spreadsheet.
     "openpyxl>=3.1",

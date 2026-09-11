@@ -1,0 +1,30 @@
+# The review app's configuration.
+#
+# A sixth config file rather than a list in review/app.py, because rule 6 makes a
+# fixed picklist in a .py file a finding, and because the rejection reasons are the
+# one thing the week 14 gate reads back: "why was this rejected" is a tuning
+# question, and it can only be answered if the reasons are a stable vocabulary
+# rather than free text every time. Free text is still accepted alongside a reason
+# and is stored with it.
+#
+# Not in record_defaults.yaml, which is the export's column spec, and not in
+# thresholds.yaml, which is the pipeline's.
+
+# The fixed list on the decision form, in the order it is shown. A reviewer picks
+# one and may add a note. Adding a reason is a config edit and a new config_versions
+# row; renaming one silently re-labels history, so add rather than rename.
+rejection_reasons:
+  - Not PFM
+  - Out of geography
+  - Too small
+  - Wrong procurement type
+  - Already known to BD
+  - Duplicate of an existing Opportunity
+  - Ineligible for FreeBalance
+  - Deadline already passed
+  - Not enough information in the notice
+
+# Queue sizing, shown on the queue page so the reviewer can see the session's shape
+# before starting. Six minutes is the working figure from Pilot Plan v0.4's
+# 30-minutes-a-day assumption; it is a display estimate and nothing depends on it.
+minutes_per_candidate: 6

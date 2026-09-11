@@ -1,0 +1,27 @@
+{# The shell every page sits in. One stylesheet, no framework, no script tag. #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PFM Opportunity Monitor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <span class="wordmark">PFM Opportunity Monitor</span>
+    <nav>
+      <a href="/">Queue</a>
+      <a href="/decided">Decided</a>
+      <a href="/sources">Sources</a>
+      <a href="/audit">Audit</a>
+    </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    Postgres is the system of record up to approval. Approved records leave as a CSV export and by no other route.
+  </footer>
+</body>
+</html>
