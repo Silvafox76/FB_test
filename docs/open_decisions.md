@@ -18,6 +18,23 @@ Closed items stay, with what was decided and where the decision now lives.
 | 9 | Step 5 | **The TED connector sees 3.5% of what its own query matches, and nothing pages.** The recorded query matched `totalNoticeCount` 1,449 notices; `TedConnector` requests one page of 50 and stops. Which 50 is whatever the API returns first, which is not a documented ordering. So the 50 notices in the database are an arbitrary sample of the day's matches, no recall number can be computed from them, and a real PFM opportunity published on a busy day is as likely to be missed as seen. BUILD_ORDER does not mention paging and the weekend plan's 600-call daily cap is about model calls rather than fetches, so this is not an oversight being corrected quietly; it is a gap. Options: page until the date window is exhausted, with a per-run item ceiling from the registry's `expected_max`; narrow the query so one page covers a day; or accept sampling and say so wherever recall is reported. | Step 9 or 11, before any recall number is quoted |
 | 2 | Step 3 | **The Zoho picklist values for Industry outside West Africa.** `config/record_defaults.yaml` carries `North & West Africa` from Architecture v0.4. The Europe and Balkans values are CRM picklist strings that appear in no document and in no reference record. **Decided: leave them as `TBD` and confirm at the dry-run import**, rather than guessing now. A wrong picklist value is a rejected column at import; a placeholder is one mapping decision the import operator makes once, in front of the actual picklist. Nothing exports before live mode, so no real record carries the placeholder in the meantime. This is the one derived field in appendix E that ships as a placeholder, and it is deliberate. | Step 16, at the dry-run import with the named import operator |
 
+## Logged deviations
+
+Files a step touched that its own list did not name, recorded so a reviewer does
+not have to reconstruct the reason from a comment. None of these is a decision
+anyone still has to take; they are here because CLAUDE.md asks that going outside
+a step's files be said out loud.
+
+| Step | File | Why |
+| --- | --- | --- |
+| 4 | `monitor/fetch.py` | Change detection has to write to the database and neither the connectors nor the normalisers may. New module rather than fattening `cli.py`. |
+| 4 | `monitor/normalise/codes.py` | ISO 3166 and ISO 639 conversion, needed by every source, not only TED. |
+| 5 | `migrations/005_notice_filtered_in.sql`, `monitor/models.py` | The four-value notice status vocabulary had no name for "passed the filter, waiting to be scored", which step 6 has to query for. |
+| 5 | `monitor/health/status.py`, `monitor/cli.py` | Step 5 requires per-source filter statistics printed by `monitor status`, and its acceptance test runs `monitor filter` and `monitor status`. Neither command existed. Reporting lives in `health/` rather than `filter/` so filtering does not also own rendering. |
+| 5 | `config/lexicon_fr.yaml` | A step 3 seed phrase, the bare word `formation`, failed one of step 5's own required hand-written cases by matching a communication-skills training tender. Fixed here, ahead of step 19's tuning pass, with the case written first. |
+| 5 | `.pre-commit-config.yaml` | The pinned ruff was two major versions behind the one the project installs; they formatted differently, so every commit bounced. |
+| 5 | `RUNBOOK.md` | Step 5's acceptance test says to record the drop rate there. Everything else the runbook needs is step 11's and is deliberately absent. |
+
 ## Closed
 
 | # | Raised at | Question | Decided |

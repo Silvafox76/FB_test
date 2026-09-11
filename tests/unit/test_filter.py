@@ -210,3 +210,19 @@ def test_the_filter_never_calls_a_model():
     source = Path(run_module.__file__).read_text(encoding="utf-8")
     assert "anthropic" not in source
     assert "import httpx" not in source
+
+
+@pytest.mark.parametrize(
+    ("case_name", "expected_stage"),
+    [
+        ("road construction", "cpv"),
+        ("office software with no PFM content", "lexicon"),
+        ("IFMIS replacement", "pass"),
+        ("Ukrainian notice, no lexicon yet", "translation"),
+    ],
+)
+def test_the_deciding_stage_is_a_value_not_a_substring(case_name, expected_stage, prefixes, available):
+    """Counting by sniffing filter_result would couple statistics to reviewer wording."""
+    case = next(c for c in CASES if c["name"] == case_name)
+
+    assert outcome_for(case, prefixes, available).stage == expected_stage

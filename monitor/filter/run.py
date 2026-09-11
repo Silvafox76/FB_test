@@ -20,6 +20,7 @@ never saw a notice gets a sentence, not an absence.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import psycopg
 import structlog
@@ -55,12 +56,19 @@ class FilterCounts:
         return self.dropped / self.considered if self.considered else 0.0
 
 
+# Which stage decided, as a value rather than as a substring of the sentence the
+# reviewer reads. Counting by sniffing `filter_result` would couple the statistics
+# to wording that exists to be read by a person and changed when it reads badly.
+Stage = Literal["cpv", "lexicon", "translation", "pass"]
+
+
 @dataclass(frozen=True)
 class Outcome:
-    """What the filter decided about one notice."""
+    """What the filter decided about one notice, and which stage decided it."""
 
     status: str
     filter_result: str
+    stage: Stage
 
 
 def pass_prefixes() -> list[str]:
@@ -85,21 +93,22 @@ def decide(
     """The whole filter as one pure function. No database, no clock, no model."""
     verdict = cpv_stage.check(cpv_codes, prefixes)
     if not verdict.passed:
-        return Outcome(status="filtered_out", filter_result=verdict.reason)
+        return Outcome(status="filtered_out", filter_result=verdict.reason, stage="cpv")
 
     if language not in available_lexicons:
         # Not a drop. Step 14 translates these; until then they stop here and are
         # counted, so nobody mistakes silence for an empty day.
-        return Outcome(status="detected", filter_result=NEEDS_TRANSLATION)
+        return Outcome(status="detected", filter_result=NEEDS_TRANSLATION, stage="translation")
 
     lexicon_verdict = lexicon_stage.check(title, body, available_lexicons[language])
     if not lexicon_verdict.matched:
-        return Outcome(status="filtered_out", filter_result=f"no lexicon match ({language})")
+        return Outcome(status="filtered_out", filter_result=f"no lexicon match ({language})", stage="lexicon")
 
     phrases = ", ".join(lexicon_verdict.phrases[:PHRASES_IN_RESULT])
     return Outcome(
         status="filtered_in",
         filter_result=f"{verdict.reason}, lexicon {language}: {phrases}",
+        stage="pass",
     )
 
 
@@ -130,11 +139,11 @@ def run(conn: psycopg.Connection) -> FilterCounts:
             available_lexicons=available,
         )
 
-        if outcome.status == "filtered_in":
+        if outcome.stage == "pass":
             passed += 1
-        elif outcome.filter_result == NEEDS_TRANSLATION:
+        elif outcome.stage == "translation":
             needs_translation += 1
-        elif outcome.filter_result.startswith("cpv "):
+        elif outcome.stage == "cpv":
             dropped_cpv += 1
         else:
             dropped_lexicon += 1

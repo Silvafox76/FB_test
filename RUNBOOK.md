@@ -41,45 +41,10 @@ notices; the connector fetches one page of 50 and does not page. See
 `docs/open_decisions.md` item 9. No recall claim can be made from this number, and
 none should be until paging exists.
 
-## Commands
+## What is not here yet
 
-```
-make up            # start Postgres, apply migrations, seed the registry
-make test          # ruff check and the test suite
-make fetch S=ted   # run one connector once
-make filter        # run the free filter over everything not yet filtered
-make status        # source health and the filter's arithmetic per source
-```
-
-## Reading `make status`
-
-One row per registry source. `drop rate` is `dropped / (passed + dropped)`, so it
-deliberately excludes the notices held for translation: they have not been decided
-about and counting them as kept would flatter the number. Watch `needs tr.`
-alongside it; a large value there means the filter is deciding about a small slice
-of what arrived.
-
-`state` is from `source_health`: `healthy`, `watch` at two consecutive failures or
-zero-yield runs, `unhealthy` at the source's own `max_consecutive_failures`. See
-`docs/open_decisions.md` item 6 for why that counter and an hourly schedule
-currently contradict each other.
-
-## Adding a source
-
-1. `source-onboarder` clears the terms of service and writes `sources/<id>.yaml`
-   with `enabled: false`.
-2. Add its host to the environment's network allowlist, or the fixture cannot be
-   recorded. `uv run python scripts/check_egress.py` reports what is reachable.
-3. Record a fixture from one real call into `tests/contract/fixtures/<id>.json`.
-   Never write the parser first.
-4. Write the connector and its contract test against the recorded fields.
-5. Wire it into `CONNECTORS` in `monitor/fetch.py` and flip `enabled: true`. A test
-   enforces that the registry's enabled set and that table agree.
-
-## Changing a keyword
-
-Edit `config/lexicon_en.yaml` or `config/lexicon_fr.yaml`, then `make seed`. The
-new content hash is recorded in `config_versions`, so a run can be traced back to
-the phrases that were in force. Add the case to
-`tests/unit/fixtures/filter_cases.yaml` **before** changing the lexicon, so the
-miss is provably fixed rather than patched.
+Start and stop, adding a source, reading health, changing a keyword, rolling back
+a prompt, where the logs are and where the cost line is: BUILD_ORDER step 11 owns
+all of that and writes it then. This file exists now only because step 5's
+acceptance test says to record the drop rate in it. Until step 11, `README.md` has
+the commands and `docs/open_decisions.md` has what is unsettled.
