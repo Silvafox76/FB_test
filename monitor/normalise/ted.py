@@ -31,24 +31,31 @@ SOURCE_ID = "ted"
 # public law, which takes the level of whichever authority it hangs off. Anything
 # unrecognised is national, which is the conservative reading for scoring: a
 # national buyer is the larger opportunity, so it is the one a reviewer should see.
-# An unqualified code ("body-pl", "pub-undert") states the kind of body without
-# stating its level, which covers 17 of the 50 recorded notices. National is the
-# conservative reading for those, for the same reason it is the default: a national
-# buyer is the larger opportunity and the one a reviewer should see.
-ADMIN_LEVEL_BY_LEGAL_TYPE = {
-    "cga": "national",
-    "body-pl": "national",
-    "pub-undert": "national",
-    "body-pl-cga": "national",
-    "pub-undert-cga": "national",
-    "eu-ins-bod-ag": "national",
-    "ra": "regional",
-    "body-pl-ra": "regional",
-    "pub-undert-ra": "regional",
-    "la": "local",
-    "body-pl-la": "local",
-    "pub-undert-la": "local",
-}
+# eForms buyer legal types, read off all 1,449 notices the query matched on
+# 2026-09-11: 21 distinct values. They are not an arbitrary list, they are a base
+# code optionally suffixed with the level of the authority, so the level is derived
+# from the suffix rather than from 21 hand-written rows. A 22nd code carrying a
+# known suffix maps correctly without an edit; one that does not still raises.
+LEVEL_SUFFIX = {"-cga": "national", "-ra": "regional", "-la": "local"}
+
+# Codes that carry a level on their own.
+LEVEL_CODE = {"cga": "national", "ra": "regional", "la": "local"}
+
+# Codes that state the kind of body without stating its level, which is 613 of the
+# 1,449. National is the conservative reading, the same as for an absent value: a
+# national buyer is the larger opportunity and the one a reviewer should see.
+UNQUALIFIED = frozenset(
+    {
+        "body-pl",  # body governed by public law
+        "pub-undert",  # public undertaking
+        "spec-rights-entity",  # entity with special or exclusive rights
+        "org-sub",  # sub-entity of a contracting organisation
+        "grp-p-aut",  # group of public authorities
+        "def-cont",  # defence contracting entity
+        "int-org",  # international organisation
+        "eu-ins-bod-ag",  # EU institution, body or agency
+    }
+)
 DEFAULT_ADMIN_LEVEL = "national"
 
 # TED translates the *title* into all 24 EU languages: `eng` is present on the
@@ -151,24 +158,37 @@ def _buyer(raw: dict, language: str) -> str:
 def _admin_level(raw: dict) -> str:
     """The buyer's level of government.
 
-    Absent is normal: 4 of the 50 recorded notices carry no legal type, and
-    national is the conservative reading, since a national buyer is the larger
-    opportunity and the one a reviewer should see. Present but unrecognised is
-    not normal: TED's vocabulary is longer than the ten values below, and a new
-    code silently becoming "national" is a scoring error nobody would find.
+    Absent is normal: 106 of the 1,449 notices matched on 2026-09-11 carry no
+    legal type, and national is the conservative reading. Present but unrecognised
+    is not normal, and it is worth the failure: the first full paged run hit
+    `grp-p-aut`, a code the fixture's 50 notices never contained, and it stopped
+    the run loudly instead of quietly recording the wrong level.
     """
     legal_types = raw.get("buyer-legal-type") or []
     if not legal_types:
         return DEFAULT_ADMIN_LEVEL
 
     for legal_type in legal_types:
-        if legal_type in ADMIN_LEVEL_BY_LEGAL_TYPE:
-            return ADMIN_LEVEL_BY_LEGAL_TYPE[legal_type]
+        level = admin_level_for(legal_type)
+        if level is not None:
+            return level
 
     raise ValueError(
         f"{raw['publication-number']}: unknown buyer-legal-type {legal_types}; "
-        "add it to ADMIN_LEVEL_BY_LEGAL_TYPE in monitor/normalise/ted.py"
+        "add the base code to UNQUALIFIED in monitor/normalise/ted.py, or give it a level"
     )
+
+
+def admin_level_for(legal_type: str) -> str | None:
+    """The level one eForms legal type implies, or None if the code is unknown."""
+    if legal_type in LEVEL_CODE:
+        return LEVEL_CODE[legal_type]
+    for suffix, level in LEVEL_SUFFIX.items():
+        if legal_type.endswith(suffix):
+            return level
+    if legal_type in UNQUALIFIED:
+        return DEFAULT_ADMIN_LEVEL
+    return None
 
 
 def _deadline(raw: dict):

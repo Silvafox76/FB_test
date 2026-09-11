@@ -19,6 +19,9 @@ api_url: https://api.ted.europa.eu/v3/notices/search
 tos_status: reviewed_ok        # open data, documented public API, no registration
 enabled: true         # step 4: fixture recorded 2026-09-11, contract test passing
 health:
-  expected_items_per_run: [5, 400]
+  # Measured 2026-09-11: the CPV-filtered two-day query matched 1,449 notices.
+  # The upper bound is also the paging ceiling, so raising it lets a run pull more
+  # and lowering it truncates one; it is not only a health band.
+  expected_items_per_run: [50, 2500]
   max_consecutive_failures: 3
 owner: ryan.dear

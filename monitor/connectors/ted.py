@@ -42,13 +42,24 @@ import json
 from datetime import date, timedelta
 
 import httpx
+import structlog
 
 from monitor.connectors.base import FeedConnector
 from monitor.models import RawNotice
 
+log = structlog.get_logger(__name__)
+
 API_URL = "https://api.ted.europa.eu/v3/notices/search"
-PAGE_SIZE = 50
+
+# 250 is the API's maximum, verified on 2026-09-11: limit=300 is rejected with
+# "Value (300) of parameter 'limit' exceeds maximum allowed value (250)".
+PAGE_SIZE = 250
 LOOKBACK_DAYS = 2
+
+# A run stops here even if the source says there is more, so a query that suddenly
+# matches a hundred thousand notices cannot pull them all in one pass. The real
+# ceiling per source is its registry `expected_max`; this is the absolute one.
+MAX_PAGES = 40
 
 # Verified against the live API on 2026-09-11. See the module docstring.
 FIELDS = [
@@ -88,7 +99,19 @@ REQUIRED_FIELDS = (
 
 
 class TedConnector(FeedConnector):
-    """One page of TED notices per run. No paging: 50 a day is the whole point."""
+    """Every notice the query matches, paged.
+
+    Reading one page was the original shape and it was wrong: the recorded query
+    matched 1,449 notices and the connector took the first 50, in an order the API
+    does not document. That is a 3.5% sample of its own query, so nothing
+    downstream could claim recall, and a real opportunity published on a busy day
+    was as likely to be missed as seen.
+
+    Paging is not a retry (rule 2) and not a fallback (rule 1): each page is a
+    distinct request for a distinct slice, made once, and any failure raises. The
+    pass is still one polite pass per schedule (rule 21) - sequential, one
+    connection, identified user agent - it just takes six requests rather than one.
+    """
 
     def __init__(self, source, cpv_prefixes: list[str]) -> None:
         super().__init__(source)
@@ -106,14 +129,54 @@ class TedConnector(FeedConnector):
         return f"({prefixes}) AND publication-date>={since}"
 
     def fetch_raw(self, client: httpx.Client) -> list[RawNotice]:
+        query = self.query()
+        ceiling = self.source.expected_max
+        raw_notices: list[RawNotice] = []
+        total = 0
+
+        for page in range(1, MAX_PAGES + 1):
+            document = self.fetch_page(client, query, page)
+            notices = parse_notices(document)
+            total = document.get("totalNoticeCount", 0)
+
+            raw_notices.extend(self.to_raw_notice(notice) for notice in notices)
+
+            if len(notices) < PAGE_SIZE:
+                break
+            if len(raw_notices) >= ceiling:
+                log.warning(
+                    "ted_ceiling_reached",
+                    fetched=len(raw_notices),
+                    matched=total,
+                    ceiling=ceiling,
+                    detail="raise expected_items_per_run in sources/ted.yaml or narrow the query",
+                )
+                break
+        else:
+            log.warning("ted_max_pages_reached", fetched=len(raw_notices), matched=total, max_pages=MAX_PAGES)
+
+        if total > len(raw_notices):
+            log.info("ted_partial_read", fetched=len(raw_notices), matched=total)
+
+        return raw_notices
+
+    def fetch_page(self, client: httpx.Client, query: str, page: int) -> dict:
+        """One page. One attempt; any failure raises and the base class names the source."""
         response = client.post(
             self.source.api_url,
-            json={"query": self.query(), "fields": FIELDS, "limit": PAGE_SIZE, "page": 1},
+            json={"query": query, "fields": FIELDS, "limit": PAGE_SIZE, "page": page},
             headers={"Accept": "application/json"},
         )
         response.raise_for_status()
         document = response.json()
-        return [self.to_raw_notice(notice) for notice in parse_notices(document)]
+
+        # The API says so itself when a search did not complete. An incomplete read
+        # that looks like a complete one is the failure this whole discipline is
+        # against (rule 4).
+        if document.get("timedOut"):
+            raise ValueError(f"TED reported timedOut on page {page}; the result set is incomplete")
+
+        return document
 
     def to_raw_notice(self, notice: dict) -> RawNotice:
         return self.raw_notice(

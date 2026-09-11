@@ -236,3 +236,133 @@ def test_ted_translates_titles_but_not_descriptions(notices):
         assert mapped.title_en
         if "eng" not in raw["description-proc"]:
             assert mapped.body_en == ""
+
+
+# --- paging ------------------------------------------------------------------
+
+
+class _PagingClient:
+    """A stand-in httpx client that serves a fixed number of notices in pages."""
+
+    def __init__(self, total: int, page_size: int):
+        self.total = total
+        self.page_size = page_size
+        self.pages_requested: list[int] = []
+
+    def post(self, url, json, headers):  # noqa: A002 - matches httpx's signature
+        page = json["page"]
+        self.pages_requested.append(page)
+        start = (page - 1) * self.page_size
+        count = max(0, min(self.page_size, self.total - start))
+        notices = [_stub_notice(f"{start + i}-2026") for i in range(count)]
+        return _StubResponse({"notices": notices, "totalNoticeCount": self.total, "timedOut": False})
+
+
+class _StubResponse:
+    def __init__(self, document):
+        self._document = document
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._document
+
+
+def _stub_notice(publication_number: str) -> dict:
+    return {
+        "publication-number": publication_number,
+        "notice-title": {"eng": "A notice"},
+        "description-proc": {"eng": "A description"},
+        "buyer-name": {"eng": ["A buyer"]},
+        "buyer-country": ["DEU"],
+        "buyer-legal-type": ["cga"],
+        "classification-cpv": ["48000000"],
+        "publication-date": "2026-09-09+02:00",
+        "official-language": ["ENG"],
+        "notice-type": "cn-standard",
+        "links": {"html": {"ENG": f"https://ted.europa.eu/en/notice/-/detail/{publication_number}"}},
+    }
+
+
+def test_paging_reads_the_whole_result_set(source):
+    """1,449 notices in six requests at the API's maximum page size of 250."""
+    from monitor.connectors.ted import PAGE_SIZE
+
+    client = _PagingClient(total=1449, page_size=PAGE_SIZE)
+    connector = TedConnector(source, ["48"])
+
+    notices = connector.fetch_raw(client)
+
+    assert len(notices) == 1449
+    assert client.pages_requested == [1, 2, 3, 4, 5, 6]
+
+
+def test_a_short_page_ends_the_run(source):
+    """No request is made past the end of the result set."""
+    from monitor.connectors.ted import PAGE_SIZE
+
+    client = _PagingClient(total=PAGE_SIZE - 1, page_size=PAGE_SIZE)
+
+    notices = TedConnector(source, ["48"]).fetch_raw(client)
+
+    assert len(notices) == PAGE_SIZE - 1
+    assert client.pages_requested == [1]
+
+
+def test_the_registrys_expected_max_is_the_paging_ceiling(source):
+    """A query that suddenly matches everything cannot pull it all in one pass."""
+    from monitor.connectors.ted import PAGE_SIZE
+
+    client = _PagingClient(total=1_000_000, page_size=PAGE_SIZE)
+
+    notices = TedConnector(source, ["48"]).fetch_raw(client)
+
+    assert len(notices) >= source.expected_max
+    assert len(notices) < source.expected_max + PAGE_SIZE
+
+
+def test_a_timed_out_search_raises_rather_than_returning_a_partial_set(source):
+    """The API says when a search did not complete; a partial read must not look complete."""
+
+    class _TimedOut(_PagingClient):
+        def post(self, url, json, headers):  # noqa: A002
+            return _StubResponse({"notices": [], "totalNoticeCount": 999, "timedOut": True})
+
+    with pytest.raises(ValueError, match="timedOut"):
+        TedConnector(source, ["48"]).fetch_raw(_TimedOut(total=0, page_size=1))
+
+
+@pytest.mark.parametrize(
+    ("legal_type", "expected"),
+    [
+        ("cga", "national"),
+        ("ra", "regional"),
+        ("la", "local"),
+        ("body-pl-cga", "national"),
+        ("body-pl-ra", "regional"),
+        ("body-pl-la", "local"),
+        ("org-sub-ra", "regional"),
+        ("pub-undert-la", "local"),
+        ("body-pl", "national"),
+        ("pub-undert", "national"),
+        ("spec-rights-entity", "national"),
+        ("grp-p-aut", "national"),
+        ("def-cont", "national"),
+        ("int-org", "national"),
+        ("eu-ins-bod-ag", "national"),
+        ("org-sub", "national"),
+    ],
+)
+def test_every_legal_type_the_query_actually_returns_maps(legal_type, expected):
+    """All 21 distinct values across the 1,449 notices matched on 2026-09-11."""
+    from monitor.normalise.ted import admin_level_for
+
+    assert admin_level_for(legal_type) == expected
+
+
+def test_a_genuinely_new_base_code_still_raises():
+    """grp-p-aut was missed by the 50-notice fixture and found by the first full run."""
+    from monitor.normalise.ted import admin_level_for
+
+    assert admin_level_for("some-new-eforms-code") is None

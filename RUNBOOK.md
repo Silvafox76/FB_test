@@ -11,11 +11,20 @@ a number that moves gets a new row with its date, so the trend is visible.
 
 ### Free filter drop rate
 
-| Date | Source | Fetched | Considered | Passed | Dropped | Drop rate | Held for translation |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-09-11 | ted | 50 | 9 | 0 | 9 | 100% | 41 |
+| Date | Source | Matched | Fetched | Considered | Passed | Dropped | Drop rate | Held for translation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-09-11 | ted | 1,449 | 50 | 9 | 0 | 9 | 100% | 41 |
+| 2026-09-11 | ted (paged) | 1,449 | 1,449 | 270 | 33 | 237 | 88% | 1,132 |
 
-Read that carefully, because the headline number is the least useful part of it.
+The second row is the same query after paging was fixed. Read both carefully,
+because the headline number is the least useful part of either.
+
+**Paging changed the answer from nothing to something.** Reading one page of 50
+produced zero candidates. Reading all 1,449 produced 33. Those 33 are the first
+real material the scorer will ever see, and the first run would have reported a
+clean day and found none of them.
+
+On the 50-notice first row:
 
 **41 of 50 never reached the lexicon at all.** They are in German, Polish, Finnish,
 Croatian, Spanish, Dutch and Italian, and there are only two lexicons, English and
@@ -36,10 +45,36 @@ the 41. Measured: it rescues none. This day's 50 TED notices contain no public
 financial management opportunity at all. That is a plausible result rather than a
 broken lexicon, and it is why the drop rate is not yet evidence about precision.
 
-**The sample is 3.5% of what matched.** The query matched `totalNoticeCount` 1,449
-notices; the connector fetches one page of 50 and does not page. See
-`docs/open_decisions.md` item 9. No recall claim can be made from this number, and
-none should be until paging exists.
+**The sample was 3.5% of what matched.** Fixed: the connector now pages to the end
+of the result set, six requests at the API's maximum page size of 250.
+
+## What the full read showed
+
+**1,132 notices are held for translation against a 600-call daily cap.** One
+translate call each, so a single day's TED exceeds the cap by 532 calls. The cap
+stops the run with an event, which is correct behaviour and not a bug, but it
+means TED alone consumes the whole day's model budget and the backlog grows. Cost
+is not the constraint: 1,132 calls is about USD 4.75 against a USD 25 cap. The
+call count is. See `docs/open_decisions.md` item 11.
+
+**The free filter's precision is poor, and now there is evidence.** The phrases
+doing the passing are dominated by generic terms: `establishment` (6 notices),
+`recruitment` (4), `recrutement` (3), `gouvernance` (2), `compliance` (2),
+`conformité` (2). What passes includes 360-degree feedback consultancy, job
+grading methodology, temporary staffing and graphic design. Genuinely PFM
+notices are in there too - a payroll tool, an audit mandate, grant management -
+but they are the minority. This is the free filter doing its job, which is to cut
+cost rather than to be precise, and the scorer is what judges relevance. It is
+also exactly the evidence step 19's tuning pass needs, recorded now while it is
+cheap to gather. See `docs/open_decisions.md` item 12.
+
+**42% of what we page is already decided.** Of the 1,449, `can-standard` 541,
+`can-modif` 51, `can-social` 17 and `veat` 18 are award and post-award notices for
+tenders that are finished. `cn-standard` 741 and the `pin-*` 44 are the
+opportunities. Narrowing the query would nearly halve the volume and the
+translation backlog with it, but whether an award notice is worthless is a BD
+question - it names the winner, which is competitor intelligence. See
+`docs/open_decisions.md` item 13.
 
 ## What is not here yet
 

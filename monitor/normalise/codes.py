@@ -77,9 +77,13 @@ COUNTRY_ALPHA3 = {
     "MNE": "ME",
     "MKD": "MK",
     "SRB": "RS",
-    # Others TED carries, seen in the recorded fixture
+    # Others TED carries. EU delegations publish notices for countries well outside
+    # Europe, so this is not the pilot's 47 countries. Checked against all 1,449
+    # notices the query matched on 2026-09-11: 37 distinct buyer countries, all
+    # covered.
     "ARG": "AR",
     "MWI": "MW",
+    "ZMB": "ZM",
     "USA": "US",
     "CAN": "CA",
     "TUR": "TR",
