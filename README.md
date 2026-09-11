@@ -16,7 +16,9 @@ it is enforced by review, not by memory: see `CLAUDE.md` scope rules 15 to 18.
 | `CLAUDE.md` | The engineering rules. When a request conflicts with it, it wins. |
 | `BUILD_ORDER.md` | 31 steps, one per session, each with the acceptance tests that gate its commit. |
 | `RUNBOOK.md` | Operate it: start, stop, add a source, read health, roll back a prompt. Arrives at step 11. |
-| `docs/reference/` | Architecture v0.4 and Weekend Build Plan v1.3, the documents the steps cite. |
+| `docs/reference/` | Architecture v0.4, Weekend Build Plan v1.3 and the component map workbook, the documents the steps cite. |
+| `docs/open_decisions.md` | Questions a step raised and did not settle, each with the step that has to. |
+| `docs/design_inputs.md` | What the workbook and the prototypes are each allowed to decide. |
 | `.claude/agents/` | The seven subagent definitions and the ownership table, per `.claude/agents/SETUP.md`. |
 
 ## Layout

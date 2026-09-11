@@ -15,7 +15,7 @@ connector: FeedConnector
 schedule: '0 8 * * *'          # 08:00 UTC daily
 api_url: https://search.worldbank.org/api/v2/procnotices
 tos_status: reviewed_ok        # open data, documented public API
-enabled: true
+enabled: false        # flipped on by the step that lands this connector's contract test
 health:
   expected_items_per_run: [1, 150]
   max_consecutive_failures: 3
