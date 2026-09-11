@@ -19,7 +19,6 @@ NOT_IMPLEMENTED_EXIT = 2
 IMPLEMENTED_BY = {
     "score": "step 6 (scorer)",
     "stage": "step 8 (dedupe, candidates, stager)",
-    "status": "step 4 (source health) and step 5 (filter statistics)",
     "golden": "step 7 (mini golden set)",
 }
 
@@ -34,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     fetch = subparsers.add_parser("fetch", help="run one connector once, or all of them")
     fetch.add_argument("source", help="source id from sources/*.yaml, or 'all'")
 
+    subparsers.add_parser("filter", help="run the free filter over every notice not yet filtered")
     subparsers.add_parser("score", help="score every notice that survived the filter")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
@@ -62,11 +62,43 @@ def run_fetch(source_id: str) -> int:
     return 1 if failed else 0
 
 
+def run_filter() -> int:
+    """Run the free filter and report what it kept and what it threw away."""
+    from monitor.db import connect
+    from monitor.filter.run import run
+
+    with connect("pipeline") as conn:
+        counts = run(conn)
+
+    print(
+        f"considered {counts.considered}, passed {counts.passed}, "
+        f"dropped {counts.dropped} (cpv {counts.dropped_cpv}, lexicon {counts.dropped_lexicon}), "
+        f"needs translation {counts.needs_translation}"
+    )
+    if counts.considered:
+        print(f"drop rate {counts.drop_rate:.1%}")
+    return 0
+
+
+def run_status() -> int:
+    """Source health and the filter's arithmetic, per source."""
+    from monitor.db import connect
+    from monitor.health.status import collect, render
+
+    with connect("pipeline") as conn:
+        print(render(collect(conn)))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     if args.command == "fetch":
         return run_fetch(args.source)
+    if args.command == "filter":
+        return run_filter()
+    if args.command == "status":
+        return run_status()
 
     print(f"monitor {args.command}: not implemented, arrives in {IMPLEMENTED_BY[args.command]}", file=sys.stderr)
     return NOT_IMPLEMENTED_EXIT

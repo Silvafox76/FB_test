@@ -29,7 +29,12 @@ Stream = Literal["feed", "portal", "mail"]
 AccessType = Literal["api", "rss", "public_listing", "registered", "mail"]
 ConnectorClass = Literal["FeedConnector", "PageConnector", "BrowserConnector", "MailConnector"]
 TosStatus = Literal["reviewed_ok", "reviewed_restricted", "pending"]
-NoticeStatus = Literal["detected", "filtered_out", "scored", "parked"]
+# detected      fetched and stored, not yet filtered
+# filtered_out  the free filter dropped it, with filter_result saying why
+# filtered_in   the free filter passed it; waiting for the scorer
+# scored        a model call produced a Score for it
+# parked        the model failed schema validation twice (step 6)
+NoticeStatus = Literal["detected", "filtered_out", "filtered_in", "scored", "parked"]
 CandidateStatus = Literal["detected", "filtered_out", "scored", "staged", "pending_review", "approved", "rejected"]
 ProcurementType = Literal["system", "services", "advisory", "other"]
 Confidence = Literal["high", "medium", "low"]

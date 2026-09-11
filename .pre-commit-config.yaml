@@ -2,8 +2,11 @@
 # because it ships provider rules (Anthropic, AWS, generic API keys) that catch a
 # pasted key without a baseline file to maintain. One scanner, not two (rule 1).
 repos:
+  # Pinned to the same ruff the project installs (see pyproject.toml). When the
+  # two versions differ they format differently, and every commit bounces: the
+  # hook rewrites a file the test run just formatted, which aborts the commit.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.4
+    rev: v0.16.7
     hooks:
       - id: ruff
         args: [--fix]

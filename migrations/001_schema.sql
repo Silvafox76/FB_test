@@ -77,7 +77,7 @@ create table notices (
     estimated_value_usd bigint,
     body                text,
     filter_result       text,                         -- why it was dropped, or what it matched
-    status              text not null,                -- detected | filtered_out | scored | parked
+    status              text not null,                -- vocabulary enforced by 005_notice_filtered_in.sql
     fetched_at          timestamptz not null default now()
 );
 

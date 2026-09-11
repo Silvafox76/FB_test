@@ -1,0 +1,138 @@
+# Twelve hand-written filter cases: four CPV drops, four lexicon drops, four
+# passes, at least one of them French. BUILD_ORDER step 5.
+#
+# Hand-written on purpose. These are the cases a person thought should pass or
+# drop, so when the lexicon is tuned at step 19 the change has to keep agreeing
+# with them. Cases found against real notices get added here before the lexicon
+# changes, never after, so the miss is provably fixed rather than patched.
+#
+# expect: filtered_in | filtered_out | needs_translation
+
+cases:
+  # --- four CPV drops: the buyer classified it and said it is not our market ---
+  - name: road construction
+    language: en
+    cpv_codes: ["45233120"]
+    title: Construction of the northern bypass, phase 2
+    body: Earthworks, drainage and surfacing for 14 km of trunk road.
+    expect: filtered_out
+    because: 45 is construction. Dropped before the lexicon and before any model call.
+
+  - name: catering with a financial-sounding buyer
+    language: en
+    cpv_codes: ["55520000"]
+    title: Catering services for the Ministry of Finance staff canteen
+    body: Daily hot meals and beverage service for approximately 400 staff.
+    expect: filtered_out
+    because: >-
+      The buyer is a finance ministry and the lexicon would match nothing anyway,
+      but CPV drops it first and for free. This is the case that shows why the
+      cheap stage runs first.
+
+  - name: medical equipment
+    language: fr
+    cpv_codes: ["33141000"]
+    title: Fourniture de consommables médicaux pour les hôpitaux régionaux
+    body: Marché de fourniture de consommables à usage unique.
+    expect: filtered_out
+    because: 33 is medical. A French notice still drops on CPV before the French lexicon runs.
+
+  - name: several codes, none passing
+    language: en
+    cpv_codes: ["45000000", "71000000", "34100000"]
+    title: Design and build of a vehicle maintenance depot
+    body: Architectural services and construction works.
+    expect: filtered_out
+    because: Every code is checked, not just the first. None of the three passes.
+
+  # --- four lexicon drops: right CPV, wrong subject ---
+  - name: office software with no PFM content
+    language: en
+    cpv_codes: ["48000000"]
+    title: Supply of office productivity software licences
+    body: Word processing and spreadsheet licences for 1,200 desktop users.
+    expect: filtered_out
+    because: >-
+      Software, so CPV passes. Nothing in the 33 functions is about desktop
+      licences, so the lexicon drops it. This is the case CPV alone cannot catch.
+
+  - name: website redesign
+    language: en
+    cpv_codes: ["72000000"]
+    title: Redesign and hosting of the municipal tourism website
+    body: Front-end redesign, content migration and two years of hosting.
+    expect: filtered_out
+    because: IT services with no public financial management content.
+
+  - name: French HR training, no PFM system
+    language: fr
+    cpv_codes: ["79000000"]
+    title: Prestations de formation en communication interpersonnelle
+    body: Animation de sessions de formation pour les agents du ministère.
+    expect: filtered_out
+    because: >-
+      Consultancy CPV and a government buyer, but training in communication is
+      not a PFM function. A French notice has to be droppable too.
+
+  - name: network cabling
+    language: en
+    cpv_codes: ["48800000"]
+    title: Structured cabling and network hardware refresh
+    body: Replacement of switches, patch panels and fibre across three buildings.
+    expect: filtered_out
+    because: Information systems CPV, but infrastructure rather than a PFM function.
+
+  # --- four passes, two of them French ---
+  - name: IFMIS replacement
+    language: en
+    cpv_codes: ["48440000"]
+    title: Supply and implementation of an Integrated Financial Management Information System
+    body: >-
+      The Ministry of Finance invites bids for the supply, configuration and
+      support of an IFMIS covering budget execution and the general ledger.
+    expect: filtered_in
+    because: The clearest possible pass. If this ever stops passing, the lexicon is broken.
+
+  - name: treasury single account
+    language: en
+    cpv_codes: ["72000000"]
+    title: Consultancy for the implementation of a Treasury Single Account
+    body: >-
+      Technical assistance to establish a TSA, including bank reconciliation and
+      cash forecasting arrangements.
+    expect: filtered_in
+    because: Acronym-led. TSA and cash management carry the signal, not the CPV code.
+
+  - name: French budget execution
+    language: fr
+    cpv_codes: ["48000000"]
+    title: Acquisition d'un système d'information pour l'exécution budgétaire
+    body: >-
+      Le ministère des Finances lance un appel d'offres pour un système de gestion
+      des finances publiques couvrant le contrôle des dépenses.
+    expect: filtered_in
+    because: >-
+      The French pass the acceptance test asks for. West Africa is weight 1.0 and
+      largely francophone, so a gap in the French lexicon costs more than a gap in
+      the English one.
+
+  - name: French payroll system, no CPV code at all
+    language: fr
+    cpv_codes: []
+    title: Mise en place d'un système de gestion de la paie des agents de l'État
+    body: Solution de paie et de gestion des ressources humaines pour la fonction publique.
+    expect: filtered_in
+    because: >-
+      No CPV code is not a failed CPV match. The notice goes on to the lexicon and
+      passes there. Portals that publish no classification depend on this.
+
+  # --- the language with no lexicon ---
+  - name: Ukrainian notice, no lexicon yet
+    language: uk
+    cpv_codes: ["48000000"]
+    title: Закупівля програмного забезпечення для казначейства
+    body: Впровадження інформаційної системи управління державними фінансами.
+    expect: needs_translation
+    because: >-
+      Not a drop. There is no Ukrainian lexicon, so this waits for step 14 and is
+      counted rather than disappearing.

@@ -152,7 +152,11 @@ functions:
   civil_service_performance:
   - compétences des agents
   - écart de compétences
-  - formation
+  # 'formation' alone matched a communication-skills training tender in
+  # tests/unit/fixtures/filter_cases.yaml. Qualified, because any government buys
+  # training and almost none of it is a PFM opportunity.
+  - investissement en formation
+  - plan de formation
   - développement de carrière
   civil_service_benefits_management:
   - avantages sociaux des agents
