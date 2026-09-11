@@ -128,6 +128,7 @@ def score_notice(
             tokens_out=tokens_out,
             latency_ms=latency_ms,
             cache_read_tokens=getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+            cache_write_tokens=getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         )
 
         raw_input = _tool_input(response)

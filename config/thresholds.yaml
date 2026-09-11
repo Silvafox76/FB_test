@@ -100,8 +100,12 @@ rate_card:
   claude-sonnet-5:
     input: 2.00
     output: 10.00
-  # A cache read is billed at a tenth of the input rate.
+  # A cache read is billed at a tenth of the input rate; writing the cache costs a
+  # quarter more than fresh input. Both are needed to reconstruct a bill: the
+  # scorer caches a ~7,500-token system block, so on a run of any length the cache
+  # components are most of what was actually paid.
   cache_read_factor: 0.1
+  cache_write_factor: 1.25
 
 # How much of a notice body reaches the scorer. Architecture v0.4 section 8 says
 # "the first 3,000 tokens of body text"; this is that budget in characters, because
