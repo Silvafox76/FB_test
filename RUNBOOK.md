@@ -15,6 +15,23 @@ a number that moves gets a new row with its date, so the trend is visible.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-09-11 | ted | 1,449 | 50 | 9 | 0 | 9 | 100% | 41 |
 | 2026-09-11 | ted (paged) | 1,449 | 1,449 | 270 | 33 | 237 | 88% | 1,132 |
+| 2026-09-12 | fts | 25 | 25 | 25 | 2 | 23 | 92% | 0 |
+| 2026-09-12 | prozorro | ~2,000/day | 400 | 380 | 0 | 380 | 100% | 10 |
+
+Three sources, 94.8% dropped overall for the price of zero model calls.
+
+**Prozorro is what the CPV stage is for.** 380 of its 390 notices were dropped on
+their classification alone: tyres, fuel, food, vehicle parts, the ordinary goods
+procurement of a country at war. None of it reached a model and none of it cost
+anything. It is also why the Prozorro connector filters the change feed on status
+before fetching detail: about 2,000 tenders are modified a day, only 9% are open to
+a bidder, and a detail record is 110 KB.
+
+**Prozorro's run hit its ceiling.** 400 details is `expected_max` in
+`sources/prozorro.yaml`, so this is a sample of the day rather than the day. Unlike
+TED, the ceiling is a real limit rather than a safety net, because the only way to
+see a tender's subject is to fetch it in full. Raising it raises the request count
+one for one.
 
 The second row is the same query after paging was fixed. Read both carefully,
 because the headline number is the least useful part of either.

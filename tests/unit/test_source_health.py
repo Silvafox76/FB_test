@@ -60,7 +60,7 @@ def test_a_failed_run_does_not_move_the_last_success():
 
 
 def test_zero_yield_on_a_yielding_source_is_a_failure_state():
-    """200 OK and nothing new is how a silently broken parser looks."""
+    """200 OK and nothing seen at all is how a silently broken parser looks."""
     first = next_health(healthy_source(), outcome(seen=0, new=0), expected_min=5, max_consecutive_failures=MAX_FAILURES)
     second = next_health(first, outcome(seen=0, new=0), expected_min=5, max_consecutive_failures=MAX_FAILURES)
 
@@ -86,14 +86,30 @@ def test_zero_yield_is_not_a_failure_on_a_source_that_may_publish_nothing():
     assert (health.zero_yield_runs, health.state) == (0, "healthy")
 
 
-def test_seen_but_nothing_new_still_counts_as_zero_yield():
-    """A second run over unchanged notices is the normal case the counter tolerates once."""
+def test_seen_but_nothing_new_is_a_healthy_run():
+    """The re-read case, and the reason the counter is on items_seen.
+
+    TED's query looks back two days, so every run after the first on a given day
+    sees over a thousand notices and takes none of them. Counting that as zero
+    yield put a working source at unhealthy within three hours, which is what
+    step 9's acceptance caught.
+    """
     health = next_health(
-        healthy_source(), outcome(seen=40, new=0), expected_min=5, max_consecutive_failures=MAX_FAILURES
+        healthy_source(), outcome(seen=1449, new=0), expected_min=50, max_consecutive_failures=MAX_FAILURES
     )
 
-    assert health.zero_yield_runs == 1
+    assert health.zero_yield_runs == 0
+    assert health.state == "healthy"
     assert health.last_success_at == AT
+
+
+def test_repeated_re_reads_never_reach_unhealthy():
+    """The bug this fixed: three hourly runs over an unchanged window."""
+    health = healthy_source()
+    for _ in range(5):
+        health = next_health(health, outcome(seen=1449, new=0), expected_min=50, max_consecutive_failures=MAX_FAILURES)
+
+    assert health.state == "healthy"
 
 
 def test_a_good_run_clears_a_zero_yield_streak():

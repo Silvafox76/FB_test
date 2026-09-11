@@ -11,8 +11,6 @@ deadline is parsed by rule from the original date string.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import structlog
 
 from monitor.connectors.ted import notice_url
@@ -21,6 +19,7 @@ from monitor.normalise.codes import country_alpha2, language_alpha2
 from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
+from monitor.normalise.mapped import MappedNotice
 
 log = structlog.get_logger(__name__)
 
@@ -65,26 +64,7 @@ DEFAULT_ADMIN_LEVEL = "national"
 ENGLISH = "eng"
 
 
-@dataclass(frozen=True)
-class TedNotice:
-    """A mapped notice and the English rendering TED supplied alongside it.
-
-    `title_en` is not on `Notice` because an English title is a derived field with
-    a provenance, and TED's provenance is TED rather than a model call. It is
-    carried here so the scorer can use it without a translation and without
-    anything overwriting `notice.title` (rule 9).
-
-    `body_en` is empty far more often than not: TED translates titles, not
-    descriptions. Empty means no English was published, never that the body was
-    English.
-    """
-
-    notice: Notice
-    title_en: str
-    body_en: str
-
-
-def map_notice(raw: dict) -> TedNotice:
+def map_notice(raw: dict) -> MappedNotice:
     """One TED search result to a Notice. Raises on anything it cannot map."""
     language = language_alpha2(raw["official-language"][0])
     original = raw["official-language"][0].lower()
@@ -113,7 +93,7 @@ def map_notice(raw: dict) -> TedNotice:
         body=body,
         status="detected",
     )
-    return TedNotice(
+    return MappedNotice(
         notice=notice,
         title_en=_english(raw["notice-title"], "notice-title", external_id),
         body_en=_english(raw["description-proc"], "description-proc", external_id),

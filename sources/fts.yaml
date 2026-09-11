@@ -11,8 +11,9 @@ connector: FeedConnector
 schedule: '0 7 * * *'          # 07:00 UTC daily
 api_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages
 tos_status: reviewed_ok        # Open Government Licence, OCDS release packages
-enabled: false        # flipped on by the step that lands this connector's contract test
+enabled: true         # step 9: fixture recorded 2026-09-12, contract test passing
 health:
-  expected_items_per_run: [1, 120]
+  # Measured 2026-09-12: 25 tender-stage releases in a two-day window.
+  expected_items_per_run: [1, 200]
   max_consecutive_failures: 3
 owner: ryan.dear

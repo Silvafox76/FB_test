@@ -35,9 +35,13 @@ import structlog
 import yaml
 
 from monitor.connectors.base import ConnectorError
+from monitor.connectors.fts import FtsConnector
+from monitor.connectors.prozorro import ProzorroConnector
 from monitor.connectors.ted import TedConnector
 from monitor.health import source_health
 from monitor.models import Source, Translation
+from monitor.normalise import fts as fts_normalise
+from monitor.normalise import prozorro as prozorro_normalise
 from monitor.normalise import ted as ted_normalise
 from monitor.registry.load import CONFIG_DIR, load_sources
 
@@ -51,6 +55,8 @@ STORAGE = REPO / "storage"
 # A source with no entry raises: there is no generic fallback connector (rule 1).
 CONNECTORS = {
     "ted": (TedConnector, ted_normalise.map_notice),
+    "prozorro": (ProzorroConnector, prozorro_normalise.map_notice),
+    "fts": (FtsConnector, fts_normalise.map_notice),
 }
 
 # The provenance stamped on an English rendering the source itself supplied, as

@@ -13,8 +13,11 @@ connector: FeedConnector
 schedule: '30 6 * * *'         # 06:30 UTC daily
 api_url: https://public.api.openprocurement.org/api/2.5/tenders
 tos_status: reviewed_ok        # public API, open data by law
-enabled: false        # flipped on by the step that lands this connector's contract test
+enabled: true         # step 9: fixture recorded 2026-09-12, contract test passing
 health:
-  expected_items_per_run: [10, 500]
+  # Measured 2026-09-12: about 2,000 tenders are modified a day and roughly 9% of
+  # them are open to a bidder, so a day's run fetches on the order of 180 details.
+  # The upper bound is also the detail-request ceiling.
+  expected_items_per_run: [5, 400]
   max_consecutive_failures: 3
 owner: ryan.dear

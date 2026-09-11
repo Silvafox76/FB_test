@@ -9,7 +9,7 @@ The transition rules, from BUILD_ORDER step 4:
 
   - a successful run with new items resets the failure and zero-yield counters;
   - a failed run increments consecutive_failures;
-  - a run that yields nothing new on a source whose expected_min is above zero
+  - a run that *sees* nothing on a source whose expected_min is above zero
     increments zero_yield_runs;
   - either counter at 2 puts the source in `watch`, and at the source's own
     `max_consecutive_failures` it is `unhealthy`.
@@ -17,6 +17,16 @@ The transition rules, from BUILD_ORDER step 4:
 `next_health` is pure: it takes the current row and the run outcome and returns
 the next row. The database write is separate so the rules can be tested without
 one, and so there is one place to read them.
+
+**Why zero yield is counted on `items_seen` and not on `items_new`.** BUILD_ORDER
+step 4 says "zero new items"; that was written for a daily schedule and it is wrong
+for any other. TED's query looks back two days, so every run after the first on a
+given day legitimately sees 1,449 notices and takes none of them. Under the literal
+rule TED reached `watch` after two runs and `unhealthy` after three, which is what
+step 9's acceptance caught: it asks for three healthy sources and got two. A parser
+that has broken returns nothing at all; a parser that works and re-reads its window
+returns rows already stored. `items_seen` tells those apart and `items_new` cannot.
+Open decision 6, closed here.
 """
 
 from __future__ import annotations
@@ -70,7 +80,7 @@ def next_health(current: Health, outcome: RunOutcome, expected_min: int, max_con
 
     # A run that reached the source and parsed it is a success for the failure
     # counter even when it brought back nothing: the source answered.
-    zero_yield = expected_min > 0 and outcome.items_new == 0
+    zero_yield = expected_min > 0 and outcome.items_seen == 0
     zero_yield_runs = current.zero_yield_runs + 1 if zero_yield else 0
 
     return Health(
