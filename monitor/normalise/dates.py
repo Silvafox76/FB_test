@@ -32,9 +32,17 @@ DATE_FORMATS = (
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%dT%H:%M%z",
     "%Y-%m-%dT%H:%M",
+    # TED publishes a date with an offset and no time at all ("2026-09-09+02:00"),
+    # for both the publication date and the per-lot deadlines. Recorded from the
+    # live API on 2026-09-11.
+    "%Y-%m-%d%z",
     "%Y-%m-%d",
     "%Y%m%d",
 )
+
+# The formats that carry no time of day. A deadline in one of these is the end of
+# that day; a publication date is its midnight.
+DATE_ONLY_FORMATS = ("%Y-%m-%d%z", "%Y-%m-%d", "%Y%m%d")
 
 
 def parse_deadline(raw: str, *, source_id: str = "", url: str = "") -> datetime | None:
@@ -57,8 +65,8 @@ def parse_deadline(raw: str, *, source_id: str = "", url: str = "") -> datetime 
             parsed = datetime.strptime(text, fmt)
         except ValueError:
             continue
-        if fmt in ("%Y-%m-%d", "%Y%m%d"):
-            parsed = datetime.combine(parsed.date(), datetime.max.time())
+        if fmt in DATE_ONLY_FORMATS:
+            parsed = datetime.combine(parsed.date(), datetime.max.time(), tzinfo=parsed.tzinfo)
         return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed
 
     log.warning("deadline_unparsed", raw=raw, source_id=source_id, url=url)

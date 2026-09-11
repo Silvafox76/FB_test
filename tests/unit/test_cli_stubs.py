@@ -11,9 +11,8 @@ from monitor.cli import IMPLEMENTED_BY, NOT_IMPLEMENTED_EXIT, main
 
 @pytest.mark.parametrize("command", sorted(IMPLEMENTED_BY))
 def test_stub_exits_two_and_names_its_step(command, capsys):
-    argv = [command, "ted"] if command == "fetch" else [command]
-
-    assert main(argv) == NOT_IMPLEMENTED_EXIT
+    """fetch is not here any more: it was implemented at step 4."""
+    assert main([command]) == NOT_IMPLEMENTED_EXIT
     assert "not implemented" in capsys.readouterr().err
 
 

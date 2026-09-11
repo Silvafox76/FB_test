@@ -17,7 +17,7 @@ connector: FeedConnector
 schedule: '0 6 * * *'          # 06:00 UTC daily; TED publishes overnight
 api_url: https://api.ted.europa.eu/v3/notices/search
 tos_status: reviewed_ok        # open data, documented public API, no registration
-enabled: false        # flipped on by the step that lands this connector's contract test
+enabled: true         # step 4: fixture recorded 2026-09-11, contract test passing
 health:
   expected_items_per_run: [5, 400]
   max_consecutive_failures: 3

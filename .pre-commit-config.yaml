@@ -21,5 +21,11 @@ repos:
         args: [--maxkb=4096]  # the component map workbook is 3.3 MB and is a source of record
       - id: check-merge-conflict
       - id: check-yaml
+      - id: check-json
+      # Recorded fixtures are evidence of what a source actually returned. A hook
+      # that rewrites one makes the diff lie about the API, so the two whitespace
+      # fixers skip them. Size and JSON validity are still checked above.
       - id: end-of-file-fixer
+        exclude: ^tests/contract/fixtures/
       - id: trailing-whitespace
+        exclude: ^tests/contract/fixtures/

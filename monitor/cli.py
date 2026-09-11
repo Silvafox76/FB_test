@@ -17,7 +17,6 @@ NOT_IMPLEMENTED_EXIT = 2
 # Command -> the BUILD_ORDER.md step that implements it. Kept here so a stub can
 # say what is missing rather than only that something is.
 IMPLEMENTED_BY = {
-    "fetch": "step 4 (TED connector, change detection, normaliser)",
     "score": "step 6 (scorer)",
     "stage": "step 8 (dedupe, candidates, stager)",
     "status": "step 4 (source health) and step 5 (filter statistics)",
@@ -43,8 +42,32 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def run_fetch(source_id: str) -> int:
+    """Run one connector once and report seen, new and failed."""
+    from monitor.db import connect
+    from monitor.fetch import fetch
+
+    with connect("pipeline") as conn:
+        results = fetch(conn, source_id)
+
+    failed = 0
+    for result in results:
+        if result.failed:
+            failed += 1
+            print(f"{result.source_id}: FAILED {result.error}", file=sys.stderr)
+        else:
+            print(f"{result.source_id}: seen {result.seen}, new {result.new}")
+
+    print(f"seen {sum(r.seen for r in results)}, new {sum(r.new for r in results)}, failed {failed}")
+    return 1 if failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.command == "fetch":
+        return run_fetch(args.source)
+
     print(f"monitor {args.command}: not implemented, arrives in {IMPLEMENTED_BY[args.command]}", file=sys.stderr)
     return NOT_IMPLEMENTED_EXIT
 

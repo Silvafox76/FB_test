@@ -46,24 +46,35 @@ PAGE_SIZE = 50
 def build_query(pass_prefixes: list[str]) -> str:
     """CPV in the pass prefixes, published in the last two days.
 
-    UNVERIFIED expert-query syntax. Adjust against the live API's response.
+    Expert-query syntax verified against the live API on 2026-09-11: dates are
+    yyyymmdd with no separators, and `field=value*` is the prefix form.
     """
-    since = (date.today() - timedelta(days=LOOKBACK_DAYS)).isoformat()
+    since = (date.today() - timedelta(days=LOOKBACK_DAYS)).strftime("%Y%m%d")
     cpv = " OR ".join(f"classification-cpv={prefix}*" for prefix in pass_prefixes)
     return f"({cpv}) AND publication-date>={since}"
 
 
-# UNVERIFIED field list. Whatever the API returns is what the parser reads.
+# Verified against the live API on 2026-09-11. `fields` is mandatory and every
+# name is validated server side: TED v3 uses eForms business-term names, and a
+# name that is not one of the 1,830 supported values fails the whole request with
+# a 400 listing all of them. These are the ones the normaliser reads; the suffix
+# says which level of the notice the value sits at (-proc is the procedure,
+# -lot is a lot).
 FIELDS = [
-    "publication-number",
-    "notice-title",
-    "buyer-name",
-    "buyer-country",
-    "classification-cpv",
-    "publication-date",
-    "deadline-receipt-tender",
+    "publication-number",  # external_id
+    "notice-title",  # title
+    "description-proc",  # body
+    "buyer-name",  # buyer
+    "buyer-country",  # country
+    "buyer-legal-type",  # admin_level, national unless it says otherwise
+    "classification-cpv",  # cpv_codes
+    "publication-date",  # published_at
+    "deadline-receipt-tender-date-lot",  # deadline_at, per lot
+    "estimated-value-proc",  # estimated_value_usd, with its currency below
+    "estimated-value-cur-proc",
+    "official-language",  # language
     "notice-type",
-    "links",
+    "links",  # url
 ]
 
 
