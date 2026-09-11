@@ -22,6 +22,9 @@ monitor = "monitor.cli:main"
 
 [dependency-groups]
 dev = [
+    # Read once, by scripts/export_function_map.py, to generate config/function_map.yaml
+    # from the component map workbook. Nothing at runtime opens a spreadsheet.
+    "openpyxl>=3.1",
     "pre-commit>=4.0",
     "pytest>=8.3",
     "ruff>=0.7",

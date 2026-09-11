@@ -1,0 +1,24 @@
+# Tenders Electronic Daily, the EU's publication of above-threshold notices.
+# Covers is the EU/EEA set TED publishes for; country is EU because the notices are
+# not published by a single country.
+id: ted
+name: Tenders Electronic Daily
+country: EU
+# ISO codes are quoted because YAML reads a bare NO as boolean false, which the
+# registry catches but which is better not written in the first place.
+covers: ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'IS', 'LV', 'LI', 'LT',
+         'LU', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']
+language: en
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+schedule: '0 6 * * *'          # 06:00 UTC daily; TED publishes overnight
+api_url: https://api.ted.europa.eu/v3/notices/search
+tos_status: reviewed_ok        # open data, documented public API, no registration
+enabled: true
+health:
+  expected_items_per_run: [5, 400]
+  max_consecutive_failures: 3
+owner: ryan.dear

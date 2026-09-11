@@ -57,9 +57,10 @@ make up                       # start Postgres, wait for healthy, apply migratio
 make test                     # ruff check and the test suite
 ```
 
-`make up` applies `migrations/*.sql` as `DATABASE_URL_OWNER` and then sets the three role passwords from
-the environment, which is why no password appears in a `.sql` file. The owner role needs `CREATEROLE`;
-the compose superuser has it. Running `make up` again applies nothing.
+`make up` applies `migrations/*.sql` as `DATABASE_URL_OWNER`, sets the three role passwords from the
+environment (which is why no password appears in a `.sql` file), then seeds the registry from
+`sources/*.yaml` and `config/*.yaml`. The owner role needs `CREATEROLE`; the compose superuser has it.
+Running `make up` again applies no migration and re-seeds idempotently.
 
 `make test` needs the database up: `tests/roles/test_roles.py` connects as all three roles and fails
 rather than skipping when they are not there.
@@ -90,5 +91,13 @@ landed at step 2, before any code that might need it, and runs on every commit f
 
 ## Build status
 
-Step 2 of 31 (schema and roles) complete. The checkpoint test runs on every commit in CI. See
+Step 3 of 31 (registry, models, config) complete. The checkpoint test runs on every commit in CI. See
 `BUILD_ORDER.md` for what is next and what gates it.
+
+`config/function_map.yaml` is generated, not hand-written. Regenerate it with:
+
+```bash
+uv run python scripts/export_function_map.py
+```
+
+Everything else under `config/` and all of `sources/` is hand-edited and validated on load.

@@ -1,0 +1,85 @@
+# The record builder's defaults, from Architecture v0.4 appendix E.
+#
+# One file, so a BD change to a default is a config edit and not a code change
+# (rule 6). monitor/stage/record.py reads this and invents nothing that is not here.
+#
+# Appendix E's categories: D derived from the notice or candidate and written with
+# confidence; S a heuristic suggestion the reviewer sees and edits before approving;
+# B BD judgement only, where the exporter writes the same placeholder the CRM
+# already shows for an unfilled field and never guesses. Every B field below is a
+# placeholder on purpose: an imported Monitor record should read like an early
+# record a person started, not a machine's guess dressed up as fact.
+
+# The literal strings the CRM already uses for an unfilled field. Never a database
+# NULL that renders as blank with no explanation.
+placeholders:
+  tbd: "TBD"
+  unknown: "Unknown"
+  dash: "-"
+  zero: 0
+
+# S fields: fixed defaults for every Monitor record, editable by the reviewer.
+suggested:
+  currency: "USD"
+  probability_pct: 10
+  pipeline: "Standard (Sales Opportunity)"
+  standard_or_custom: "Standard (COTS)"
+  delivery_model_default: "Direct"
+  # Used instead when the candidate's cluster names a donor or partner source.
+  delivery_model_partner_supported: "Direct (Partner-Supported)"
+  customer_type_default: "New Customer"
+  lead_source: "Monitor"
+  proposal_type_default: "RFP (or similar)"
+  partner_led_default: "No"
+
+# Deal Tier by score band. Below stage_threshold nothing is staged, so there is no
+# tier 3 row: a candidate that low never reaches a record.
+deal_tier:
+  tier_1_min_score: 85
+  tier_1: "Tier 1"
+  tier_2: "Tier 2"
+
+# Level of Government, from the candidate's admin_level.
+level_of_government:
+  national: "Central"
+  regional: "Local/Regional"
+  local: "Local/Regional"
+  donor: "Central"
+
+# Industry, by the candidate's region. Only the West Africa value is stated in
+# Architecture v0.4. The other two are picklist values held in the CRM and are not
+# in the architecture or in the Ghana reference record, so they are placeholders
+# until the step 16 dry-run import confirms them with the named import operator.
+# A wrong picklist value is a rejected column at import; a placeholder is one
+# mapping decision the operator makes once.
+industry_by_region:
+  West Africa: "North & West Africa"
+  Balkans and Ukraine: "TBD"
+  Europe: "TBD"
+  default: "TBD"
+
+# Funding Source, from the donor stream tag on the matched source. Anything with no
+# donor source in its cluster is a government's own budget.
+funding_source_by_stream:
+  worldbank: "World Bank (IDA/IBRD)"
+  afdb: "AfDB"
+  eu: "EU"
+  mcc: "MCC"
+  isdb: "IsDB"
+  boad: "BOAD"
+  ebrd: "EBRD"
+  undp: "UNDP"
+  default: "Government budget"
+
+# D fields whose text is a fixed sentence with values substituted in. Held here so
+# the wording is a config change, not a code change.
+sentences:
+  eligibility_none_detected: "No eligibility barriers detected in the notice text."
+  pricing_notes: "{funding_source}{project_id}; estimated value {value}. Monitor-estimated, unverified."
+  next_steps: >-
+    Approved by {reviewer} on {date}. Validate opportunity details; confirm the Account link;
+    confirm funding source; register interest if required.
+  account_name_proposal: "proposed: {buyer}"
+
+# Eligibility flags that mean the reviewer has to register interest before bidding.
+register_interest_flags: ["local_registration", "consortium_required"]

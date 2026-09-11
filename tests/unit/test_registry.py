@@ -1,0 +1,174 @@
+"""The registry loads or it fails naming the file and the field. No third outcome.
+
+Configuration feeds almost every later stage, so a bad field has to surface here
+rather than three stages downstream as a missing key (rule 4).
+"""
+
+from __future__ import annotations
+
+import shutil
+
+import pytest
+import yaml
+
+from monitor.registry import RegistryError, load_function_map, load_lexicon, load_sources
+from monitor.registry.load import CONFIG_DIR, SOURCES_DIR
+
+EXPECTED_SOURCES = {"ted", "prozorro", "fts", "worldbank"}
+
+
+@pytest.fixture
+def sources_copy(tmp_path):
+    """A writable copy of sources/, so a test can break one file and see what happens."""
+    directory = tmp_path / "sources"
+    shutil.copytree(SOURCES_DIR, directory)
+    return directory
+
+
+def test_all_four_sources_load():
+    sources = {source.id for source in load_sources()}
+
+    assert sources == EXPECTED_SOURCES
+
+
+def test_every_source_is_a_feed_connector_this_weekend():
+    """Playwright arrives at step 17 and not before (CLAUDE.md, Stack)."""
+    assert {source.connector_class for source in load_sources()} == {"FeedConnector"}
+
+
+def test_a_misspelled_field_fails_naming_the_field(sources_copy):
+    path = sources_copy / "ted.yaml"
+    document = yaml.safe_load(path.read_text())
+    document["admin_levle"] = document.pop("admin_level")
+    path.write_text(yaml.safe_dump(document))
+
+    with pytest.raises(RegistryError) as raised:
+        load_sources(sources_copy)
+
+    message = str(raised.value)
+    assert "ted.yaml" in message
+    assert "admin_levle" in message or "admin_level" in message
+
+
+def test_an_out_of_vocabulary_value_fails_naming_the_field(sources_copy):
+    path = sources_copy / "fts.yaml"
+    document = yaml.safe_load(path.read_text())
+    document["connector"] = "ScrapyConnector"
+    path.write_text(yaml.safe_dump(document))
+
+    with pytest.raises(RegistryError) as raised:
+        load_sources(sources_copy)
+
+    assert "fts.yaml" in str(raised.value)
+    assert "connector" in str(raised.value)
+
+
+def test_a_duplicate_id_fails_naming_both_files(sources_copy):
+    document = yaml.safe_load((sources_copy / "ted.yaml").read_text())
+    document["name"] = "A second registry entry claiming the same id"
+    (sources_copy / "ted_copy.yaml").write_text(yaml.safe_dump(document))
+
+    with pytest.raises(RegistryError) as raised:
+        load_sources(sources_copy)
+
+    message = str(raised.value)
+    assert "duplicate source id" in message
+    assert "ted" in message
+
+
+def test_an_empty_directory_fails(tmp_path):
+    """Zero sources is a broken checkout, not an empty success (rule 4)."""
+    with pytest.raises(RegistryError):
+        load_sources(tmp_path)
+
+
+def test_the_function_map_has_the_thirty_three_functions():
+    functions = load_function_map()
+
+    assert len(functions) == 33
+    assert len({function["pillar"] for function in functions}) == 8
+
+
+def test_every_function_has_a_weight_from_the_lookup():
+    type_weights = set(yaml.safe_load((CONFIG_DIR / "function_map.yaml").read_text())["type_weights"].values())
+
+    assert {function["type_weight"] for function in load_function_map()} <= type_weights | {1.0}
+
+
+def test_pillar_eight_has_no_product_and_says_why():
+    """The workbook has no product mapping for Government Service Delivery."""
+    unmapped = [function for function in load_function_map() if not function["product"]]
+
+    assert unmapped, "expected at least the pillar 8 functions to have no product"
+    for function in unmapped:
+        assert function["product_note"], f"{function['function_id']} has no product and no note"
+
+
+def test_both_lexicons_cover_every_function():
+    function_ids = {function["function_id"] for function in load_function_map()}
+
+    for language in ("en", "fr"):
+        phrases, content_hash = load_lexicon(language)
+        assert set(phrases) == function_ids
+        assert len(content_hash) == 64
+
+
+def test_a_lexicon_declaring_the_wrong_language_fails(tmp_path):
+    path = tmp_path / "lexicon_fr.yaml"
+    path.write_text(yaml.safe_dump({"language": "en", "functions": {"policy_management": ["policy"]}}))
+
+    with pytest.raises(RegistryError) as raised:
+        load_lexicon("fr", path)
+
+    assert "language" in str(raised.value)
+
+
+def test_every_system_name_in_claude_md_appears_in_the_english_lexicon():
+    """The system names are the strongest single signal the free filter has."""
+    system_names = [
+        "IFMIS",
+        "GIFMIS",
+        "IPPIS",
+        "TSA",
+        "HRMIS",
+        "ITAS",
+        "e-procurement",
+        "SIGIF",
+        "SIGFiP",
+        "AGFIS",
+        "ISFU",
+        "SIGMAP",
+        "RACHAD",
+        "KFMIS",
+    ]
+    phrases, _ = load_lexicon("en")
+    blob = " ".join(phrase for phrases_for_function in phrases.values() for phrase in phrases_for_function).lower()
+
+    missing = [name for name in system_names if name.lower() not in blob]
+    assert not missing, f"system names absent from the English lexicon: {missing}"
+
+
+def test_product_mapping_reproduces_the_appendix_e_examples():
+    """Architecture v0.4 appendix E names these pairs; the generator must agree.
+
+    Each function has many components and each component carries its own status for
+    the same product, so the generator keeps the best status across the function.
+    Appendix E reads 4.2 as "Available; not Available" across its two products,
+    which is only true under that rule.
+    """
+    by_number = {function["name"].split()[0].rstrip("."): function for function in load_function_map()}
+
+    assert by_number["4.2"]["product_status"] == {
+        "Public Debt and Guarantee Management": "Available",
+        "Public Financial Investments": "Low Priority",
+    }
+    assert by_number["6.1"]["product"] == [
+        "Revenue and Receipts Mobilization",
+        "Tax Administration Mobilization",
+    ]
+    assert by_number["7.3"]["product"] == [
+        "Payroll and Wage Bills",
+        "Public Service Talent and Capital Human Capital",
+    ]
+    assert by_number["5.1"]["product_status"]["Electronic Public Procurement"] == "Available"
+    assert by_number["2.3"]["product_status"]["Core Financial Execution and Reporting"] == "Available"

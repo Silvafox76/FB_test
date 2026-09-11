@@ -1,0 +1,50 @@
+# Every number the scorer, the filter and the stager read. A threshold, a weight or
+# a CPV prefix hardcoded in a .py file is a finding (rule 6). Changing one of these
+# is a config change with a version history, never a deployment.
+
+# A candidate below this never reaches the review queue. 60 in shadow mode.
+stage_threshold: 60
+
+# At most this many candidates from one source reach the queue in one day, counted
+# on the primary notice's source. It bounds reviewer load when a portal publishes a
+# hundred notices at once; the rest stay at status 'scored' and are not lost.
+per_source_daily_cap: 15
+
+# Scores in this band are re-scored on a larger model at step 20. The band is the
+# region where the small model's own confidence is worth a second opinion.
+rescore_band: [40, 70]
+
+# Multiplies the model's relevance for the country the notice was published in.
+# West Africa is the pilot's priority market, the Balkans and Ukraine are the
+# secondary one, and everything else is the long tail worth reading but not
+# chasing. CLAUDE.md, Domain notes.
+geography:
+  # West Africa, 1.0
+  BJ: 1.0   # Benin
+  BF: 1.0   # Burkina Faso
+  CI: 1.0   # Côte d'Ivoire
+  GM: 1.0   # The Gambia
+  GH: 1.0   # Ghana
+  LR: 1.0   # Liberia
+  ML: 1.0   # Mali
+  MR: 1.0   # Mauritania
+  NE: 1.0   # Niger
+  NG: 1.0   # Nigeria
+  SN: 1.0   # Senegal
+  SL: 1.0   # Sierra Leone
+  TG: 1.0   # Togo
+  # Ukraine and the Western Balkans, 0.8
+  UA: 0.8   # Ukraine
+  AL: 0.8   # Albania
+  BA: 0.8   # Bosnia and Herzegovina
+  XK: 0.8   # Kosovo, which uses XK
+  ME: 0.8   # Montenegro
+  MK: 0.8   # North Macedonia
+  # EU, EEA, UK and Switzerland, and anything else a source carries
+  default: 0.6
+
+# CPV top-level codes that survive the free filter: 48 software, 72 IT services,
+# 79 business and consultancy. A notice that carries CPV codes and none of these is
+# dropped before any model call. A notice with no CPV code at all goes on to the
+# lexicon stage; absence is not a failed match.
+cpv_pass_prefixes: ["48", "72", "79"]

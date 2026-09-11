@@ -1,0 +1,18 @@
+# Find a Tender, the UK's post-Brexit replacement for TED coverage.
+id: fts
+name: Find a Tender
+country: GB
+language: en
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+schedule: '0 7 * * *'          # 07:00 UTC daily
+api_url: https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages
+tos_status: reviewed_ok        # Open Government Licence, OCDS release packages
+enabled: true
+health:
+  expected_items_per_run: [1, 120]
+  max_consecutive_failures: 3
+owner: ryan.dear

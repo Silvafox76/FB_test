@@ -1,0 +1,20 @@
+# Ukraine's national e-procurement system. Titles are Ukrainian and stay Ukrainian
+# (rule 9); they reach the scorer only on a passing CPV prefix until the translation
+# stage lands at step 14.
+id: prozorro
+name: Prozorro
+country: UA
+language: uk
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+schedule: '30 6 * * *'         # 06:30 UTC daily
+api_url: https://public.api.openprocurement.org/api/2.5/tenders
+tos_status: reviewed_ok        # public API, open data by law
+enabled: true
+health:
+  expected_items_per_run: [10, 500]
+  max_consecutive_failures: 3
+owner: ryan.dear

@@ -1,0 +1,22 @@
+# World Bank procurement notices, filtered to the pilot's 47 countries. admin_level
+# is donor: the notice is published by the financier, not by the buyer, which is
+# what makes a World Bank notice join a national one in the same candidate cluster.
+id: worldbank
+name: World Bank procurement notices
+country: multi
+covers: ['BJ', 'BF', 'CI', 'GM', 'GH', 'LR', 'ML', 'MR', 'NE', 'NG', 'SN', 'SL', 'TG',
+         'UA', 'AL', 'BA', 'XK', 'ME', 'MK']
+language: en
+admin_level: donor
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+schedule: '0 8 * * *'          # 08:00 UTC daily
+api_url: https://search.worldbank.org/api/v2/procnotices
+tos_status: reviewed_ok        # open data, documented public API
+enabled: true
+health:
+  expected_items_per_run: [1, 150]
+  max_consecutive_failures: 3
+owner: ryan.dear

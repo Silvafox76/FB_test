@@ -1,0 +1,178 @@
+# French lexicon: function_id -> phrases matched case-insensitively on title + body.
+# Same contract as lexicon_en.yaml. West Africa is 1.0 geography weight and largely
+# francophone, so a gap here costs more than a gap in the English file. Seeded from the
+# prototype; every miss found at step 19 becomes a case in filter_cases.yaml before it
+# becomes a phrase here.
+language: fr
+functions:
+  policy_management:
+  - législation des finances publiques
+  - gestion des finances publiques
+  - réforme des finances publiques
+  - cadre juridique
+  - loi organique relative aux finances
+  budget_planning_formulation:
+  - préparation du budget
+  - planification budgétaire
+  - cadre de dépenses à moyen terme
+  - règles budgétaires
+  - calendrier budgétaire
+  public_accounts_management:
+  - normes comptables publiques
+  - plan comptable
+  - normes IPSAS
+  - comptes publics
+  - transparence budgétaire
+  - budget citoyen
+  - portail budgétaire
+  performance_structures_implementation:
+  - budget de performance
+  - budgétisation axée sur les résultats
+  - objectifs de performance
+  budget_and_appropriation_control:
+  - contrôle budgétaire
+  - crédits budgétaires
+  - autorisation de dépenses
+  commitment_management:
+  - engagement des dépenses
+  - contrôle des engagements
+  - pré-engagement
+  - bon de commande
+  budget_execution:
+  - exécution budgétaire
+  - contrôle des dépenses
+  - virement de crédits
+  - régulation budgétaire
+  - RACHAD
+  compliance_and_governance:
+  - contrôle interne
+  - séparation des tâches
+  - audit interne
+  - gouvernance
+  - conformité
+  treasury_accounting:
+  - trésor
+  - grand livre
+  - système intégré de gestion des finances publiques
+  - IFMAS
+  - GFMAS
+  - SIGIF
+  - SIGFiP
+  - AGFIS
+  - KFMIS
+  cost_accounting:
+  - comptabilité analytique
+  - comptabilité de projet
+  - centre de coût
+  asset_inventory_management:
+  - immobilisations
+  - registre des actifs
+  - gestion du patrimoine
+  - gestion des stocks
+  progressive_activation:
+  - activation progressive
+  - transition comptabilité de caisse vers exercice
+  - déploiement par phases
+  bank_cash_management:
+  - compte unique du trésor
+  - gestion de la trésorerie
+  - rapprochement bancaire
+  - prévision de trésorerie
+  debt_investment_management:
+  - gestion de la dette
+  - dette publique
+  - soutenabilité de la dette
+  - instruments de dette
+  risk_management:
+  - risque budgétaire
+  - gestion des risques
+  - passifs éventuels
+  procurement_management:
+  - dématérialisation des marchés publics
+  - achats
+  - système de passation des marchés
+  - planification des achats
+  - SIGMAP
+  social_benefits_management:
+  - prestations sociales
+  - assurance emploi
+  - aide sociale
+  - règles d’éligibilité
+  grants_transfers_management:
+  - gestion des subventions
+  - transferts
+  - garanties de prêt
+  - subventions intergouvernementales
+  public_investment_management:
+  - gestion de l’investissement public
+  - budgétisation des investissements
+  - évaluation de projets
+  revenue_management:
+  - administration fiscale
+  - immatriculation des contribuables
+  - régie financière
+  - IRMIS
+  - mobilisation des recettes
+  non_tax_revenue:
+  - recettes non fiscales
+  - redevances
+  - vente de services publics en ligne
+  tax_revenue:
+  - administration fiscale
+  - impôt sur le revenu
+  - système de gestion des impôts
+  - ITMIS
+  - déclaration fiscale
+  - douanes
+  - ISFU
+  civil_service_planning:
+  - réglementation de la fonction publique
+  - contrôle des effectifs
+  - politique des ressources humaines
+  payroll:
+  - paie
+  - solde
+  - gestion de la paie
+  - HRMS
+  - pension
+  - pensions
+  - échelle salariale
+  - fichier unique des agents
+  civil_service_workforce_management:
+  - gestion des ressources humaines
+  - fichier du personnel
+  - HRMS
+  - gestion des effectifs
+  - grille salariale
+  civil_service_movement:
+  - recrutement
+  - mouvement du personnel
+  - mutation
+  - nomination
+  civil_service_performance:
+  - compétences des agents
+  - écart de compétences
+  - formation
+  - développement de carrière
+  civil_service_benefits_management:
+  - avantages sociaux des agents
+  - assurance maladie
+  - assurance vie
+  - libre-service
+  g2c_government_to_citizen_financial_service_delivery:
+  - paiements aux citoyens
+  - portail citoyen
+  - paiements électroniques gouvernementaux
+  g2b_government_to_business_financial_service_delivery:
+  - paiements aux entreprises
+  - paiements de licences commerciales
+  - paiements aux fournisseurs
+  g2n_government_to_non_profits_financial_service_delivery:
+  - paiements aux organisations à but non lucratif
+  - décaissement aux ONG
+  g2e_government_to_employee:
+  - paiements aux employés
+  - libre-service employé
+  g2g_government_to_government_financial_service_delivery:
+  - transferts interministériels
+  - transferts budgétaires infranationaux

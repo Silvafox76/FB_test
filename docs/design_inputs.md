@@ -20,7 +20,9 @@ Verified against the counts BUILD_ORDER cites, sheet by sheet:
 | 20 products | `New Marketecture`, column `New Marketecture` | 20, one of which is literally `TBD` |
 | Pillar 8 has no product mapping | `New Marketecture` | Confirmed: 8.1 to 8.5 are the 15 rows with a function and no product, which is why 578 rows yield 563 product mappings |
 
-Two things the step will have to decide rather than look up:
+Two things the step had to decide rather than look up. **Both were settled at step 3** and the
+decision lives in `TYPE_WEIGHTS` in `scripts/export_function_map.py`, which writes it into
+`config/function_map.yaml` so it can be argued about in one place:
 
 - **The Type column is per component, the weight is per function.** Column D holds a code (`E-PE`,
   `C- GC`, `D-RM`) and column E its label. There are eleven labels, not the four BUILD_ORDER's weight
@@ -28,8 +30,15 @@ Two things the step will have to decide rather than look up:
   Reform & Modernization, Approvals, Oversight & Audit, Monitoring & Evaluation, Performance
   Management, Payments, E-Commerce. A function has many components with different types, so
   `type_weight` needs an aggregation rule. Note `C- GC` carries a stray space inside the code.
+  **Settled: the flat lookup, extended to all eleven labels, and a function takes the weight of its
+  most heavily weighted component type rather than an average.** Averaging thirty components pulls
+  every function back toward 1.0, which is what the prototype's 0.82 to 1.13 band shows and what the
+  weight exists to avoid.
 - **There is no label called "Policy".** BUILD_ORDER's 0.8 weight for Policy has to map onto Reform &
-  Modernization or Planning & Scenarios, or the weight table needs a row per real label.
+  Modernization or Planning & Scenarios, or the weight table needs a row per real label. **Settled:
+  a row per real label.** Reform & Modernization and Planning & Scenarios both take the 0.8 that
+  BUILD_ORDER gave Policy, since both describe advisory work that rarely buys a system; the seven
+  labels the weight table never named are set in `TYPE_WEIGHTS` rather than falling to the default.
 
 ## 2. `prototype/pfm_opportunity_monitor_final.jsx` and `prototype/pfm_opportunity_monitor_1.jsx`
 

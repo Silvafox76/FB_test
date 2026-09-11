@@ -1,0 +1,215 @@
+# English lexicon: function_id -> phrases matched case-insensitively on title + body.
+# The free filter (monitor/filter/lexicon.py) drops a notice that matches nothing here
+# before any model call, so a missing phrase is a missed opportunity and an over-broad
+# one is a wasted call. Seeded from the prototype's per-function keyword lists and the
+# system-name list in CLAUDE.md; tuned against real notices at step 19.
+language: en
+functions:
+  policy_management:
+  - public finance legislation
+  - public financial management
+  - PFM policy
+  - PFM reform
+  - legal framework
+  - financial management act
+  budget_planning_formulation:
+  - budget preparation
+  - budget planning
+  - medium-term expenditure framework
+  - fiscal rules
+  - budget calendar
+  - macro-fiscal
+  public_accounts_management:
+  - government accounting standards
+  - chart of accounts
+  - IPSAS
+  - public accounts
+  - accounting framework
+  - fiscal transparency
+  - open budget
+  - citizens budget
+  - budget portal
+  performance_structures_implementation:
+  - performance budgeting
+  - chart of goals
+  - results-based budgeting
+  - output and outcome targets
+  budget_and_appropriation_control:
+  - appropriation control
+  - budget control
+  - line item budget
+  - multi-year appropriation
+  - apportionment
+  commitment_management:
+  - commitment control
+  - purchase requisition
+  - encumbrance
+  - pre-commitment
+  - de-commitment
+  budget_execution:
+  - budget execution
+  - warrant
+  - expenditure control
+  - virement
+  - budget adjustment
+  - in-year reallocation
+  - RACHAD
+  compliance_and_governance:
+  - internal control
+  - segregation of duties
+  - workflow approval
+  - compliance
+  - internal audit
+  - governance structure
+  treasury_accounting:
+  - treasury
+  - general ledger
+  - journal voucher
+  - integrated financial management information system
+  - IFMIS
+  - GIFMIS
+  - IFMAS
+  - GFMAS
+  - financial management information system
+  - AGFIS
+  - KFMIS
+  - SIGIF
+  - SIGFiP
+  cost_accounting:
+  - cost accounting
+  - project accounting
+  - program budgeting
+  - cost centre
+  asset_inventory_management:
+  - fixed assets
+  - asset register
+  - asset management
+  - inventory management
+  - depreciation
+  progressive_activation:
+  - progressive activation
+  - accounting basis migration
+  - cash to accrual
+  - phased rollout
+  bank_cash_management:
+  - treasury single account
+  - TSA
+  - cash management
+  - bank reconciliation
+  - cash forecasting
+  debt_investment_management:
+  - debt management
+  - public debt
+  - DMFAS
+  - debt sustainability
+  - sovereign investment
+  - debt instrument
+  risk_management:
+  - fiscal risk
+  - risk management
+  - risk appetite
+  - contingent liability
+  procurement_management:
+  - e-procurement
+  - electronic procurement
+  - e-GP
+  - purchasing
+  - procurement planning
+  - tender management
+  - public procurement system
+  - SIGMAP
+  social_benefits_management:
+  - social benefits
+  - employment insurance
+  - welfare payments
+  - eligibility rules
+  - benefit administration
+  grants_transfers_management:
+  - grants management
+  - transfers
+  - loan guarantees
+  - subsidies
+  - intergovernmental transfers
+  public_investment_management:
+  - public investment management
+  - PIM
+  - capital budgeting
+  - project appraisal
+  - infrastructure pipeline
+  revenue_management:
+  - revenue administration
+  - taxpayer registration
+  - revenue authority
+  - customer information
+  - IRMIS
+  - revenue mobilization
+  non_tax_revenue:
+  - non-tax revenue
+  - fees and charges
+  - government e-commerce
+  - sales of government services
+  tax_revenue:
+  - tax administration
+  - personal income tax
+  - ITAS
+  - ITMIS
+  - integrated tax administration system
+  - tax filing
+  - customs
+  - ISFU
+  civil_service_planning:
+  - civil service regulations
+  - establishment control
+  - workforce policy
+  payroll:
+  - payroll
+  - IPPIS
+  - HRMIS
+  - HRMS
+  - pension
+  - pensions
+  - pay period
+  - salary scale
+  - exception reporting
+  civil_service_workforce_management:
+  - human resource management information system
+  - HRMIS
+  - HRMS
+  - establishment
+  - position management
+  - salary scale
+  civil_service_movement:
+  - recruitment
+  - civil service movement
+  - transfer
+  - secondment
+  - appointment
+  civil_service_performance:
+  - workforce competency
+  - skills gap
+  - training investment
+  - career development
+  civil_service_benefits_management:
+  - civil service benefits
+  - health insurance
+  - life insurance
+  - claims adjudication
+  - self-service
+  g2c_government_to_citizen_financial_service_delivery:
+  - government to citizen payments
+  - citizen portal
+  - e-government payments
+  g2b_government_to_business_financial_service_delivery:
+  - government to business payments
+  - business licensing payments
+  - supplier payments
+  g2n_government_to_non_profits_financial_service_delivery:
+  - government to non-profit payments
+  - NGO funding disbursement
+  g2e_government_to_employee:
+  - government to employee payments
+  - employee self-service payments
+  g2g_government_to_government_financial_service_delivery:
+  - government to government transfers
+  - intergovernmental fiscal transfers
+  - sub-national transfers

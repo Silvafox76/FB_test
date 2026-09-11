@@ -51,6 +51,9 @@ jobs:
       - name: Migrations are idempotent
         run: uv run python -m monitor.migrate | grep -q "nothing to apply"
 
+      - name: Seed the registry
+        run: uv run python -m monitor.registry
+
       - name: Lint
         run: uv run ruff check .
 
