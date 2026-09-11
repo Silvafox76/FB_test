@@ -53,9 +53,16 @@ Requires Docker with Compose, [uv](https://docs.astral.sh/uv/), and Python 3.12 
 cp .env.example .env          # fill in the passwords and ANTHROPIC_API_KEY; .env is git-ignored
 uv sync                       # create the virtualenv from pyproject.toml
 uv run pre-commit install     # ruff and the gitleaks secret scan on every commit
-make up                       # start Postgres, wait for healthy
+make up                       # start Postgres, wait for healthy, apply migrations
 make test                     # ruff check and the test suite
 ```
+
+`make up` applies `migrations/*.sql` as `DATABASE_URL_OWNER` and then sets the three role passwords from
+the environment, which is why no password appears in a `.sql` file. The owner role needs `CREATEROLE`;
+the compose superuser has it. Running `make up` again applies nothing.
+
+`make test` needs the database up: `tests/roles/test_roles.py` connects as all three roles and fails
+rather than skipping when they are not there.
 
 ## Commands
 
@@ -79,8 +86,9 @@ Two runtime roles and only two, plus `monitor_readonly` for reporting. `monitor_
 privilege of any kind on `approved_records`. Exactly one code path inserts into that table,
 `review/decisions.py`, inside the reviewer's decision transaction, under a named reviewer. The
 property is a database grant with `tests/roles/test_roles.py` behind it, not a convention. That test
-lands at step 2, before any code that might need it, and runs on every commit for all 31 steps.
+landed at step 2, before any code that might need it, and runs on every commit for all 31 steps.
 
 ## Build status
 
-Step 1 of 31 (skeleton). See `BUILD_ORDER.md` for what is next and what gates it.
+Step 2 of 31 (schema and roles) complete. The checkpoint test runs on every commit in CI. See
+`BUILD_ORDER.md` for what is next and what gates it.

@@ -1,0 +1,58 @@
+# The checkpoint runs here on every commit, for all 31 steps. A green build means
+# the pipeline role was refused approved_records on a real PostgreSQL, not that a
+# mock said so.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: monitor
+          POSTGRES_USER: monitor_owner
+          POSTGRES_PASSWORD: ci_owner_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monitor_owner -d monitor"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      DATABASE_URL_OWNER: postgresql://monitor_owner:ci_owner_password@localhost:5432/monitor
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:ci_pipeline_password@localhost:5432/monitor
+      DATABASE_URL_REVIEW: postgresql://monitor_review:ci_review_password@localhost:5432/monitor
+      DATABASE_URL_READONLY: postgresql://monitor_readonly:ci_readonly_password@localhost:5432/monitor
+      MONITOR_PIPELINE_PASSWORD: ci_pipeline_password
+      MONITOR_REVIEW_PASSWORD: ci_review_password
+      MONITOR_READONLY_PASSWORD: ci_readonly_password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Apply migrations
+        run: uv run python -m monitor.migrate
+
+      - name: Migrations are idempotent
+        run: uv run python -m monitor.migrate | grep -q "nothing to apply"
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Tests
+        run: uv run pytest

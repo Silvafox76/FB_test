@@ -7,12 +7,12 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs test lint fmt fetch run status golden review export
+.PHONY: help up down logs migrate test lint fmt fetch run status golden review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
-up: ## Start Postgres and wait for it to report healthy
+up: ## Start Postgres, wait for healthy, apply migrations
 	@test -f .env || { echo "no .env; copy .env.example to .env and fill it in"; exit 1; }
 	$(COMPOSE) up -d postgres
 	@echo "waiting for postgres to report healthy"
@@ -22,6 +22,10 @@ up: ## Start Postgres and wait for it to report healthy
 		sleep 2; \
 	done; \
 	echo "postgres did not become healthy; run 'make logs'"; exit 1
+	$(MAKE) migrate
+
+migrate: ## Apply migrations/*.sql in order, once each
+	uv run python -m monitor.migrate
 
 down: ## Stop the stack, keep the data volume
 	$(COMPOSE) down
