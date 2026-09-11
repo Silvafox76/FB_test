@@ -11,7 +11,13 @@ import shutil
 import pytest
 import yaml
 
-from monitor.registry import RegistryError, load_function_map, load_lexicon, load_sources
+from monitor.registry import (
+    RegistryError,
+    config_files,
+    load_function_map,
+    load_lexicon,
+    load_sources,
+)
 from monitor.registry.load import CONFIG_DIR, SOURCES_DIR
 
 EXPECTED_SOURCES = {"ted", "prozorro", "fts", "worldbank"}
@@ -111,6 +117,25 @@ def test_both_lexicons_cover_every_function():
         phrases, content_hash = load_lexicon(language)
         assert set(phrases) == function_ids
         assert len(content_hash) == 64
+
+
+def test_every_config_and_source_file_is_version_hashed():
+    """Rule 6: every file under sources/ and config/ is traceable, not just the lexicons."""
+    on_disk = set(SOURCES_DIR.glob("*.yaml")) | set(CONFIG_DIR.glob("*.yaml"))
+
+    assert {path for path, _, _ in config_files()} == on_disk
+
+
+def test_a_config_file_with_no_declared_kind_fails():
+    """A new file in config/ has to be classified, or it stops being traceable silently."""
+    stray = CONFIG_DIR / "stray_for_test.yaml"
+    stray.write_text("nothing: here\n")
+    try:
+        with pytest.raises(RegistryError) as raised:
+            config_files()
+        assert "CONFIG_KINDS" in str(raised.value)
+    finally:
+        stray.unlink()
 
 
 def test_a_lexicon_declaring_the_wrong_language_fails(tmp_path):

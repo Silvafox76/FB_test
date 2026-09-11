@@ -4,10 +4,10 @@ Configuration is the input to almost every later stage, so it is validated once
 here and a failure names the file and the field rather than surfacing three stages
 later as a missing key (rule 4). `make up` runs this after the migrations.
 
-The lexicons are hashed rather than stored: `lexicon_versions` records which
-version of which language was applied and when, so a scoring run can be traced
-back to the phrases that were in force. The phrases themselves stay in the YAML,
-which is the editable artifact.
+Every file under `sources/` and `config/` is hashed rather than stored:
+`config_versions` records which version of which file was applied and when, so a
+run can be traced back to the phrases, thresholds and defaults that were in force.
+The files themselves stay in YAML, which is the editable artifact.
 """
 
 from __future__ import annotations
@@ -27,6 +27,17 @@ SOURCES_DIR = REPO / "sources"
 CONFIG_DIR = REPO / "config"
 FUNCTION_MAP = CONFIG_DIR / "function_map.yaml"
 LEXICONS = {"en": CONFIG_DIR / "lexicon_en.yaml", "fr": CONFIG_DIR / "lexicon_fr.yaml"}
+
+# Every config file that is version-hashed, and what kind of thing it is. Rule 6
+# names all of these; a file added to config/ without a row here is a loud failure
+# rather than a file that quietly stops being traceable.
+CONFIG_KINDS = {
+    "function_map.yaml": "function_map",
+    "lexicon_en.yaml": "lexicon",
+    "lexicon_fr.yaml": "lexicon",
+    "thresholds.yaml": "thresholds",
+    "record_defaults.yaml": "record_defaults",
+}
 
 
 class RegistryError(Exception):
@@ -84,14 +95,52 @@ def load_function_map(path: Path = FUNCTION_MAP) -> list[dict]:
 def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, list[str]], str]:
     """Phrases by function_id, and the content hash that versions them."""
     path = path or LEXICONS[language]
-    raw = path.read_text(encoding="utf-8")
-    document = yaml.safe_load(raw)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
     functions = document.get("functions")
     if not functions:
         raise RegistryError(f"{path.name}: no functions")
     if document.get("language") != language:
         raise RegistryError(f"{path.name}: declares language {document.get('language')!r}, expected {language!r}")
-    return functions, hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return functions, content_hash(path)
+
+
+def config_files() -> list[tuple[Path, str, str | None]]:
+    """Every hashed file as (path, kind, language). Language is set for lexicons only."""
+    files: list[tuple[Path, str, str | None]] = [(path, "source", None) for path in sorted(SOURCES_DIR.glob("*.yaml"))]
+
+    for path in sorted(CONFIG_DIR.glob("*.yaml")):
+        kind = CONFIG_KINDS.get(path.name)
+        if kind is None:
+            raise RegistryError(f"{path.name}: no kind in CONFIG_KINDS, so it would not be version-hashed (rule 6)")
+        language = path.stem.removeprefix("lexicon_") if kind == "lexicon" else None
+        files.append((path, kind, language))
+
+    return files
+
+
+def content_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def record_config_versions(conn: psycopg.Connection) -> int:
+    """One row per config file per content hash. Re-seeding the same files is a no-op."""
+    for path, kind, language in config_files():
+        digest = content_hash(path)
+        conn.execute(
+            """
+            insert into config_versions (version, path, kind, language, content_hash)
+            values (%s, %s, %s, %s, %s)
+            on conflict (path, content_hash) do nothing
+            """,
+            (
+                f"{path.stem}-{digest[:12]}",
+                str(path.relative_to(REPO)),
+                kind,
+                language,
+                digest,
+            ),
+        )
+    return len(config_files())
 
 
 def seed(conn: psycopg.Connection) -> dict[str, int]:
@@ -160,17 +209,9 @@ def seed(conn: psycopg.Connection) -> dict[str, int]:
                 ),
             )
 
-        for language, (_, content_hash) in lexicons.items():
-            conn.execute(
-                """
-                insert into lexicon_versions (version, language, content_hash)
-                values (%s, %s, %s)
-                on conflict (version) do nothing
-                """,
-                (f"{language}-{content_hash[:12]}", language, content_hash),
-            )
+        versioned = record_config_versions(conn)
 
-    return {"sources": len(sources), "functions": len(functions), "lexicons": len(LEXICONS)}
+    return {"sources": len(sources), "functions": len(functions), "config_files": versioned}
 
 
 def main() -> int:
@@ -178,6 +219,6 @@ def main() -> int:
         counts = seed(conn)
     print(
         f"registry: {counts['sources']} sources, {counts['functions']} functions, "
-        f"{counts['lexicons']} lexicon versions"
+        f"{counts['config_files']} config files version-hashed"
     )
     return 0

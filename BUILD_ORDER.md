@@ -39,7 +39,7 @@ Build `001_schema.sql` exactly as follows (types abbreviated; use `timestamptz`,
 - `candidate_notices(candidate_id fk, notice_id fk, match_method, match_score int, pk(candidate_id, notice_id))`
 - `events(id bigserial pk, entity_type, entity_id, action, actor, before text, after text, at timestamptz default now())`
 - `source_health(source_id pk fk, last_success_at, consecutive_failures int, median_items real, last_zero_yield_at, zero_yield_runs int, state text)`
-- `lexicon_versions(version text pk, language, content_hash, applied_at)`
+- `config_versions(version text pk, path, kind, language, content_hash, applied_at, unique(path, content_hash))` — one row per config file per content hash, covering `sources/*.yaml` and every file under `config/`. Created as `lexicon_versions` in 001 and generalised by `migrations/004_config_versions.sql`, because rule 6 versions the thresholds and the record defaults too and from step 5 the thresholds decide what is dropped before any model call.
 - `function_map(function_id text pk, name, pillar, type_weight real, keywords_en text[], keywords_fr text[])`
 - `approved_records(id text pk like 'R000001', candidate_id fk unique, record jsonb, approved_by text not null, edited bool not null default false, created_at, exported_at timestamptz, export_batch text fk null)`
 - `export_batches(batch_id text pk like 'B0001', created_at, operator text not null, row_count int, range_from, range_to, file_path, manifest_path, sha256 text)`
@@ -64,7 +64,7 @@ Accept:
 Touch: `monitor/registry/*.py`, `monitor/models.py`, `sources/ted.yaml`, `sources/prozorro.yaml`, `sources/fts.yaml`, `sources/worldbank.yaml`, `config/function_map.yaml`, `config/lexicon_en.yaml`, `config/lexicon_fr.yaml`, `config/thresholds.yaml`, `scripts/export_function_map.py`, `tests/unit/test_registry.py`, `tests/unit/test_models.py`.
 
 Build:
-- `monitor/models.py`: `Source`, `RawNotice`, `Notice`, `Translation`, `Score`, `Candidate` as pydantic v2 models matching the schema in step 2 field for field. `Score` is also the model-call tool schema: export `Score.model_json_schema()` for step 6.
+- `monitor/models.py`: `Source`, `RawNotice`, `Notice`, `Translation`, `Score`, `Candidate` as pydantic v2 models matching the schema in step 2 field for field, with one exception. `Score` is the model-call tool schema, so it holds Architecture v0.4 appendix C's ten output fields and nothing else; the `scores` table's call metadata (model, prompt_version, tokens, cost, latency) is written by `monitor/score/run.py` alongside the validated `Score`, because a tool schema that asks the model to report its own token count is nonsense. Export `Score.model_json_schema()` for step 6.
 - `sources/*.yaml`: id, name, country (`EU` for TED, `multi` for World Bank), covers (list of ISO codes for multi-country sources), language, admin_level, stream, wave, access, connector (`FeedConnector`), schedule (cron string), list_url or api_url, tos_status, health (expected_items_per_run [min, max], max_consecutive_failures), owner.
 - `scripts/export_function_map.py`: reads the component map workbook (`PFM Component Map 4.2.xlsx`, sheet and columns named in the script header after opening the file) and writes `config/function_map.yaml` with 33 functions: function_id (slug), name, pillar, type_weight from the Type column (Government Controls 1.3, Process Execution 1.2, Policy 0.8, Fiscal Transparency 0.6, default 1.0), keywords_en starting from the function name and its component names. Hand-edit afterwards is expected; the script is run once.
 - `config/lexicon_en.yaml` and `lexicon_fr.yaml`: function_id -> list of phrases. Seed from the prototype's keyword lists (in the pilot documents) and the system-name list in `CLAUDE.md`.
@@ -76,7 +76,7 @@ Build:
 Accept:
 - `tests/unit/test_registry.py`: all four sources load; a YAML with a misspelled field fails with the field name; a duplicate id fails.
 - `tests/unit/test_models.py`: `Score` rejects relevance 101, an unknown procurement_type, a summary over 140 words, a missing title_en.
-- `make up` seeds `sources`, `function_map` and `lexicon_versions`.
+- `make up` seeds `sources`, `function_map` and `config_versions`.
 
 ---
 
