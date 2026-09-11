@@ -117,19 +117,21 @@ Accept:
 
 ## Step 6. Scorer (Saturday 13:15)
 
-Touch: `monitor/score/prompt.py`, `monitor/score/client.py`, `monitor/score/schema.py`, `monitor/score/caps.py`, `monitor/score/run.py`, `monitor/cli.py` (score command), `tests/unit/test_score_schema.py`, `tests/unit/test_caps.py`.
+Touch: `monitor/score/prompt.py`, `monitor/score/client.py`, `monitor/score/schema.py`, `monitor/score/run.py`, `monitor/cli.py` (score command), `tests/unit/test_score_schema.py`.
+
+**The cap guard already exists and this step consumes it rather than building it.** Step 14 was taken before this one and needed the same guard, so it lives at `monitor/caps.py` with its tests at `tests/unit/test_caps.py`: one guard shared by translate, score and rescore rather than one per caller. Do not create `monitor/score/caps.py`. The rate card and both daily caps are already in `config/thresholds.yaml`, and `caps.check()` and `caps.record()` are the two functions to call. The same applies to the system-name list: `config/system_names.yaml` is the one copy, read through `monitor.registry.load_system_names`, so `prompt.py` reads it rather than restating it.
 
 Build:
 - `prompt.py`: builds the system prompt from `function_map.yaml`, both lexicons, the system-name list, geography weights and the rubric text in Architecture v0.4 section 8. Marks the system prompt block for prompt caching. `prompt_version = sha256(system prompt)[:12]`.
 - `schema.py`: the tool definition `record_score` whose input schema is `Score.model_json_schema()`; the call uses `tool_choice` forcing that tool.
 - `client.py`: one function `score_notice(notice) -> Score`. Uses `anthropic.Anthropic()` from env. Model `claude-haiku-4-5` for scoring (exact model string checked at session start against the SDK's model list; record it in a constant with a comment). Validates the tool input with `Score`; on validation error, exactly one retry with the validation message appended to the user turn; on second failure raises `SchemaError` and the caller parks the notice (status `parked`, event written). Logs a `model_calls` row for every call including failures.
-- `caps.py`: before each call, count today's `model_calls` and sum cost; if either cap would be exceeded, raise `CapExceeded` and the run stops with an event. Cost computed from tokens at the rate card in `config/thresholds.yaml` (`haiku_in: 1.00, haiku_out: 5.00, cache_read_factor: 0.1` per million).
+- `monitor/caps.py` (already built at step 14): before each call it counts today's `model_calls` and sums cost, and raises `CapExceeded` if either cap would be exceeded, before any request is made. Cost is computed from tokens at the rate card in `config/thresholds.yaml`. Nothing to build here; call it.
 - The user message: language, title, buyer, country, admin level, published, deadline, CPV, stated value, source URL, and the first 3,000 tokens of body. Nothing else.
 - `run.py`: scores every notice in status `scored`-pending from step 5, writes `scores`, sets notice status `scored`.
 
 Accept:
 - `test_score_schema.py`: a valid tool input round-trips; each invalid variant raises with a message naming the field.
-- `test_caps.py`: with the cap set to 3 via env and four fake `model_calls` rows, the fourth call raises `CapExceeded` before any HTTP request (mock the client at the transport layer, not by patching the function).
+- `tests/unit/test_caps.py` already covers this and passes: with the cap set to 3 via env and three fake `model_calls` rows, the next call raises `CapExceeded` and the test asserts no HTTP request was made, mocking at the transport layer rather than patching the function. Re-run it; do not rewrite it.
 - One real scoring run on today's TED survivors completes with schema validity above 95 percent; the number goes in `RUNBOOK.md`.
 
 ---

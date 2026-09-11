@@ -17,6 +17,7 @@ from monitor.registry import (
     load_function_map,
     load_lexicon,
     load_sources,
+    load_system_names,
 )
 from monitor.registry.load import CONFIG_DIR, SOURCES_DIR
 
@@ -126,6 +127,32 @@ def test_every_config_and_source_file_is_version_hashed():
     assert {path for path, _, _ in config_files()} == on_disk
 
 
+def test_the_config_kinds_match_the_databases_own_vocabulary():
+    """Two enforcement points that must agree, so the disagreement is a test.
+
+    config_versions.kind is constrained in the database because reporting and the
+    ops-analyst read it without going through the loader. Adding a config kind
+    therefore needs both a CONFIG_KINDS entry and a migration; this fails in the
+    suite rather than at the next `make up`.
+    """
+    from pathlib import Path as _Path
+
+    from monitor.registry.load import CONFIG_KINDS, REPO
+
+    migrations = sorted((_Path(REPO) / "migrations").glob("*.sql"))
+    constraint = ""
+    for path in migrations:
+        text = path.read_text(encoding="utf-8")
+        if "config_versions_kind_check" in text:
+            constraint = text  # the last migration to define it wins, as in the database
+
+    allowed = {kind for kind in set(CONFIG_KINDS.values()) | {"source"} if f"'{kind}'" in constraint}
+
+    assert allowed == set(CONFIG_KINDS.values()) | {"source"}, (
+        "a config kind is missing from the config_versions check constraint; add a migration"
+    )
+
+
 def test_a_config_file_with_no_declared_kind_fails(tmp_path):
     """A new file in config/ has to be classified, or it stops being traceable silently.
 
@@ -154,23 +181,13 @@ def test_a_lexicon_declaring_the_wrong_language_fails(tmp_path):
 
 
 def test_every_system_name_in_claude_md_appears_in_the_english_lexicon():
-    """The system names are the strongest single signal the free filter has."""
-    system_names = [
-        "IFMIS",
-        "GIFMIS",
-        "IPPIS",
-        "TSA",
-        "HRMIS",
-        "ITAS",
-        "e-procurement",
-        "SIGIF",
-        "SIGFiP",
-        "AGFIS",
-        "ISFU",
-        "SIGMAP",
-        "RACHAD",
-        "KFMIS",
-    ]
+    """The system names are the strongest single signal the free filter has.
+
+    A name in config/system_names.yaml but not in a lexicon is checked by the
+    translation's acronym check and never matched by the filter, which is a real
+    gap rather than a tidiness one.
+    """
+    system_names = load_system_names()
     phrases, _ = load_lexicon("en")
     blob = " ".join(phrase for phrases_for_function in phrases.values() for phrase in phrases_for_function).lower()
 

@@ -26,7 +26,7 @@ import structlog
 
 from monitor import caps
 from monitor.filter.run import NEEDS_TRANSLATION, decide, lexicons, pass_prefixes
-from monitor.translate.client import SYSTEM_PROMPT, SchemaError, translate
+from monitor.translate.client import SchemaError, system_prompt, translate
 
 log = structlog.get_logger(__name__)
 
@@ -53,7 +53,7 @@ def prompt_version(system_prompt: str) -> str:
 
 def run(conn: psycopg.Connection, client: anthropic.Anthropic, limit: int = 0) -> TranslateCounts:
     """Translate held notices and re-filter them. `limit` 0 means all of them."""
-    version = prompt_version(SYSTEM_PROMPT)
+    version = prompt_version(system_prompt())
     prefixes = pass_prefixes()
     available = lexicons()
 

@@ -7,6 +7,7 @@ from monitor.registry.load import (
     load_function_map,
     load_lexicon,
     load_sources,
+    load_system_names,
     record_config_versions,
     seed,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "load_function_map",
     "load_lexicon",
     "load_sources",
+    "load_system_names",
     "record_config_versions",
     "seed",
 ]

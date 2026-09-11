@@ -27,6 +27,7 @@ SOURCES_DIR = REPO / "sources"
 CONFIG_DIR = REPO / "config"
 FUNCTION_MAP = CONFIG_DIR / "function_map.yaml"
 LEXICONS = {"en": CONFIG_DIR / "lexicon_en.yaml", "fr": CONFIG_DIR / "lexicon_fr.yaml"}
+SYSTEM_NAMES = CONFIG_DIR / "system_names.yaml"
 
 # Every config file that is version-hashed, and what kind of thing it is. Rule 6
 # names all of these; a file added to config/ without a row here is a loud failure
@@ -37,6 +38,7 @@ CONFIG_KINDS = {
     "lexicon_fr.yaml": "lexicon",
     "thresholds.yaml": "thresholds",
     "record_defaults.yaml": "record_defaults",
+    "system_names.yaml": "system_names",
 }
 
 
@@ -90,6 +92,21 @@ def load_function_map(path: Path = FUNCTION_MAP) -> list[dict]:
             raise RegistryError(f"{path.name}: duplicate function_id {function['function_id']!r}")
         seen.add(function["function_id"])
     return functions
+
+
+def load_system_names(path: Path = SYSTEM_NAMES) -> list[str]:
+    """The system names that carry signal, in config order.
+
+    One list, read by the translation client's acronym check, the translation
+    system prompt and the scorer's prompt at step 6. Three copies of it in Python
+    was the finding this replaced (rule 6).
+    """
+    names = _read_yaml(path).get("names")
+    if not names:
+        raise RegistryError(f"{path.name}: no names")
+    if len(set(names)) != len(names):
+        raise RegistryError(f"{path.name}: duplicate name in the list")
+    return names
 
 
 def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, list[str]], str]:

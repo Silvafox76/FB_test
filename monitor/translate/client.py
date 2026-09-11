@@ -11,8 +11,8 @@ The shape every model call in this system follows:
     failed call costs the same as a successful one;
   - the request body is never logged (rule 20).
 
-The one thing specific to translation is the acronym check. IFMIS, GIFMIS, SIGFiP
-and the rest are the strongest signal the filter and the scorer have, and a model
+The one thing specific to translation is the acronym check. The system names in
+`config/system_names.yaml` are the strongest signal the filter and the scorer have, and a model
 asked to translate a Ukrainian notice will happily render `СІФМІС` as "financial
 system". If an acronym present in the original is missing from the translation the
 result is flagged, not silently accepted: a dropped acronym is a lost opportunity
@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import anthropic
 import psycopg
@@ -31,6 +32,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from monitor import caps
+from monitor.registry import load_system_names
 
 log = structlog.get_logger(__name__)
 
@@ -41,33 +43,40 @@ MODEL = "claude-haiku-4-5"
 MAX_TOKENS = 4096
 PURPOSE = "translate"
 
-# From CLAUDE.md, Domain notes. These are what the free filter matches on and what
-# a reviewer recognises at a glance, so they survive translation or the translation
-# is flagged.
-SYSTEM_NAMES = (
-    "IFMIS",
-    "GIFMIS",
-    "IPPIS",
-    "TSA",
-    "HRMIS",
-    "ITAS",
-    "e-procurement",
-    "SIGIF",
-    "SIGFiP",
-    "AGFIS",
-    "ISFU",
-    "SIGMAP",
-    "RACHAD",
-    "KFMIS",
-)
 
-SYSTEM_PROMPT = """You translate public procurement notices into English.
+def system_names() -> list[str]:
+    """The system names, from config. One list, three readers (rule 6).
+
+    Read through the registry rather than kept as a tuple here: the same names are
+    what the free filter matches on in both lexicons and what step 6's prompt
+    builder needs, and three Python copies of a keyword list is exactly what rule 6
+    forbids. Cached, because it is read once per notice in a run of a thousand.
+    """
+    return _cached_system_names()
+
+
+@lru_cache(maxsize=1)
+def _cached_system_names() -> tuple[str, ...]:
+    return tuple(load_system_names())
+
+
+def system_prompt() -> str:
+    """The translation instructions, with the system names interpolated from config.
+
+    The prompt names them because a model that is not told will translate SIGFiP
+    into "public financial management system" and mean well. Built from the config
+    list so the prompt and the acronym check cannot disagree: if a name is added to
+    config, the model is told about it and the check looks for it in the same pass,
+    and `prompt_version` changes, so a translation made before the change is
+    distinguishable from one made after.
+    """
+    names = ", ".join(system_names())
+    return f"""You translate public procurement notices into English.
 
 Rules:
 - Translate the title and the body. Keep the meaning exact; this is a legal notice, not marketing copy.
-- Keep every acronym, system name and product name exactly as written in the original. IFMIS, GIFMIS,
-  SIGFiP, SIGMAP, TSA, IPPIS, HRMIS, ITAS, ISFU, AGFIS, RACHAD, KFMIS and any similar name is a proper
-  noun, not a phrase to translate.
+- Keep every acronym, system name and product name exactly as written in the original. {names} and any
+  similar name is a proper noun, not a phrase to translate.
 - Keep numbers, currency amounts, dates and reference codes exactly as written.
 - Do not summarise, do not shorten, do not add anything the original does not say.
 - If the original is already English, return it unchanged."""
@@ -101,7 +110,7 @@ class TranslationResult:
 
 def acronyms_in(text: str) -> list[str]:
     """Which of the known system names appear in this text, in list order."""
-    return [name for name in SYSTEM_NAMES if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)]
+    return [name for name in system_names() if re.search(rf"(?<!\w){re.escape(name)}(?!\w)", text, re.IGNORECASE)]
 
 
 def dropped_acronyms(original: str, translated: str) -> list[str]:
@@ -136,7 +145,7 @@ def translate(
         response = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
+            system=system_prompt(),
             messages=messages,
             output_config={"format": {"type": "json_schema", "schema": TranslationOutput.model_json_schema()}},
         )

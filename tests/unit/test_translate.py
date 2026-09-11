@@ -26,12 +26,12 @@ from pydantic import ValidationError
 
 from monitor.translate.client import (
     MODEL,
-    SYSTEM_NAMES,
-    SYSTEM_PROMPT,
     SchemaError,
     TranslationOutput,
     acronyms_in,
     dropped_acronyms,
+    system_names,
+    system_prompt,
     translate,
     user_message,
 )
@@ -80,7 +80,8 @@ def test_a_dropped_acronym_is_reported():
     original = "Mise en place d'un SIGFiP et d'un compte unique du Trésor (TSA)"
     translated = "Implementation of a public financial management system and a treasury single account"
 
-    assert dropped_acronyms(original, translated) == ["TSA", "SIGFiP"]
+    # Returned in config order, which is deterministic; the set is what matters.
+    assert set(dropped_acronyms(original, translated)) == {"TSA", "SIGFiP"}
 
 
 def test_a_preserved_acronym_is_not_reported():
@@ -113,7 +114,35 @@ def test_every_system_name_in_claude_md_is_checked():
         "KFMIS",
     }
 
-    assert set(SYSTEM_NAMES) == expected
+    assert set(system_names()) == expected
+
+
+def test_the_prompt_names_every_system_name_it_checks_for():
+    """The one copy rule 6 asks for: the prompt and the check read the same list.
+
+    A name the model is never told about is one it will translate away, and the
+    check would then report a drop the prompt never tried to prevent.
+    """
+    prompt = system_prompt()
+
+    for name in system_names():
+        assert name in prompt, f"{name} is checked for but the model is never told to keep it"
+
+
+def test_the_prompt_version_changes_when_the_name_list_changes(monkeypatch):
+    """A translation is traceable to the list that was in force when it was made."""
+    from monitor.translate import client
+    from monitor.translate.run import prompt_version
+
+    base = list(system_names())
+    before = prompt_version(system_prompt())
+
+    monkeypatch.setattr(client, "load_system_names", lambda: [*base, "NEWSYS"])
+    client._cached_system_names.cache_clear()
+    after = prompt_version(client.system_prompt())
+    client._cached_system_names.cache_clear()
+
+    assert before != after
 
 
 # --- the call itself ---------------------------------------------------------
@@ -140,7 +169,7 @@ def test_the_request_carries_notice_text_and_nothing_else(db_conn):
 
     body = sent[0]
     assert body["model"] == MODEL
-    assert body["system"] == SYSTEM_PROMPT
+    assert body["system"] == system_prompt()
     assert body["messages"][0]["content"] == user_message(language="de", title="Beschaffung", body="Ein IFMIS.")
     assert len(body["messages"]) == 1
 

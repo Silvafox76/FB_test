@@ -1,0 +1,51 @@
+# System names that carry signal. One list, read by three places that would
+# otherwise each keep their own copy:
+#
+#   - monitor/translate/client.py, to check a translation did not drop one;
+#   - the translation system prompt, which names them so the model keeps them;
+#   - monitor/score/prompt.py at step 6, which BUILD_ORDER specs as building the
+#     scorer's system prompt from "the function map, both lexicons, the system-name
+#     list, geography weights and the rubric".
+#
+# They also appear as phrases in config/lexicon_en.yaml and lexicon_fr.yaml, where
+# they do a different job: there they are what the free filter matches on, attached
+# to the function each one signals. A name here and not there is matched by the
+# acronym check but never by the filter, which is a real gap; the test in
+# tests/unit/test_registry.py asserts every name here appears in the English
+# lexicon.
+#
+# Adding a name: add it here, add it to the function it signals in both lexicons,
+# then `make seed`. The content hash lands in config_versions, so a translation can
+# be traced back to the list that was in force when it was made.
+
+names:
+  # Integrated financial management, the core of the market
+  - IFMIS      # Integrated Financial Management Information System, generic
+  - GIFMIS     # Ghana and Nigeria
+  - SIGIF      # francophone West Africa
+  - SIGFiP     # Benin, Burkina Faso, Mali, Togo
+  - AGFIS      # Afghanistan, and reused elsewhere
+  - KFMIS      # Kosovo
+  # Payroll and human resources
+  - IPPIS      # Nigeria, Integrated Payroll and Personnel Information System
+  - HRMIS      # generic
+  # Revenue and tax
+  - ITAS       # Integrated Tax Administration System
+  - ISFU       # Cameroon
+  # Treasury
+  - TSA        # Treasury Single Account
+  - RACHAD     # Mauritania, the expenditure chain
+  # Procurement
+  - SIGMAP     # Côte d'Ivoire
+  - e-procurement
+
+# Proposed additions, not yet adopted. The prototype in prototype/ carries these
+# five and docs/design_inputs.md records them as a proposal: CLAUDE.md's list is
+# the list of record until it is amended, so they are here as a note rather than in
+# `names`. Adopting one means adding it above and to both lexicons.
+proposed:
+  - IFMAS
+  - GFMAS
+  - HRMS
+  - ITMIS
+  - IRMIS
