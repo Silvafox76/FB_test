@@ -355,3 +355,44 @@ def filtered_in_notice(owner_conn: psycopg.Connection) -> Iterator[str]:
             owner_conn.execute("delete from notices where id = %s", (notice_id,))
         owner_conn.execute("delete from notices_raw where source_id = %s", (source_id,))
         owner_conn.execute("delete from sources where id = %s", (source_id,))
+
+
+# --- keeping other work out of the way ----------------------------------------
+#
+# Drill 1 and drill 3 read counts a scheduled `monitor run` moves under them: model calls
+# today, notices by status, scores. A drill that reported FAIL because something else was
+# working would be a finding about the drill, so both of them check for a run in flight
+# first and check again afterwards that the counts they read are theirs to read. Exit 2
+# says the claim was not tested; it never says it was tested and false.
+
+
+def require_quiet_pipeline(conn: psycopg.Connection) -> None:
+    """Refuse to start while another process holds a pipeline connection."""
+    pids = [
+        row[0]
+        for row in conn.execute(
+            """
+            select pid from pg_stat_activity
+            where datname = current_database()
+              and usename = 'monitor_pipeline'
+              and pid <> pg_backend_pid()
+            order by pid
+            """
+        ).fetchall()
+    ]
+    if pids:
+        raise DrillCannotRun(
+            f"another pipeline run is in flight: {len(pids)} monitor_pipeline connection(s) open "
+            f"(backend pids {', '.join(str(pid) for pid in pids)}). Wait for it to finish, or stop "
+            "the hourly timer, then run this drill. It reads counts a concurrent run moves."
+        )
+
+
+def require_no_concurrent_calls(before: int, after: int) -> None:
+    """Refuse to claim 'nothing was billed' if someone else billed something meanwhile."""
+    if after != before:
+        raise DrillCannotRun(
+            f"{after - before} model_calls row(s) appeared while this drill ran, so the calls the "
+            "run did or did not make cannot be told apart from another run's. The checks above "
+            "still stand; this one is untested. Run the drills on a quiet system."
+        )

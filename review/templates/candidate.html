@@ -90,8 +90,8 @@
 
   <form method="post" action="/candidate/{{ c[0] }}/approve" id="approve">
     <label class="reviewer">
-      Reviewer name
-      <input type="text" name="reviewer" required autocomplete="off" placeholder="your name, as it goes in the audit log">
+      Your name, to approve
+      <input type="text" name="reviewer" required autocomplete="off" placeholder="as it goes in the audit log and on the record">
     </label>
 
     <details>
@@ -117,8 +117,8 @@
   <form method="post" action="/candidate/{{ c[0] }}/reject"
         onsubmit="return confirm('Reject {{ c[0] }}? This cannot be undone.')">
     <label class="reviewer">
-      Reviewer name
-      <input type="text" name="reviewer" required autocomplete="off">
+      Your name, to reject
+      <input type="text" name="reviewer" required autocomplete="off" placeholder="as it goes in the audit log">
     </label>
     <label class="reviewer">
       Reason

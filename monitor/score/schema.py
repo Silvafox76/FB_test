@@ -7,26 +7,49 @@ v0.4 is what `Score` is written to, field for field.
 
 `tool_choice` forces this tool, so the model cannot answer in prose.
 
-**Why the schema is filtered before it is sent.** `strict` makes the API validate
+**Why the schema is rewritten before it is sent.** `strict` makes the API validate
 the arguments against the schema before they reach us, and in exchange it accepts
-only a subset of JSON Schema. A pydantic model with a bounded integer generates
-`minimum` and `maximum`, and the API refuses the tool outright:
+only a subset of JSON Schema. Two things about that subset were learned the hard
+way on 2026-09-11, from the first scoring calls ever made on this deployment.
+Until a credential existed nothing sent this schema anywhere, so neither could
+have been caught by a test.
+
+*Unsupported keywords are refused outright.* A pydantic model with a bounded
+integer generates `minimum` and `maximum`:
 
     400 invalid_request_error
     tools.0.custom: For 'integer' type, properties maximum, minimum are not supported
 
-That was a real failure of the first scoring call ever made on this deployment, on
-2026-09-11. Until a credential existed nothing sent this schema anywhere, so the
-module carried a comment claiming these keywords were "stripped and enforced by
-Score on arrival" while nothing stripped them. `strict_schema` is that claim, made
-true.
+The module used to carry a comment saying these were "stripped and enforced by
+Score on arrival" - an accurate description of an intention that nothing
+implemented. `strict_schema` is that claim, made true. Nothing is lost: `Score`
+validates every tool result, so `relevance: 101` is caught by the validator a
+moment later, and a schema failure parks the notice after one retry (rule 2).
 
-Nothing is lost by removing them. The constraints still hold, one layer later and
-on the path that matters: `Score` validates every tool result on arrival, so
-`relevance: 101` is caught by the validator rather than by the API, and a schema
-failure parks the notice after one retry (rule 2). The API was never the thing
-enforcing the range; it was only ever going to be a faster way to learn the same
-thing.
+*A property the schema does not mark required cannot be returned at all.* This one
+was expensive. Five of appendix C's ten fields have a default in `Score` -
+`matched_functions`, `system_names` and `eligibility_flags` default to empty lists,
+`estimated_value_usd` and `deadline_at` to null - so pydantic leaves them out of
+`required`, and under `strict` the API accepted tool calls containing only the
+other five. The first 29 notices scored came back with a relevance, a title, a
+summary, a confidence and a procurement type, and with every one of those five
+fields empty, on every single notice. It read exactly like a model declining to
+match anything.
+
+What that silently disabled is the whole point of the scorer: `matched_functions`
+is what appendix E's FreeBalance Products Required and Product Gaps are computed
+from, `system_names` is the deduper's third match rule, `eligibility_flags` drives
+the eligibility comment and the register-interest suggestion, and the value and
+deadline are columns of their own. An empty list is indistinguishable from a
+considered "none", which is why this was invisible until someone asked why a
+treasury system matched no treasury function.
+
+So `require_every_property` marks every property required at every level, which is
+what strict mode asks for, and optionality is expressed the way strict mode expects
+it: as a nullable type the model must answer explicitly. A field with a list
+default stays a plain array and the model returns `[]` when it means none - which
+is now a statement rather than an absence. `Score`'s defaults still apply on
+arrival, so nothing about the Python contract changes.
 """
 
 from __future__ import annotations
@@ -79,12 +102,34 @@ def strict_schema(schema: Any) -> Any:
     return schema
 
 
+def require_every_property(schema: Any) -> Any:
+    """Mark every property of every object required, as strict mode demands.
+
+    Walks into `$defs` as well, because `MatchedFunction` is where `function_id`
+    and `evidence` live and a nested object with optional properties has the same
+    problem as the top-level one.
+
+    This does not make a value mandatory in any meaningful sense: a nullable field
+    is still answerable with null and an array field with `[]`. It makes the model
+    say so out loud instead of omitting the key, which is the difference between
+    "no function matched" and "the field was not available to me".
+    """
+    if isinstance(schema, dict):
+        rewritten = {key: require_every_property(value) for key, value in schema.items()}
+        if rewritten.get("type") == "object" and isinstance(rewritten.get("properties"), dict):
+            rewritten["required"] = list(rewritten["properties"])
+        return rewritten
+    if isinstance(schema, list):
+        return [require_every_property(item) for item in schema]
+    return schema
+
+
 def tool_definition() -> dict:
     """The tool as the API takes it."""
     return {
         "name": TOOL_NAME,
         "description": DESCRIPTION,
-        "input_schema": strict_schema(Score.model_json_schema()),
+        "input_schema": require_every_property(strict_schema(Score.model_json_schema())),
         "strict": True,
     }
 

@@ -48,7 +48,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-from _drill import INVALID_CREDENTIAL, Drill, connection, filtered_in_notice, owner, run
+from _drill import (
+    INVALID_CREDENTIAL,
+    Drill,
+    connection,
+    filtered_in_notice,
+    owner,
+    require_no_concurrent_calls,
+    require_quiet_pipeline,
+    run,
+)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -89,6 +98,7 @@ def main() -> int:
         # Read as monitor_readonly: the drill inspects, and the reporting role cannot write
         # even by accident (rule 11).
         with connection("DATABASE_URL_READONLY") as reader:
+            require_quiet_pipeline(reader)
             before = snapshot(reader)
 
         drill.note(f"seeded notice {notice_id} at filtered_in, with {before[0]} notices waiting in all")
@@ -110,40 +120,42 @@ def main() -> int:
             status = reader.execute("select status from notices where id = %s", (notice_id,)).fetchone()[0]
             its_scores = reader.execute("select count(*) from scores where notice_id = %s", (notice_id,)).fetchone()[0]
 
-    drill.check(
-        "the run stopped: monitor score exited non-zero",
-        completed.returncode != 0,
-        f"exit status {completed.returncode}",
-    )
-
-    refusal = [line for line in output.splitlines() if any(marker in line for marker in AUTH_MARKERS)]
-    if not drill.check(
-        "it stopped because the credential was refused, and not for some other reason",
-        bool(refusal),
-        refusal[-1].strip() if refusal else "no authentication failure in the output",
-    ):
-        drill.note(
-            "no 401 in the output means the request did not reach api.anthropic.com. The write "
-            "checks below still hold, but the credential half of this drill is unproven: check "
-            "egress with 'uv run python scripts/check_egress.py' and read the output above."
+        drill.check(
+            "the run stopped: monitor score exited non-zero",
+            completed.returncode != 0,
+            f"exit status {completed.returncode}",
         )
 
-    drill.check("no model call was logged, so nothing was billed", after[4] == before[4], f"model_calls {after[4]}")
-    drill.check("no score was written", after[3] == before[3], f"scores {after[3]}")
-    drill.check("the notice the run reached has no score of its own", its_scores == 0, f"notice {notice_id}")
-    drill.check(
-        "no notice changed status: nothing scored, nothing parked, nothing lost",
-        after[:3] == before[:3],
-        "; ".join(differences(before, after)) or "all three counts unchanged",
-    )
-    drill.check(
-        "the notice is still filtered_in, so the next run picks it up once the key is fixed",
-        status == "filtered_in",
-        f"status {status!r} rather than 'parked'; this file's docstring says why",
-    )
+        refusal = [line for line in output.splitlines() if any(marker in line for marker in AUTH_MARKERS)]
+        if not drill.check(
+            "it stopped because the credential was refused, and not for some other reason",
+            bool(refusal),
+            refusal[-1].strip() if refusal else "no authentication failure in the output",
+        ):
+            drill.note(
+                "no 401 in the output means the request did not reach api.anthropic.com. The write "
+                "checks below still hold, but the credential half of this drill is unproven: check "
+                "egress with 'uv run python scripts/check_egress.py' and read the output above."
+            )
 
-    print("\n  what the run said, verbatim:")
-    drill.show(output.strip())
+        drill.check(
+            "the notice the run reached is still filtered_in, so the next run picks it up",
+            status == "filtered_in",
+            f"status {status!r} rather than 'parked'; this file's docstring says why",
+        )
+        drill.check("it has no score of its own", its_scores == 0, f"scores for {notice_id}: {its_scores}")
+
+        print("\n  what the run said, verbatim:")
+        drill.show(output.strip())
+
+        # Everything above is attributable to this run. The counts below are the whole
+        # database's, so they are only evidence on a quiet system.
+        require_no_concurrent_calls(before[4], after[4])
+        drill.check(
+            "nothing was written anywhere: no model call, no score, no status moved",
+            after == before,
+            "; ".join(differences(before, after)) or "every count identical, including today's billed calls",
+        )
 
     return drill.verdict()
 
