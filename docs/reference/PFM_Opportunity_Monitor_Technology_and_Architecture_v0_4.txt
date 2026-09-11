@@ -1,0 +1,1216 @@
+PFM Opportunity Monitor
+Technology and architecture design v0.4: Postgres-only scope, with the decision register
+Draft v0.4, 11 September 2026. Prepared by Ryan Dear. Supersedes v0.2 (10 September) and the files circulated as v0.3, which carried v0.2 bodies under a v0.3 filename. Companion to the EMEA Pilot Plan v0.4, the Weekend Build Plan v1.3 and the Source Inventory EMEA v0.2. Working document for the working group; not for wider distribution.
+1. How to read this document
+This is the engineering view of the pilot described in the EMEA Pilot Plan v0.4: 47 countries, every language, 26 connectors of our own in wave 1 and 63 by the end of wave 2. Sections 2 to 9 describe the design as proposed. Section 10 is the decision register. Section 11 lists what I need from Martin and Matthew. Read section 10 first if time is short.
+What changed from v0.2, in one paragraph. Review and approval live in PostgreSQL for the whole fourteen weeks. The review app is the permanent reviewer interface, not a weekend stand-in. Approved records leave the system as a one-way CSV export, which BD imports into Zoho CRM using Zoho's standard import. There is no CRM integration in any phase of this pilot: no Zoho SDK, no OAuth flow, no Deluge script, no webhook, no CRM credential anywhere in the system. Zoho integration is a separate decision taken after the week 14 gate, on evidence, and is described in section 9.5 as a future phase. This is D31, and it supersedes D2, D3, D11, D28, D29 and D30.
+Why this is the stronger design, not a retreat. The checkpoint principle stops being a promise about a script and becomes a database grant with a test behind it: the pipeline's Postgres role has no privilege on approved_records and a test proves the insert fails. It removes the longest-latency dependency in the plan, which was never technical (Zoho sandbox, CRM API credentials, OAuth registration, a picklist change, CRM admin time). It removes an entire governance surface, because nothing in the system holds a credential to a production business system. And it keeps the pilot cheap to stop, which is the point of running one: an integration built in weeks 1 to 3 and abandoned at week 14 is waste, a CSV file is not.
+What it costs, stated plainly. There is no automated check for an Opportunity BD is already tracking, so the reviewer is the only control against duplicates. Account resolution happens at import rather than at approval. And there is a lag between approval and the record appearing in Zoho equal to the export cadence, which the reviewer and BD set. Section 12 carries all three as risks with owners.
+Status legend. Decided: proposed as final for the pilot, change only with a reason. Recommended: my preferred option, open to challenge. Open: needs an owner's call before the date shown.
+2. Design principles
+Principle
+What it means here
+Buy before build
+Feeds and APIs before scrapers. A managed model before self-hosting. One model vendor for translation and scoring. Custom code only where nothing covers the need, which in this pilot is the rubric, the dedupe and the review queue.
+One way to do things
+One host, one scheduler (systemd timers), one database (Postgres), one model vendor behind one interface, one translation path, one write path into approved records, one way out of the system.
+No fallbacks in code
+A connector that fails raises and marks its source unhealthy. A translation that fails a schema check parks the notice. Nothing tries a second selector, a second model or a second translation service. Alternatives are decisions people take, not branches the code takes.
+Fail fast, loudly
+Schema validation at every boundary with typed models. Zero-yield runs are failures, not empty successes.
+Separation of concerns
+Acquire, normalise, translate, filter, score, dedupe, stage, review, export. Each is a module with one job and a typed contract on each side.
+Human checkpoint by construction
+Two database roles. The pipeline role has no privilege on approved_records. Exactly one code path inserts into it, inside the reviewer's decision transaction, under a named reviewer. The property is enforced by the grant, not by convention.
+No integration in scope
+The system holds no credential to any business system. Approved records leave as a file and by no other route. There is no import path, no reconciliation job and no write-back.
+Config over code
+Sources, lexicons per language, thresholds, the function list, the product mapping and the record defaults are versioned configuration files. Changing a keyword is a pull request, not a deployment.
+Original text is the record
+The notice as published, in its language, is what is stored and shown. The English rendering is a derived field with its own model and version stamp.
+Measure before scaling
+Nothing scales until the golden set, the back-test and the live precision numbers say it should.
+3. System context
+The Monitor sits between public procurement and donor sources in 47 countries on one side and a file on the other. It never talks to a government portal on anyone's behalf, and it sends nothing outward at all.
+Actor or system
+Role
+Direction
+Public feeds: TED, Find a Tender, Prozorro, simap, DÖE, PLACE, BOAMP, World Bank, AfDB, MCC, EU Funding and Tenders, UNDP, UNGM, EBRD
+Origin of notices, structured or semi-structured
+Read only, once a day
+National and state portals: ten West African portals in wave 1; Balkan, Mauritanian, Nigerien, Togolese and two Nigerian state portals in wave 2
+Origin of notices, HTML or PDF, in English, French, Arabic, Albanian, Bosnian, Macedonian and Montenegrin
+Read only, once a day
+Intake mailbox (Google Workspace shared mailbox)
+Receives UNDB, AfDB, OECD and portal alert emails, and forwards from staff
+Read only, polled
+Monitor pipeline (AWS ca-central-1, one Linux host in the pilot)
+Acquire, normalise, translate, filter, score, dedupe, stage. Connects as monitor_pipeline.
+Core
+Claude (direct API in the interim, Amazon Bedrock on cutover)
+Translation, classification, extraction, summary. Public notice text only.
+Request and response; the pipeline stores only the parsed result
+Review app (FastAPI on the same host, bound to localhost)
+Queue, candidate detail, decision form, decided list, source health, audit log, export. Connects as monitor_review.
+Read the queue, write the decision
+Reviewer (one, EMEA) and backup
+Approves, edits, rejects; owns rejection reasons including translation faults; checks the CRM by hand for an existing Opportunity before approving
+Human, through the review app over an SSM tunnel
+Export file (CSV plus manifest, on the host and in S3)
+The only thing that leaves the system
+One way, out
+BD import operator (named in D32)
+Imports the export batch into Zoho CRM using Zoho's standard import, resolves the Account, sets the Lead Source and Stage
+Human, outside the system boundary
+Maintainer (Ryan in pilot)
+Connectors, lexicons, rubric, health
+Human
+There is no Zoho component inside the boundary. Zoho appears exactly once in this design, as the destination a person carries a file to.
+4. Logical architecture
+Eleven modules in a straight line. Each has one input contract and one output contract, both typed and validated on entry.
+Module
+Input
+Output
+Notes
+Source registry
+sources/*.yaml, generated from the Source Inventory spreadsheet (131 rows, reconciled against the BD Africa and Europe worksheets)
+Typed Source objects
+One file per source: id, country, language, admin level, stream, access type, connector class, schedule window, ToS status, health thresholds, owner, wave.
+Connectors
+Source
+RawNotice records (url, fetched_at, raw text or document, content hash)
+Four classes only: FeedConnector (JSON, OCDS, eForms, ATOM, RSS), PageConnector (static HTML and PDF bulletins), BrowserConnector (Playwright for JavaScript portals), MailConnector (intake mailbox). A site is configuration plus, where unavoidable, a small parser function.
+Change detection
+RawNotice
+New or changed RawNotice only
+Content hash against the raw store. Zero new items on a source that normally yields is an anomaly, logged and counted.
+Normaliser
+RawNotice
+Notice (canonical schema, appendix A)
+OCDS-inspired fields. Language from the source registry, confirmed by a language identifier. Documents extracted with pdftotext; scanned PDFs to Textract. Buyer, country, deadline parsed with typed rules, not the model.
+Translator
+Notice with language not in {en, fr} and no CPV
+Notice with title_en, body_en, translation model and prompt version
+Claude Haiku 4.5, strict JSON, system names and acronyms kept as written. Runs before the filter only when the filter cannot read the language.
+Filter
+Notice
+Notice with filter_result
+Stage 1, free: CPV codes where present (48, 72, 79 top-level), then the lexicon of the notice language, or the English lexicon on the translation. Drops most volume before any scoring call.
+Scorer
+Notice
+Score (appendix C schema)
+Claude Haiku 4.5 with a strict schema through tool use; reasons on the original text and returns title_en and summary_en. Cached system prompt carries the rubric, the 33 PFM functions, both lexicons and the system-name list. Scores between 40 and 70 are re-scored once by Sonnet 5. Any schema failure is retried once, then parked.
+Deduper
+Scored Notice
+Candidate (one per real-world tender) with linked sources
+Exact hash, then fuzzy match on the English title plus country plus deadline window, then shared system name plus country plus deadline within seven days. Embedding similarity deferred (D4).
+Stager
+Candidate above threshold
+candidates.status = pending_review, with region and original language
+A status change in Postgres. No push, no sync, no outbound call. Everything below threshold stays in Postgres for tuning and is never shown to the reviewer.
+Record builder
+Candidate, its source cluster, config/record_defaults.yaml
+An Opportunity-shaped record dict, field for field per appendix E
+Deterministic mapping, no model call. Every field BD alone can judge is set to the same placeholder the CRM already uses today (TBD, Unknown, blank, a bare dash or 0), so an imported record reads like an early-stage record a person started, not a machine's guess dressed up as fact.
+Exporter
+Approved records in a date range or a named batch
+UTF-8 CSV with BOM plus a sibling manifest; exported_at and export_batch written back
+One command and one button. Columns in the CRM's Opportunity field order and naming, so Zoho's import mapper matches on headers. Batch id, row count, date range, reviewer names and the sha256 of the file in the manifest. A record is never exported twice unless an operator explicitly re-exports a named batch.
+The review side lives in Postgres
+The queue is a view over candidates where status is pending_review, served by a small FastAPI application with server-rendered Jinja pages on the same host. Five pages and one form: queue filterable by region and language, candidate detail with the score, matched functions and evidence, system names, English summary, original text where the language is not English, source links and the proposed record rendered field by field and editable; a decided list; source health; the audit log; and the export page.
+On Approve, in one transaction as monitor_review: candidates.status becomes approved, the Opportunity-shaped record is inserted into approved_records, and two events rows are written, one for the reviewer's decision and one for the record creation attributed to that reviewer. Edit-then-approve puts the edited fields into the record and writes a before-and-after event. Reject requires a reason, enforced server side, and "translation wrong" is one of the reasons and is reported as a metric.
+Why this shape matters for the checkpoint principle. The pipeline connects as monitor_pipeline, which has no privilege on approved_records. Exactly one module, review/decisions.py, inserts into that table, and it connects as monitor_review. A test attempts the insert as the pipeline role and asserts it fails, and attempts it as the review role and asserts it succeeds. That test runs in CI on every commit. The property an auditor, and Manuel, will want to see is a grant and a passing test, not a paragraph in a design document.
+How an approved record reaches Zoho
+A person carries it. The export produces a CSV with one row per approved record and a manifest beside it. The named import operator opens Zoho CRM, runs the standard Opportunities import, maps the columns once and saves the mapping, resolves the Account for each row, and sets the Lead Source and Stage per whatever BD decides those should be. The monitor_candidate_id column travels with the row so an imported record can be traced back to the notice and the audit trail.
+There is no write-back. Nothing tells the Monitor what happened to a record after export, and nothing needs to for the pilot: the week 14 numbers are measured on approvals, estimated value and country, all of which the Monitor already holds. What BD did with the record afterwards comes from BD, at the gate, by hand.
+5. Technology stack
+Layer
+Choice
+Status
+Rationale
+Language and tooling
+Python 3.12, uv, ruff, pytest, pydantic v2
+Decided
+Typed models at every boundary; the most hireable stack for this class of work.
+HTTP and parsing
+httpx, selectolax
+Decided
+Fast, minimal, no browser for static pages.
+Browser automation
+Playwright (Chromium) in its own container on the same host
+Decided
+Only for JavaScript portals (Ghana, Côte d'Ivoire, the five Balkan portals). Kept separate so the cheap fetchers never carry a browser.
+Document text
+pdftotext (Poppler); Amazon Textract for scans
+Decided
+OCR only when a text layer is absent. The Burkina Faso weekly bulletin and several Malian and Nigerien notices are scanned PDFs.
+Language identification
+A small on-host language identifier (fastText lid model) as a check on the registry's declared language
+Decided
+Catches English notices on French portals and vice versa; no model call.
+Translation
+Claude Haiku 4.5 through the same client, strict JSON
+Recommended (D20)
+One vendor, one client, one governance approval. No Amazon Translate, no DeepL, no dictionary.
+Fuzzy matching
+rapidfuzz
+Decided
+Dedupe stage 2 on the English title.
+Hosting
+AWS Canada Central (ca-central-1), dedicated member account
+Recommended (D13)
+Existing estate, in-house AWS skills, Canadian residency, stable egress IP. Google Cloud EU retained as the alternative.
+Model access
+Anthropic Python SDK; Anthropic() on the direct API in the interim, AnthropicBedrock() after cutover
+Recommended (D1)
+The client class is the only code that changes. See section 9.4 for the cutover trigger.
+Models
+Claude Haiku 4.5 (translate, classify), Claude Sonnet 5 (borderline re-score, donor strategy summaries, research bake-off)
+Recommended (D1)
+Opus 5 for the bake-off only.
+Model call mode
+Synchronous Messages API with prompt caching; Batch deferred to phase 4
+Decided (D5)
+Pilot volume is 200 to 500 calls a day including translation. Batch saves about USD 60 a month at that volume and costs up to 24 hours of latency against a 24-hour detection target.
+Database
+PostgreSQL 16 in a container, data on its own EBS volume, pgvector installed; Amazon RDS at scale
+Decided
+One database for notices, translations, candidates, approved records, events, health and lexicon versions.
+Database roles
+Exactly two at runtime, monitor_pipeline and monitor_review, plus monitor_readonly for reporting. No superuser or owner connection at runtime.
+Decided (D31)
+This is the checkpoint.
+Object storage
+Amazon S3, one bucket, lifecycle rule at 180 days; a separate exports/ prefix with no lifecycle rule
+Decided
+Raw HTML and documents for replay and audit; export batches kept for the life of the pilot.
+Review UI
+FastAPI with server-rendered Jinja templates on the pilot host, bound to localhost, reached over an SSM port forward
+Decided (D31)
+Five pages and one form. No JavaScript framework, no build step, no CSS framework beyond one small stylesheet.
+Write path out
+CSV export plus manifest, imported into Zoho CRM by a named person
+Decided (D31)
+No SDK, no OAuth, no Deluge, no webhook, no credential.
+Notifications
+None in the pilot. The reviewer works the queue on a schedule they set.
+Decided (D31, supersedes D10)
+Nothing is notified before shadow mode proves precision, and after that the reviewer is the only consumer. Notification returns with the integration decision.
+Runtime
+One EC2 t3.large in the pilot; t3.xlarge from week 9 if the nightly window exceeds two hours; EC2 M-series plus RDS in production
+Recommended (D17, D18)
+A single visible host with a stable IP. 26 sources in wave 1 and 63 by week 12; the window is measured, not assumed.
+Scheduling
+systemd timers, one unit per job, two source windows: 04:00 to 06:00 Europe local and 05:00 to 07:00 West Africa local
+Decided
+Polite windows per region; sources read once a day.
+Secrets
+AWS Secrets Manager: the model API key and portal credentials. No CRM credential exists.
+Decided
+No secrets in code, config or images.
+Observability
+CloudWatch agent with structured logs; source_health table; alarms on three consecutive failures, zero-yield anomaly, CPU credit balance, disk, translation schema failures, export backlog and the daily model cap
+Decided
+Weekly metrics job writes precision, recall, translation rejection rate and export backlog to a table the review app reads.
+Infrastructure as code
+Terraform, one module, one workspace
+Decided
+Rebuild from scratch in under an hour is the disaster recovery plan.
+Source control and CI
+GitHub repository under the FreeBalance organisation; GitHub Actions
+Open (D14)
+Ownership and IP need a decision; created under a personal account Friday night, transferred Monday.
+6. Deployment architecture (AWS Canada Central)
+One dedicated member account, one region (ca-central-1, Montréal), one Linux host in the pilot, no inbound network path at all. The pipeline is outbound only, and the review app listens on localhost. There is no load balancer, no public endpoint and no webhook receiver, because nothing external needs to reach this system.
+Component
+Pilot configuration
+Notes
+Account
+Member account fb-opp-monitor; budget alert at USD 300 a month; CloudTrail on
+Dedicated account keeps cost, IAM and blast radius separate from delivery workloads (D13).
+Region
+ca-central-1
+Confirm Haiku 4.5 and Sonnet 5 availability in-region before the Bedrock cutover (D1, D19).
+Compute
+EC2 t3.large (2 vCPU, 8 GiB), Ubuntu 24.04 LTS, standard credit mode, Elastic IP; t3.xlarge if the wave-2 window exceeds two hours
+Standard mode means an exhausted credit balance slows the run rather than raising the bill.
+Access
+Systems Manager Session Manager only; no SSH port, no inbound rules. The reviewer reaches the app through an SSM port forward to localhost:8080.
+Every session is logged. The review app is never exposed.
+Containers
+Docker Compose: pipeline, pipeline-browser (Playwright), review, postgres:16 with pgvector; images in ECR
+One image per connector class.
+Scheduling
+systemd timers: fetch-feeds-europe 04:00 CET, fetch-portals-wa 05:00 GMT, fetch-browser daily, fetch-mail hourly, translate-and-filter hourly, score-and-stage hourly, health check after each fetch, metrics weekly
+Each unit is idempotent and safe to re-run by hand. No sync timer, because there is nothing to sync with.
+Database
+PostgreSQL 16 container, 100 GB gp3 EBS volume, three roles
+Production moves to RDS.
+Object storage
+S3 bucket fb-opp-monitor-raw, versioning on, Glacier Instant Retrieval at 180 days; exports/ prefix exempt from the lifecycle rule
+Raw pages and documents keyed by content hash; export batches and manifests kept whole.
+Backups
+AWS Backup: daily EBS snapshot, 7-day retention; weekly pg_dump to S3, 90-day retention
+Restore drill in week 10.
+Secrets
+Secrets Manager: model API key, portal credentials per source
+Read by the instance role only. No CRM secret exists to leak.
+Model
+Direct Anthropic API in the interim; Bedrock, Haiku 4.5 and Sonnet 5, regional endpoint after cutover; quota sized for 600 calls a day
+Same Anthropic SDK either way.
+OCR
+Textract, only when a PDF has no text layer
+About USD 1.50 per 1,000 pages; the Burkina bulletin alone is 40 to 80 pages a week.
+Observability
+CloudWatch alarms on three consecutive source failures, zero-yield anomaly, CPUCreditBalance below 50, disk above 80 percent, translation schema failure rate above 2 percent, export backlog older than seven days, and the daily model cap
+Alarms to one SNS topic, email.
+Network
+Default VPC, public subnet, security group with no ingress and egress on 443 and 80 only
+Port 80 needed because several West African portals still lack TLS.
+CI and deploy
+GitHub Actions with an OIDC role: build images, push to ECR, deploy through SSM Run Command
+No long-lived AWS keys anywhere.
+Infrastructure as code
+Terraform, one workspace
+Rebuild in under an hour.
+Production shape (phase 4 onward)
+Component
+EMEA full (80 to 100 connectors)
+Global (600 sources)
+Application host
+EC2 m6i.large, about USD 78 a month on-demand; 1-year Compute Savings Plan cuts 30 to 40 percent
+EC2 m6i.xlarge, about 156 a month; or ECS Fargate scheduled tasks if the nightly window exceeds six hours (D18)
+Database
+RDS for PostgreSQL, db.t4g.medium, single-AZ
+RDS Multi-AZ, cross-region snapshot copy
+Browser workers
+Same host, concurrency 2
+Separate worker host or Fargate tasks, concurrency by region
+Model
+Bedrock, same models; Batch inference for the overnight bulk
+Same, with provisioned throughput only if latency becomes contractual
+Review and hand-off
+Review app plus CSV export
+Integration decided at the week 14 gate; if taken, it replaces the export and inherits the same single-write-path rule
+Indicative cloud cost, monthly
+300 to 500
+500 to 1,000
+Alternative retained: Google Cloud EU
+The same design maps one-to-one: Cloud Run jobs, Cloud Scheduler, Cloud SQL, Cloud Storage, Secret Manager, Document AI for OCR, and Claude on Vertex AI in europe-west1. It scales to zero and costs 20 to 40 dollars a month less in the pilot, at the price of rotating egress IPs and a second cloud vendor to onboard. The code does not change; only the Terraform and the client class do.
+7. Data model
+Postgres holds all of it. There is no second system of record in the pilot.
+Table
+Purpose
+Key fields
+sources
+Mirror of the registry for joins and health
+id, country, admin_level, language, stream, access_type, connector_class, wave, tos_status, enabled
+fetch_runs
+One row per source per run
+id, source_id, started_at, finished_at, status, items_seen, items_new, error
+notices_raw
+Every new or changed item
+content_hash (PK), source_id, url, fetched_at, storage_uri, mime
+notices
+Canonical, normalised, original language
+id, content_hash, source_id, external_id, title, buyer, country, admin_level, published_at, deadline_at, language, language_confidence, cpv_codes[], text_uri, filter_result
+translations
+English rendering, one per notice and prompt version
+notice_id, title_en, body_en_uri, model, prompt_version, latency_ms, cost_usd, created_at
+scores
+Model output, versioned
+notice_id, model, prompt_version, relevance, title_en, matched_functions[], estimated_value, eligibility_flags[], summary_en, raw_json, latency_ms, cost_usd
+candidates
+One per real-world tender
+id, primary_notice_id, score, status (detected, filtered_out, scored, staged, pending_review, approved, rejected), region, language, rejection_reason
+candidate_notices
+Dedupe cluster membership, possibly across languages
+candidate_id, notice_id, match_method, match_score
+approved_records
+The Opportunity-shaped record created at approval. Insert only by monitor_review.
+id, candidate_id, reviewer_name, approved_at, record_json (the field-for-field payload per appendix E), edited (bool), exported_at, export_batch
+export_batches
+One row per export produced
+batch_id (PK), created_at, operator, row_count, range_from, range_to, file_uri, manifest_uri, sha256
+events
+Full audit, pipeline side and review side
+id, entity_type, entity_id, action, actor, before, after, at
+source_health
+Rolling health per source
+source_id, last_success_at, consecutive_failures, median_items, last_zero_yield_at, state
+lexicon_versions, function_map
+Config history per language and the 33 PFM functions with weights and product mapping
+version, language, content_hash, applied_at; function_id, name, pillar, type_weight, product[], product_status, keywords_en[], keywords_fr[]
+approved_records is deliberately not named for a CRM. Its columns follow the Opportunity shape because that is what the export has to produce, but the table implies no integration, because there is none.
+8. Model layer design
+Prompt structure
+Translation call (only for notices the filter cannot read): a short cached system prompt, the notice title and text, strict JSON with title_en and body_en. System names, acronyms and organisation names are kept as written. About 1,500 tokens a call.
+Scoring call, system prompt cached: the rubric, the 33 PFM functions with one-line definitions and type weights, the English and French lexicons, the system-name list, eligibility rules, geography weights and the output schema. Roughly 7,500 tokens, paid once per cache window and then at 10 percent.
+Scoring call, user message: language, title, buyer, country, deadline, CPV codes, the first 3,000 tokens of body text in the original language, the machine translation if one exists, and the source URL. No business records, no contact data, no reviewer or staff names, no prior candidates.
+Output: one tool call with the schema in appendix C, which includes title_en. Anything else is a hard error. Schema validity rate is a tracked metric; the target is above 99 percent.
+Scoring rubric (initial, to be tuned in weeks 9 to 14)
+relevance = 100 × sigmoid(w1·function_fit + w2·system_signal + w3·value_band + w4·geography + w5·eligibility + w6·donor − bias). Function fit is the type-weighted sum of matched PFM functions, and the type weight is a lookup from the component map's own Type column rather than a judgement call. System signal rewards named systems (IFMIS, GIFMIS, IPPIS, TSA, HRMIS, SIGIF, SIGFiP, AGFIS, ISFU, e-procurement). Value band uses the stated contract value. Geography is a per-country weight Matthew sets (West Africa 1.0, Ukraine and the Western Balkans 0.8, EU, EEA, UK and Switzerland 0.6 in the initial file). Eligibility subtracts for national-only or local-registration tenders. Donor adds for donor-financed notices. Threshold to stage: 60 in shadow mode, adjusted per region to hit 40 percent precision by week 14.
+Escalation and cost control
+Haiku 4.5 translates and scores everything that passes the filter. Sonnet 5 re-scores once when relevance is between 40 and 70. Opus 5 is never in the daily path.
+Hard caps: 600 model calls a day and USD 25 a day, enforced in code. Exceeding either stops the run and alerts. Expected pilot load is a third to a half of that.
+Per-source caps in shadow mode: TED, DÖE, PLACE and BOAMP each stage at most 15 candidates a day until their thresholds are tuned.
+Every call logs model, purpose (translate, score, rescore), prompt_version, tokens in and out, and cost.
+Evaluation harness
+Golden set: 150 notices labelled by Matthew and me in weeks 4 to 6 (60 relevant, 90 not), drawn from TED, Prozorro, World Bank, Senegal, Ghana and one Balkan portal, at least 50 of them non-English. Every prompt or lexicon change is run against it before release.
+Translation sample: 30 translated notices (French, German, Ukrainian, Arabic, Albanian) checked by a French reader and a German reader in week 9; Ukrainian, Arabic and Albanian checked against the model's own back-translation and flagged for the reviewer.
+Back-test set: the known EMEA misses, at least eight, at least three non-English, replayed through the pipeline from their original publication pages. Recall on this set is the headline number at the week 14 gate.
+Export integrity: every batch checked for row count against approved records in range, traceability of every row to a candidate id and an audit trail, manifest hash matching the file, no row exported twice, and every column present in the order the CRM import mapper expects. Any field the mapping does not cover is a field someone will hand-key, and it is reported as a defect.
+Live feedback: reviewer rejections with reasons, joined to scores and translations, reviewed weekly.
+Data sent to the model
+Public notice text and metadata only, in whatever language it was published. The pipeline holds no business records to send, which is now a property of the architecture rather than a rule people have to remember.
+9. Lifecycle: build, test, pilot, implement
+9.1 Build (weeks 3 to 8), five increments
+Increment
+Scope
+Done when
+1. Thin slice (week 3)
+Terraform baseline, host with Compose and Postgres, migration 001 with the three roles and their grants, one FeedConnector (TED), normaliser, filter, Haiku scoring, stager, review app queue and decision form, approval inserting an approved_records row
+A TED notice travels end to end from fetch to an approved record with a full event trail, and the role test passes both ways.
+2. Europe feeds (weeks 3 to 4)
+Find a Tender, Prozorro, simap, DÖE, PLACE, BOAMP; translation stage; French lexicon
+Seven feeds run five days unattended. A Prozorro and a DÖE notice are translated, filtered and scored.
+3. Donor feeds (week 5)
+World Bank notices and pipeline, AfDB, MCC, EU Funding and Tenders, UNDP, UNGM, UNDB mailbox, EBRD
+All wave-1 feeds run on schedule; first back-test recall measured on the feed-only set.
+4. West African portals (weeks 6 to 8)
+Benin, Burkina Faso (PDF bulletin, Textract), Côte d'Ivoire (Playwright), The Gambia, Ghana (Playwright), Liberia, Mali, Nigeria, Senegal, Sierra Leone
+Each portal has a recorded fixture, a contract test and a health threshold.
+5. Record, export, dedupe and tuning (weeks 7 to 8)
+Record builder against appendix E, exporter with manifest and batch write-back, cross-language dedupe, Sonnet escalation, golden set harness, weekly metrics job
+Golden set precision above 60 percent, schema validity above 99 percent, and a dry-run export of hand-approved records imported successfully into a Zoho sandbox by BD with the column mapping saved.
+Wave 2 (weeks 9 to 12, in parallel with shadow and live)
+Albania, Bosnia and Herzegovina, Kosovo, Montenegro, North Macedonia, Mauritania, Niger, Togo, Kaduna, Lagos, IsDB, BOAD, OECD mailbox; EU below-threshold portals in order of Matthew's priority
+Added one at a time as each passes its fixture and contract test.
+The dry-run import in increment 5 is the one thing in this plan that touches Zoho, and it is done by a BD person with a file, not by the system. Its purpose is to prove the column mapping before live, so the first real batch is not the first time anyone finds out a header does not match.
+9.2 Test, what is tested and how
+Level
+Method
+Gate
+Unit
+pytest on normaliser, filter (both lexicons), dedupe rules, record builder, schema models
+Green in CI on every commit.
+Role boundary
+A test inserts into approved_records as monitor_pipeline and asserts permission denied; the same insert as monitor_review asserts success; a second test asserts the pipeline cannot set candidates.status to approved
+Both green in CI on every commit. This is the checkpoint test and it never gets skipped.
+Connector contract
+Recorded HTML, PDF and JSON fixtures per source; test asserts item count, required fields, declared language, and that a changed layout fails loudly
+Every source has a fixture before it is enabled.
+Translation
+Schema validity; system-name preservation check (every acronym in the original appears in the translation); the week-9 human sample
+Schema validity above 98 percent; sample accepted by the readers.
+Model evaluation
+Golden set run per prompt_version; precision, recall, schema validity, cost per notice, split by language
+No prompt change ships below the previous version's precision.
+Back-test replay
+Known misses pushed through the full pipeline from their original pages
+Recall reported overall and for non-English misses; misses attributed to exactly one stage.
+Export integrity
+Row count, traceability, manifest hash, no double export, column order and naming against the CRM import mapper
+Dry-run import into a Zoho sandbox accepted with no hand-keyed field.
+Failure drills
+Source down, source redesigned, model key revoked, model throttling, translation schema failure, database unreachable, export interrupted halfway, same batch exported twice, CPU credits exhausted, host rebuilt from Terraform and snapshot
+Each produces the expected alert and no partial writes.
+Security
+Secret scan in CI, IAM review against appendix D, dependency audit, no inbound path, Session Manager logging
+Reviewed by Ryan under the Acting CSO mandate before live.
+User acceptance
+Five sessions with the reviewer on the review app during shadow mode, including French and translated candidates
+Reviewer can approve, edit and reject a candidate in under two minutes without help.
+9.3 Pilot operations (weeks 9 to 14)
+Entry to shadow mode: increments 1 to 5 done, role and export tests green, security review done, reviewer and backup trained.
+Entry to live: five consecutive shadow days with precision at the queue above 30 percent in both region views, translation sample accepted, the dry-run import accepted, and Matthew's sign-off that the queue is usable.
+Daily: automated runs; maintainer checks source health, translation failures, export backlog and the cost line (fifteen minutes). Reviewer works the queue.
+Weekly: metrics job Monday; export batch produced on the cadence BD agrees, recommended Monday alongside the metrics; thirty-minute tuning session Tuesday reviewing rejections by reason, precision by region and language, recall, connector breaks; changes shipped as versioned config by Wednesday.
+Change control: prompt_version, translation prompt version and lexicon version per language on every score; a change log in the repository.
+Incidents: a broken connector is fixed or disabled within two working days; a model, translation or schema fault stops the run and pages the maintainer; a failed export leaves no rows marked exported and is simply re-run.
+9.4 The Bedrock cutover
+Direct API now is the right call and I would not bring Bedrock forward. Functionally the two routes are the same models, the same SDK and the same prompts; the only code difference is the client class. What Bedrock buys is governance and billing, not capability: the calls land on the existing AWS invoice under the existing AWS agreement, the data stays in ca-central-1, and the CEO sign-off reads better. None of that matters while the pipeline is running on fixtures and public feeds in shadow mode.
+Cut over at whichever comes first: the governance approval is written up and names Bedrock as the route, or entry to live mode in week 11. The cutover is half a day: enable model access in the member account, swap Anthropic() for AnthropicBedrock(), re-run the golden set to confirm identical scores at the same prompt_version, and record it in the register (D1). Keep the direct key alive for two weeks after as the recorded alternative, then revoke it. Cut over sooner if the direct key ends up on a personal rather than a company account.
+9.5 The integration decision, after the gate
+If the week 14 gate says scale, the CSV hand-off becomes the next decision rather than the permanent answer. At that point the question is a real one, decided with a reviewer who has worked the queue for six weeks and a known volume of approvals per week. The options, for the record:
+Keep the export. At ten to twenty approvals a week, a weekly import is minutes of work and costs nothing to maintain. This is the honest default and it should not be dismissed because an API exists.
+Zoho Creator app plus a Deluge write on Approve. The queue moves into Zoho, the reviewer's Zoho identity becomes the actor on every create, and the same single-write-path rule is re-implemented against Creator instead of Postgres. This was the v0.2 design and it remains the right shape if the reviewer's working day is already inside Zoho and the volume justifies it.
+A narrow read scope for duplicate detection only. Search Opportunities by Account and keyword before staging, read only, so the queue stops showing tenders BD already tracks. This is the highest-value integration per unit of risk and it is worth considering before the write path, not after.
+Whichever is chosen, the rules do not move: no identity other than a named human ever creates a business record, and every create carries an audit trail back to the notice.
+9.6 Implement and scale (phase 4 onward)
+Area
+Pilot
+Scale
+Sources
+26 connectors in wave 1, 63 by week 12, four connector classes
+Same classes; onboarding checklist and fixture per source; aggregators as FeedConnectors
+Languages
+English and French lexicons; everything else translated
+Spanish and Portuguese lexicons for the LATAM wave; per-language golden sets; translation stays one model, one prompt
+Dedupe
+Hash, fuzzy on the English title, system name plus deadline
+Embedding similarity with pgvector when cross-language duplicates are measured
+Compute
+One t3.large or t3.xlarge, Compose
+M-series host plus RDS; Fargate if the nightly window exceeds six hours
+Model calls
+Synchronous, direct API then Bedrock
+Bedrock batch inference for the overnight bulk
+Connector health
+Alerts to one maintainer
+Runbook per failure class; monthly connector review; an LLM-assisted re-extraction step that proposes a fix for review, never applies it
+Review
+One reviewer, two region views, CSV export
+Regional reviewers, reviewer load metric per region, integration decided per 9.5
+Ownership
+Ryan builds and maintains
+Named maintenance owner at 0.5 to 1 FTE; handover with runbooks
+10. Decision register
+D31, the scope decision, and what it supersedes
+Decision
+Choice
+Rationale
+D31. Where review, approval and the hand-off live
+Postgres for the whole pilot. The review app is the permanent interface. Approved records leave as a one-way CSV export imported into Zoho by a named person. No CRM integration in any of the fourteen weeks.
+Stronger checkpoint (a grant with a test, not a script with a promise), no credential to a production business system anywhere in the design, the longest-latency dependency removed from the critical path, and a pilot that stays cheap to stop. Integration is decided at the gate per 9.5.
+Superseded
+Was
+Now
+D2. Where the CRM write lives
+Deluge in Creator on Approve
+No CRM write exists. review/decisions.py writes approved_records. Revisit at the gate.
+D3. Review UI
+Zoho Creator app with region views
+FastAPI review app on the pilot host, region and language filters.
+D11. CRM target record
+Opportunities module, written by Creator
+Unchanged as the target shape: the export produces Opportunity columns so the import lands in the same module BD already uses. Appendix E is now an export column spec rather than a payload spec.
+D28. Lead Source picklist value
+Add "Monitor" before any live write
+No longer blocking. It becomes an import-mapping choice BD makes when it saves the column mapping in increment 5. Still worth adding, still worth confirming the entry Stage.
+D29. Account resolution
+Reviewer resolves at approval
+Resolved at import, by the import operator, using Zoho's own matching. The record builder proposes the buyer name as text and nothing more.
+D30. Existing-Opportunity duplicate check
+Narrow read scope on Opportunities before staging
+No API scope exists. The reviewer's manual check is the only control, and the candidate page carries a standing reminder. Every duplicate that reaches an export batch is logged as a finding, not a nuisance. This is the real cost of D31 and it is listed as a risk, not buried.
+D10. Notification channel
+Cliq, email or both
+None in the pilot. Returns with the integration decision.
+D6. Intake mailbox
+Shared Workspace mailbox
+Unchanged. It is an inbound source, not an integration.
+Decided for the pilot
+Decision
+Choice
+Rationale in one line
+Runtime and orchestration
+AWS Canada Central: one EC2 host with Docker Compose and systemd timers in two regional windows
+Existing estate, one scheduler, stable egress IP.
+Storage
+Postgres on the host plus one S3 bucket; RDS at scale
+One place for state, translations, approved records, audit and tuning data.
+Checkpoint enforcement
+Two runtime roles; monitor_pipeline has no privilege on approved_records; one code path inserts, under a named reviewer; proven by a test in CI
+Policy becomes a property of the system.
+Out of the system
+One way, one format, one file, plus a manifest
+Nothing writes to a business system, so nothing can write to it by accident.
+Model call mode (D5)
+Synchronous, cached prompts; Batch deferred to phase 4
+Latency target beats a USD 60 saving.
+Escalation
+Haiku translates and scores all, Sonnet re-scores 40 to 70 once, Opus never daily
+Cost control with a quality safety net.
+Connector policy
+Feeds first; four connector classes; fixtures and health thresholds mandatory
+Maintenance is the real cost.
+Acquisition ethics
+robots.txt, identified user agent, one daily pass, no CAPTCHA solving, no proxies, no third-party mirrors, credentials only in Secrets Manager
+Vendor reputation with the same governments.
+Data to the model
+Public notice text and metadata only, any language
+Bounds the governance ask.
+Original text is the record
+Notice stored and shown in its published language; English rendering is a derived, versioned field
+Reviewer and auditor see what was published.
+Open
+ID
+Decision
+Options
+Recommendation
+Owner
+Needed by
+D1
+Model and route
+Direct Claude API now then Bedrock ca-central-1; Bedrock from the start; Vertex AI EU; Gemini
+Direct API for build and shadow, Bedrock at approval or week 11, whichever is first.
+Manuel (CEO sign-off), Martin sponsors
+Week 2
+D4
+Dedupe depth
+Hash and fuzzy on English title; add embeddings now
+Hash and fuzzy; measure cross-language duplicates in shadow and bring embeddings forward if they exceed 5 percent.
+Ryan
+Week 8
+D6
+Intake mailbox
+Shared Workspace mailbox monitor@; forwarding rule
+Shared mailbox, delegated scope.
+Martin with IT
+Week 2
+D7
+Reviewer, backup and week-14 owner
+Matthew; a delegate; a BD ops person
+Matthew for the pilot, backup named. No reviewer, no pilot.
+Matthew
+Now
+D8
+Source list of record
+The Source Inventory v0.2 as filed; Matthew's edits; the "600 sites" list if it exists
+The inventory, with Matthew's wave-1 ordering for West Africa, capped at 26 own connectors in wave 1.
+Matthew, Martin
+Now
+D9
+Scoring floor and eligibility rules
+Value floor; national-only excluded or flagged; sub-national included or excluded
+Flag, do not exclude; sub-national included; tune at week 10.
+Matthew, Martin
+Week 3
+D12
+Portal accounts and ToS, 47 jurisdictions
+Register FreeBalance service accounts where terms allow; public listings only
+Register under a corporate identity where allowed; public-only elsewhere; legal review of the Balkan and francophone terms in week 2.
+Martin, legal
+Week 2
+D13
+AWS account
+Dedicated member account; namespace in a delivery account; personal account
+Dedicated member account, ca-central-1.
+Martin with the cloud team and finance
+Week 1
+D14
+Repository and IP
+FreeBalance GitHub organisation; other
+FreeBalance organisation, standard employee IP terms. Created personally Friday night, transferred Monday.
+Martin, Gerard
+Week 1
+D15
+Taxonomy and lexicon custodian
+Product marketing; BD; Ryan
+Component map owner approves function-level changes; Ryan owns both lexicons in the pilot; a French-speaking BD reader reviews the French lexicon.
+Martin
+Week 3
+D16
+Back-test set
+From BD memory; mined from CRM lost or late deals
+Both: eight named misses, three non-English, plus a CRM query. Without this the gate is opinion.
+Matthew, Martin
+Week 2
+D17
+Pilot host size
+t3.large; t3.xlarge from the start
+t3.large, move to xlarge on measured window.
+Ryan
+Week 2
+D18
+Production compute shape
+EC2 M-series plus RDS; ECS Fargate plus RDS
+M-series plus RDS at EMEA scale.
+Ryan, Martin
+Week 14 gate
+D19
+Bedrock endpoint
+Regional ca-central-1; cross-region routing
+Regional. Confirm model availability before the cutover, not after.
+Ryan
+Week 10
+D20
+Translation design
+Claude Haiku in the pipeline; Amazon Translate; DeepL; no translation
+Claude Haiku: one vendor, one governance item, system names preserved by prompt.
+Ryan, Martin
+Week 2
+D21
+Lexicon languages in the pilot
+English only; English and French; add German and Spanish
+English and French. German and Spanish notices arrive with CPV codes and TED English titles.
+Ryan, Matthew
+Week 3
+D22
+Build capacity
+Ryan alone over 14 weeks; Ryan plus a half-time developer over 12
+Ryan alone unless the calendar matters more than the cost. This is a resourcing call against portfolio duties, not a line item.
+Martin, Gerard
+Now
+D23
+Aggregator trial
+OpenOpps; dgMarket; DevelopmentAid; none in the pilot
+OpenOpps first (OCDS, structured, cheapest to compare against the back-test).
+Martin, Matthew
+Week 4
+D24
+Sub-national scope in the pilot
+None; feed-carried only; feed-carried plus two Nigerian states
+Feed-carried plus Kaduna and Lagos in wave 2.
+Matthew
+Week 6
+D25
+Regional reviewer split
+One reviewer for EMEA; one per region
+One reviewer with two queue views in the pilot; split at the gate if load exceeds 3 hours a week.
+Matthew, Martin
+Week 10
+D26
+Six EU members not in the 47
+Keep 47; add Bulgaria, Czech Republic, Hungary, Portugal, Romania, Slovakia
+Add them. TED already carries all six with English titles; the cost is six registry rows and six geography weights.
+Matthew, Martin
+Now
+D27
+Worksheet credentials
+Rotate and move to corporate identities and Secrets Manager now; wait for the pilot decision
+Now. Plain-text, shared and reused passwords are a finding under the Acting CSO mandate regardless of the pilot.
+Ryan, Martin
+Week 1
+D32
+Import owner and export cadence
+Reviewer imports; a BD ops person imports; regional leads import their own region
+One named import operator, weekly, Monday, alongside the metrics job. An approved record sitting unimported is an opportunity nobody is working, and that has an owner or it does not happen.
+Martin, BD ops
+Week 8, before shadow
+D33
+Column mapping sign-off
+BD accepts the export columns as specified; BD amends them
+Run the dry-run import in increment 5 and save the mapping. Any column the mapper rejects is a defect I fix, not a field someone hand-keys.
+Martin, BD ops
+Week 8
+11. What I need from the session
+From Martin
+Who administers FreeBalance's AWS organisation, whether a member account in ca-central-1 can be created this week, and whether Bedrock model access is already enabled anywhere (D13, D1).
+Who signs the Claude governance item, what they will want to see, and how long it usually takes (D1). The translation stage is covered by the same approval; say so in the ask (D20).
+Acceptance that there is no CRM integration in the pilot and that approved records arrive as a file (D31). This removes asks from his plate rather than adding them: no Zoho sandbox, no CRM API credentials, no OAuth registration, no CRM admin time in weeks 1 to 3.
+A named import operator and an agreed cadence (D32), and a BD sign-off on the export columns after the dry-run import (D33).
+An owner for the intake mailbox and for portal registrations across 47 jurisdictions (D6, D12).
+Repository home and IP position (D14), and who owns the component map and the French lexicon review (D15).
+Whether UNDB, UNGM, OpenOpps or any aggregator subscription already exists, and who maintains the BD Africa and Europe worksheets today.
+Agreement to rotate the worksheet credentials and move them to corporate identities (D27), and to name the worksheet owners as source-onboarding reviewers for their countries.
+The build capacity decision (D22).
+From Matthew
+His wave-1 order for the ten West African portals and the Balkan portals, and the portals he already checks by hand (D8).
+Eight or more concrete misses, three non-English: what, where published, in what language, when, and how he found out (D16).
+What a good candidate looks like: value floor, procurement types that matter, buyers to ignore, competitors whose incumbency changes the score, per region (D9).
+Whether he will be the reviewer for six weeks at two to three hours a week, and who backs him up (D7).
+Confirmation that he is comfortable checking Zoho by hand for an existing Opportunity before approving, since that is the only duplicate control in this scope.
+Three hours in weeks 4 to 6 to label the golden set with me, and a French reader for the week-9 sample.
+What is up for debate, and what I will hold firm on
+Open to change: the model route if governance stalls, the wave-1 order, the scoring floor, the export cadence and format details, whether embeddings come in now or later, and whether a second developer joins.
+Not up for debate in the pilot: the system holds no credential to any business system; exactly one code path creates an approved record and it runs under a named reviewer; nothing is notified before shadow mode proves precision; no CAPTCHA solving, proxies or mirrors; no business or contact data reaches any model; the original notice text is what is stored and shown; every source has a fixture and a health threshold before it is enabled; and the export is one way with no import, reconciliation or write-back. These are the properties that make the system defensible if it works and cheap to stop if it does not.
+12. Technical risks
+Risk
+Likelihood
+Impact
+Mitigation
+No automated duplicate check against Opportunities BD already tracks
+Certain in this scope, and the failure mode is proven
+Wasted reviewer time, two records for one tender, confused pipeline reporting
+The reviewer's manual check is the only control, and the candidate page carries a standing line. Every duplicate that reaches an export batch is logged as a finding and counted at the gate. If the count is material, the narrow read scope in 9.5 becomes the first integration taken.
+An approved record is never imported
+Medium
+An opportunity nobody is working, which is the exact failure the system exists to fix
+D32 names an owner and a cadence. exported_at is a column, export backlog is on the daily ops check, and an alarm fires when a batch is older than seven days.
+A column the Zoho import mapper rejects
+Medium
+Hand-keying, which erodes the time saving that justifies the pilot
+Dry-run import in increment 5 against a sandbox, mapping saved, every rejected column fixed in the exporter and reported as a defect.
+Claude Haiku 4.5 or Sonnet 5 not served in ca-central-1
+Medium
+Residency story weakens or route changes
+Check before the cutover; cross-region inference or the Vertex EU alternative decided in D1, not discovered in week 12.
+Translation drops or alters a system name or a deadline
+Medium
+Missed or mis-scored tender
+Acronym preservation check on every translation; deadline parsed by rules from the original, never from the translation; "translation wrong" rejection reason and metric; week-9 human sample.
+Volume from TED, DÖE, PLACE and BOAMP overwhelms filter and reviewer
+High
+Precision collapses, reviewer load
+CPV first; per-source thresholds; per-source cap of 15 staged candidates a day in shadow mode; region and language filters in the queue.
+26 connectors by one person in six weeks
+High
+Calendar slips
+Feeds first; portals last; fixtures recorded as each is built; D22 second developer if the calendar matters.
+West African portals unreachable for days; Balkan portals behind registration
+High
+Coverage gaps
+Retry with backoff within a single run only; alert on three failures; coverage metric per source; corporate registrations where terms allow.
+Portal redesign silently yields zero
+High over months
+Silent miss
+Zero-yield anomaly is a failure state; contract test with fixture; monthly connector review.
+Scanned PDF bulletins (Burkina Faso, Mali, Niger)
+High
+Missed content
+Text-layer detection before OCR; Textract from increment 4; OCR quality sampled.
+Cross-language duplicates missed
+Medium
+Same tender reviewed twice
+Fuzzy match on English title plus system name and deadline; measure in shadow; embeddings if above 5 percent (D4).
+Review app grows into a product
+Medium
+Time spent on the wrong thing
+Five pages and one form. If a page is not in BUILD_ORDER, it is not built. Anything beyond that is the integration decision at the gate, not a pilot deliverable.
+t3 CPU credits exhausted during a two-hour run
+Medium at 63 sources
+Slow run, not a bill
+Standard mode; alarm; move to t3.xlarge on measured window (D17).
+Single host is a single point of failure
+Certain in pilot
+Missed runs while down
+Daily snapshots, weekly pg_dump, Terraform rebuild in under an hour; missed runs re-fetch the backlog.
+Schema drift in model output
+Low
+Run stops
+Tool-use schema enforcement; one retry; parked queue reviewed weekly.
+Single maintainer
+Certain in pilot
+Continuity
+Runbook and architecture kept current from week 3; handover is a gate deliverable.
+Cost runaway from a misconfigured source
+Low
+Budget
+Daily call and dollar caps in code; per-source caps; budget alert.
+Shared plain-text portal credentials in the BD worksheets
+Certain today
+Account takeover on government portals under FreeBalance's name
+Rotate now; corporate identities; Secrets Manager for the pipeline, password manager for people; credentials column removed from the worksheets (D27).
+Appendix A. Canonical Notice schema (pydantic, abridged)
+class Notice(BaseModel):
+id: UUID
+content_hash: str            # sha256 of normalised original text
+source_id: str               # from sources/*.yaml
+external_id: str | None      # portal or OCDS id
+url: HttpUrl
+title: str                   # as published, original language
+buyer: str | None
+country: str                 # ISO 3166-1 alpha-2 (XK for Kosovo)
+admin_level: Literal['national','subnational','donor','multilateral']
+published_at: datetime | None
+deadline_at: datetime | None # parsed from the original, never from a translation
+language: str                # BCP-47, from the registry, confirmed by the identifier
+language_confidence: float
+cpv_codes: list[str] = []
+estimated_value: Money | None
+text_uri: str                # S3 pointer to extracted original text
+fetched_at: datetime
+class Translation(BaseModel):
+notice_id: UUID
+title_en: str
+body_en_uri: str
+model: str
+prompt_version: str
+created_at: datetime
+Appendix B. Source registry entry (example, francophone portal)
+id: sn-marchespublics
+name: Portail des marches publics du Senegal (ARCOP)
+country: SN
+admin_level: national
+language: fr
+stream: A
+wave: 1
+access: public_listing        # public_listing | registered | api | mail
+connector: PageConnector
+schedule: '0 5 * * 1-5'       # Africa/Dakar
+list_url: https://...         # verified at build, not here
+tos_status: pending           # reviewed_ok | reviewed_restricted | pending
+health:
+expected_items_per_run: [1, 25]
+max_consecutive_failures: 3
+owner: ryan.dear
+Appendix C. Score output schema (tool definition, abridged)
+{
+'relevance': int (0-100),
+'title_en': str,                 # English title; copied when already English
+'matched_functions': [ {'function_id': str, 'evidence': str} ],
+'system_names': [str],           # IFMIS, GIFMIS, SIGIF, SIGFiP, AGFIS, ISFU, TSA, HRMIS ...
+'procurement_type': 'system' | 'services' | 'advisory' | 'other',
+'estimated_value_usd': int | null,
+'eligibility_flags': ['national_only','local_registration','consortium_required','tax_clearance_required'],
+'deadline_at': date | null,
+'summary_en': str (<= 120 words),
+'confidence': 'high' | 'medium' | 'low'
+}
+Appendix D. Identity and scope matrix
+Identity
+AWS
+Postgres
+External
+ec2-monitor-role (instance profile)
+bedrock:InvokeModel on the two named model ARNs after cutover; s3 read and write on the one bucket; secretsmanager:GetSecretValue on named secrets; textract:DetectDocumentText; logs and cloudwatch put; ssm messaging
+monitor_pipeline: select and insert on notices, translations, scores, candidates, candidate_notices, events, source_health, fetch_runs. No privilege of any kind on `approved_records`. Cannot set candidates.status to approved.
+Read portals and feeds; read the intake mailbox; call the model API
+review app (same host, separate process)
+none beyond the instance profile's s3 write on the exports/ prefix
+monitor_review: insert on approved_records and export_batches, update on candidates, insert on events, select on everything
+none
+reporting and ops-analyst
+none
+monitor_readonly: select only, on everything
+none
+github-deploy-role (OIDC, no keys)
+ecr push; ssm:SendCommand on the one instance
+none
+none
+backup-role
+EBS snapshot create and delete within the plan
+none
+none
+Reviewer and backup (human)
+none
+through the review app only, over an SSM port forward
+none
+Import operator (human)
+none
+none
+their own Zoho CRM login, used by hand on a file
+Maintainer (human)
+Session Manager access to the one instance; read-only console in pilot
+psql as monitor_readonly for diagnosis; migrations applied by the runner under the owner role, never at runtime
+Portal service accounts held in Secrets Manager
+No identity in this system holds a credential to any business system, because no such credential exists anywhere in the design. The checkpoint is the `monitor_pipeline` grant: the pipeline cannot create an approved record, and a test in CI proves it on every commit. That is a stronger statement than the v0.2 design could make, because it is enforced one layer below the application.
+Appendix E. Export column specification
+The export produces the CRM's Opportunity columns so the import lands in the module BD already uses. Ghana's live record (Ghana GIFMIS Modernisation and EU PFM Reform) is the reference: it shows the exact field set and it already uses the placeholders this spec reuses (TBD, Unknown, a bare dash) for anything BD has not yet filled in. An imported Monitor record should be indistinguishable in shape from one Matthew starts by hand. It should just arrive a day after publication instead of whenever someone notices it.
+Category: D derived directly from the notice or candidate, written with confidence. S a heuristic suggestion, written but expected to change; the reviewer sees it in the record preview before approving and edits it there like any other field. B BD judgement only; the exporter writes the same placeholder the CRM already uses and never guesses.
+File format: UTF-8 with BOM, comma separated, one row per approved record, headers exactly as below and in this order. Dates ISO 8601. Currency as a bare number with a separate currency column, no thousands separators. Empty means empty, never "N/A". Two columns exist for traceability and are not CRM fields: monitor_candidate_id and monitor_export_batch.
+Opportunity information
+Field
+Cat
+Rule
+Default when not derivable
+Opportunity Name
+D
+candidate.title_en
+—
+Opportunity Owner
+B
+assigned by the regional BD lead at import
+TBD
+Stage
+S
+fixed entry stage for every Monitor record, set at import mapping
+TBD
+Closing Date
+B
+a bid deadline is not a deal-close date
+TBD
+Finance Project ID
+D
+World Bank P-number or AfDB project number when the notice or its donor source states one
+blank
+Account Name
+S
+buyer text, carried as a proposal for the import operator to match or create in Zoho
+"proposed: <buyer>"
+Is this a Partner or Reseller-led opportunity?
+S
+No, unless a named local implementation partner is detected in the text
+No
+Level of Government
+D
+admin_level: national to Central; subnational to Local/Regional
+—
+Sales Forecasting
+B
+forecast category is a BD judgement
+TBD
+Proposal Type
+S
+keyword scan for RFP, ITB, EOI, GPN against procurement_type
+"RFP (or similar)"
+Original Closing Date
+B
+—
+TBD
+Lead Source
+S
+"Monitor" if the value exists, otherwise set at import mapping
+Monitor
+Partners Involved
+D
+every donor-stream source in the candidate's cluster, named
+blank
+Pipeline
+S
+fixed default for Monitor records
+Standard (Sales Opportunity)
+Industry
+D
+region lookup (West Africa; EU/EEA/UK/CH; Balkans and Ukraine) from config/record_defaults.yaml
+—
+Shipping Country
+D
+notice.country, full name
+—
+Funding Source
+D
+donor stream tag on the matched source (World Bank to IDA/IBRD per the loan type where stated, AfDB, EU, MCC, IsDB, BOAD)
+Government budget
+Currency
+S
+USD unless the notice states another currency
+USD
+Deal classification
+Field
+Cat
+Rule
+Default when not derivable
+Deal Tier
+S
+score band: 85+ Tier 1, 60-84 Tier 2, below 60 is never staged
+reviewer confirms
+Delivery Model
+S
+Direct by default; Direct (Partner-Supported) if Partners Involved is non-empty
+Direct
+Expected Close Year
+B
+too speculative to guess well
+TBD
+Customer Type
+S
+New Customer, unless the reviewer knows otherwise and edits it
+New Customer
+Eligibility requirements
+Field
+Cat
+Rule
+Default when not derivable
+Eligibility Requirements Met?
+S
+Yes if eligibility_flags is empty; "Review needed" otherwise
+Unknown
+Eligibility Requirements Comments
+D
+one sentence naming the flags, or stating none were detected
+"No eligibility barriers detected in the notice text."
+Partner and legal information
+Field
+Cat
+Rule
+Default when not derivable
+Partner Required?
+S
+Yes if Partners Involved is non-empty or the notice is donor-financed
+Unknown
+Partner Required Comments
+D
+lists the detected partners
+blank
+Legal Support Required?
+B
+—
+Unknown
+Legal Support Comments
+B
+—
+TBD
+Submission information
+Field
+Cat
+Rule
+Default when not derivable
+Expected Release of RFP/EOI?
+S
+deadline_at when the candidate is still a donor pipeline signal (procurement_type "other")
+TBD
+Proposal Due or Submitted
+D
+deadline_at when the candidate is an already-published tender
+TBD
+Proposal Documents Received
+B
+—
+dash
+Pre-Bid Meeting
+B
+—
+TBD
+Deadline for Questions
+B
+—
+TBD
+Delivery Logistics and Visa Requirements
+B
+—
+TBD
+Do we need to register our interest?
+S
+Yes if eligibility_flags includes local_registration or consortium_required
+Unknown
+Number of Copies?
+B
+—
+TBD
+Is Bid Bond Required
+B
+—
+Unknown
+Format of Bid Bond
+B
+—
+dash
+Amount of Bid Bond (if known)
+B
+—
+TBD
+Estimated Duration of Contract in Months
+B
+used only if the notice explicitly states one
+TBD
+Pricing summary
+Field
+Cat
+Rule
+Default when not derivable
+Licenses / Implementation Services / Software Maintenance / Academy-Training / Sustainability-Help Desk / Third Party Licenses
+B
+commercial structure is BD's job, always
+dash or 0
+FreeBalance Amount
+B
+—
+0
+Total Opportunity Amount
+S
+candidate.estimated_value_usd, carried as an unverified estimate
+0
+Probability (%)
+S
+flat default for a freshly-sourced, unqualified record
+10
+Tax Amount
+B
+—
+dash
+Pricing Notes
+D
+one sentence: funding source, project id if any, estimated value, and the words "Monitor-estimated, unverified"
+—
+Hardware and products required
+Field
+Cat
+Rule
+Default when not derivable
+Hardware/Hosting
+B
+—
+dash
+Standard or Custom Product Required?
+S
+FreeBalance's own positioning
+Standard (COTS)
+FreeBalance Products Required
+D
+matched_functions mapped through the product key in function_map.yaml (below). The field takes a set, because some functions map to more than one product.
+—
+Product Gaps
+D
+any matched function whose product status is not Available, named with its status
+blank when every matched product is Available
+Are gaps critical / Mandatory Requirements / Evaluation Weighting / Do we pass the 80/20 rule? / Third Party Software / Hardware and Systems Software / Level of Effort
+B
+scoping work, always BD
+TBD
+Implementation and pricing
+Field
+Cat
+Rule
+Default when not derivable
+Implementation Period / Number of Users / System Go Live / Available Budget / Warranty Period / Post-Warranty Period / Budget Notes
+B
+none of this exists in a notice
+TBD, or dash for Available Budget
+Additional information
+Field
+Cat
+Rule
+Default when not derivable
+Created By
+D
+set by Zoho at import to the import operator; the reviewer's name travels in Next Steps and in the audit trail
+—
+Next Steps
+D
+one generic sentence naming the reviewer and the date of approval, then: resolve the Account, confirm funding source, register interest if flagged
+"Approved by <reviewer> on <date>. Validate opportunity details; confirm the Account link; confirm funding source; register interest if required."
+monitor_candidate_id
+D
+candidate id, for traceability back to the notice and the audit trail
+—
+monitor_export_batch
+D
+export batch id
+—
+Product mapping, from the component map itself
+The v0.2 draft carried a hand-written seven-row product bucket. The component map workbook already holds a better one. Its New Marketecture sheet maps every component to one of 20 FreeBalance products with a status of Available, High, Medium or Low Priority, across 578 mapping rows for 559 components. Two consequences: the product field takes a set rather than a single value, because some components map to more than one product, and the status column populates Product Gaps for free instead of defaulting it to TBD.
+PFM function (map)
+Product (New Marketecture)
+Status
+1.2 Budget Planning / Formulation, 1.3 Public Accounts Management
+Government Budget Formulation
+Available
+1.4 Performance Structures and Implementation
+Fiscal Performance and Transparency
+Available
+2.1 Budget and Appropriation Control, 2.2 Commitment Management, 2.3 Budget Execution, 3.1 Treasury Accounting, 3.2 Cost Accounting
+Core Financial Execution and Reporting
+Available
+2.4 Compliance and Governance
+Risk and Performance Audit
+Available
+4.1 Bank and Cash Management
+Treasury and Liquidity
+Available
+4.2 Debt and Investment Management
+Public Debt and Guarantee Management; Public Financial Investments
+Available; not Available
+5.1 Procurement Management
+Electronic Public Procurement
+Available
+3.3 Asset and Inventory Management
+Asset and Inventory Lifecycle
+not Available
+4.3 Risk Management
+Government Risk and Compliance
+not Available
+5.2 Social Benefits Management
+Social Protection and Benefits
+not Available
+5.3 Grants and Transfers Management
+Transfers and Grants
+not Available
+5.4 Public Investment Management
+Public Investment and Capital Projects
+not Available
+6.1 Revenue Management, 6.2 Non-Tax Revenue
+Revenue and Receipts Mobilization
+not Available
+6.1 Revenue Management, 6.3 Tax Revenue
+Tax Administration Mobilization
+not Available
+7.1 Civil Service Planning
+Public Service Planning
+not Available
+7.2 Payroll, 7.3 Civil Service Workforce Management
+Payroll and Wage Bills
+not Available
+7.3 to 7.6 Civil Service Workforce, Movement, Performance, Benefits
+Public Service Talent and Capital Human Capital
+not Available
+1.1 Policy Management
+Policy Management
+not Available
+8.1 to 8.5 Government Service Delivery
+No product mapping in the workbook. Score the function, leave the product set empty, and record "no product mapping" in Product Gaps.
+—
+Two things to flag with the component map owner (D15): pillar 8 carries no product mapping at all, and the "Available" set is 141 of 559 components, so most matched functions will produce a Product Gaps entry. That is accurate rather than a defect, but BD should see it before the first export batch rather than in it.
+This mapping and the record defaults live in config/function_map.yaml (the product and status keys on each function) and config/record_defaults.yaml, not in code, per the config-over-code principle.

@@ -1,0 +1,263 @@
+PFM Opportunity Monitor
+Weekend build plan v1.3: Postgres queue, direct Claude API, CSV export, built with Claude Code. Working slice by Sunday 13 September, 22:00 ET
+Version 1.3, Friday 11 September 2026, revised after the scope decision taken this afternoon: review and approval live in Postgres for the whole pilot, not just the weekend, and approved records leave as a CSV export BD imports into Zoho. Supersedes v1.1 and the file circulated as v1.2. Prepared by Ryan Dear. Companion to Pilot Plan v0.4 and Technology and Architecture v0.4. Working document.
+1. Verdict
+By Sunday night the Monitor can be functional in the only sense that matters for Monday: real notices from four live feeds (TED, Prozorro, Find a Tender, World Bank) flow every hour through change detection, the free filter, Claude scoring and dedupe into a review queue held in Postgres and served by a small review app on the same host, one click by a named reviewer writes an Opportunity-shaped row to approved_records, and one command produces the CSV file BD would import into Zoho, with a manifest and a full audit trail behind it. The checkpoint is enforced in the database: the pipeline's database role cannot write to approved_records, only the review app's role can. That is increment 1 of the architecture plus three feeds and the export, running on a single host.
+What changed from v1.1. The review app and the Postgres store are no longer a weekend stand-in for a Zoho build in weeks 1 to 3. They are the pilot. There is no Zoho work in any of the fourteen weeks, and the CSV export replaces the integration entirely. Two practical effects on the weekend: the table is named approved_records rather than crm_leads, because nothing has been built yet and the rename is free today and stops the name implying an integration that does not exist; and a thin export is added to Sunday evening, because a file BD can look at is a much better Monday than a database row I describe.
+What "functional by the weekend" does not mean, and I will not pretend otherwise: no West African portal connectors, no translation stage on live data (it is built, but the four weekend feeds carry English titles or CPV codes so it is not exercised), no Terraform, no notifications, no scheduler hardening beyond hourly timers. Those are week 1 to 8 work in the pilot plan and stay there. A weekend that tries to do them produces nothing that works.
+The plan below is sequenced so that at every gate there is something demonstrable. If Saturday goes badly, Sunday still ends with TED notices scored in a queue. If Sunday goes badly, Monday's demo runs from the database and the existing simulation, and no one has lost the build.
+The weekend has two dependencies left, both in my hands tonight: an Anthropic API key under the approval, and a machine with Docker.
+2. Decisions taken on Friday 11 September, and what they change
+Decision
+Choice
+Consequence for the weekend
+Where review and approval live
+Postgres, for the whole pilot. A review app (FastAPI, server-rendered pages, no JavaScript framework) on the same host reads the queue and takes the reviewer's decision. approved_records holds the Opportunity-shaped record.
+This is D31 in the architecture register and it supersedes D2, D3, D11, D28, D29 and D30. The checkpoint is enforced in Postgres: two runtime roles, monitor_pipeline (no privileges on approved_records) and monitor_review (insert on approved_records, update on candidates). The pipeline physically cannot create an approved record, proven by a test that tries and fails.
+How records reach Zoho
+A one-way CSV export plus manifest, imported by a named person using Zoho's standard import. No SDK, no OAuth, no Deluge, no webhook, no CRM credential anywhere.
+Removes the Zoho sandbox, the CRM API credentials and the CRM admin time from weeks 1 to 3 entirely. Adds a small exporter to Sunday evening. The record payload is still shaped like the account's real Opportunity record; Architecture v0.4 appendix E is the field-by-field column spec and BUILD_ORDER step 10 builds to it.
+Model route
+Direct Anthropic API through the official SDK, prompt caching on, tool use for the score schema.
+No AWS dependency this weekend. The client class is the only thing that changes for Bedrock; cutover at governance write-up or week 11, whichever is first.
+Build method
+Claude Code, driven by CLAUDE.md and BUILD_ORDER.md in the repository, one increment at a time, each with tests that must pass before the next prompt.
+Three to four hours saved on scaffolding. Every generated file is reviewed and run before commit. Neither file exists yet. They are the first thing written tonight, before any code.
+Host
+Workstation in Docker Compose, or the t3.large if the member account exists by Saturday morning. Same Compose file either way.
+No stable egress IP needed for API feeds. Nothing client-related on the machine.
+Repository
+Created under my personal GitHub account tonight; transferred to the FreeBalance organisation on Monday (D14).
+History moves with the transfer.
+Still open tonight
+Anthropic API key issued under the approval, with a spend limit set at USD 50 for the weekend.
+Without it, Saturday afternoon runs the mock scorer from the prototype and the model is switched in on Sunday morning; that is a decision, not a fallback in code.
+Assumption I am working from: the approval covers Claude on public notice text under the checkpoint principle, on the direct API for the pilot until the Bedrock cutover. If that is wrong, tell me tonight and the plan changes at the scoring step only.
+3. Definition of done for Sunday 22:00
+CLAUDE.md and BUILD_ORDER.md exist, are committed as the first commit, and every Claude Code session reads them.
+Four feed connectors run on a schedule (hourly during the weekend so progress is visible; daily in the pilot) with fixtures recorded for each.
+Every notice is stored in its original form, hashed, and never processed twice.
+The CPV and English lexicon filter drops the bulk of TED volume before any model call; the drop rate is reported per source.
+Claude Haiku 4.5 returns a schema-valid score for every survivor; schema validity is measured; failures are retried once and parked.
+Duplicates across sources (a World Bank notice and its TED mirror, for example) cluster into one candidate.
+Candidates at or above the threshold appear in the review app with title, score, matched functions, summary, links, original text where the language is not English, and the proposed record rendered field by field.
+Approve, Edit-then-approve and Reject-with-reason work; Approve inserts an approved_records row with the reviewer's name; the pipeline database role has no privilege on that table, proven by a test that tries and fails.
+One command produces a UTF-8 CSV with a BOM and a sibling manifest, writes exported_at and export_batch back onto the rows, and refuses to export the same batch twice.
+Every transition is in the audit log with actor, before and after.
+A one-page runbook exists: how to run, how to add a source, how to read the health table, how to export, how to stop it.
+A ten-minute demo path is written down and rehearsed once.
+4. Sequence, with what, how, when and why
+Times are ET. Each block ends with a gate; do not start the next block until the gate is green. Total planned effort is about 20 hours across three days, which is the ceiling for one person doing careful work.
+Friday 11 September, 19:00 to 23:00: the brief, the environment and the skeleton
+Time
+What
+How
+Why
+19:00
+CLAUDE.md and BUILD_ORDER.md
+Write them first and commit them as commit one, before any code, so every later diff is reviewable against them and every agent session reads the same rules. CLAUDE.md: what the system is, who the reviewer is, the "not up for debate" list from Architecture section 11, engineering rules 1 to 10 and checkpoint rules 11 to 14 lifted verbatim from design-cop, the scope block 15 to 18 restated as constraints on what to build, the repo layout from appendix B, the commands, the file ownership table, and one line saying an agent that needs a file outside its lane stops and reports. BUILD_ORDER.md: numbered steps for the full fourteen weeks, each with scope, done-when and the test that proves it, honouring the numbers the agent files already cite (step 2 roles and grants, step 8 review app pages, step 10 record builder).
+Seven agent files open with "read CLAUDE.md and BUILD_ORDER.md before writing anything" and neither exists. Until they do, every agent invents its own conventions and I arbitrate the difference on every commit.
+20:00
+Repository and scaffold, Claude Code prompt 1
+uv init, Python 3.12, pydantic v2, httpx, selectolax, rapidfuzz, anthropic, psycopg, structlog, pytest, ruff. Package layout: monitor/{registry,connectors,normalise,filter,score,dedupe,stage,health}, review/. Pre-commit with ruff and a secret scan. .gitignore on the env file.
+One way to do things from the first commit; the layout is the architecture. The secret scan is first because I am the person who just wrote up the BD worksheet credential finding.
+20:30
+Docker Compose: pipeline, review, postgres:16 with pgvector, volumes
+Compose file with three services, Postgres on its own volume, secrets via an env file that is git-ignored.
+Same shape as the pilot host; nothing to rewrite on Monday.
+21:00
+Schema migration 001 and the roles
+SQL for sources, fetch_runs, notices_raw, notices, translations, scores, candidates, candidate_notices, approved_records, export_batches, events, source_health, lexicon_versions, function_map, as in Architecture v0.4 section 7. Roles monitor_pipeline, monitor_review and monitor_readonly with the grants in BUILD_ORDER step 2. A test that connects as the pipeline role and fails to insert into approved_records. Applied by a tiny migration runner, not an ORM.
+The data model is already decided; typing it now avoids a Sunday refactor. The role test is the most important test in the project and it should exist before any code that might need it.
+21:45
+Typed models and the source registry
+Notice, Score, Source pydantic models from appendices A to C. sources/ted.yaml, prozorro.yaml, fts.yaml, wb.yaml with schedule, health thresholds, ToS status. Loader validates on start and fails loudly on a bad file.
+Config over code; the registry is what the Sources page of the demo reads.
+22:15
+Function map and lexicon as config
+config/function_map.yaml: the 33 functions with pillar, type weight from the component map's own Type column, product and status from the New Marketecture sheet, and English keywords. config/lexicon_en.yaml from the prototype's keyword list, extended with the system names. config/record_defaults.yaml. Version hash recorded in lexicon_versions.
+Scoring and the record builder read config, not constants. Matthew can edit a YAML file on Monday without a deployment. The product and status keys come free from the workbook and populate Product Gaps in the export.
+22:45
+Gate F
+docker compose up brings up Postgres, migrations apply, registry loads, pytest passes on models and on the role test. Commit and push.
+Nothing works yet, but everything that follows has a place to go, and the checkpoint is already a grant.
+Saturday 12 September, 08:00 to 20:00: acquire, filter, score
+Time
+What
+How
+Why
+08:00
+FeedConnector base and TED
+FeedConnector with fetch() -> list[RawNotice], identified user agent, timeout, one attempt. TED Search API v3 expert query: CPV in 48, 72, 79 and publication date in the last two days; fields: notice id, title (EN where present), buyer, country, CPV list, deadline, links. Record one JSON fixture from the live call and write the contract test against it (item count in range, required fields present, layout change fails loudly).
+TED is the largest single volume and the best-structured feed; everything downstream is tuned against it first. Build this one by hand: every later connector copies its shape, so delegating it is a false economy.
+10:00
+Change detection and normaliser
+Content hash on the normalised text; notices_raw insert-if-absent; normaliser maps TED fields to Notice with language, admin level, deadline parsed by rule. Zero-yield anomaly counted per source.
+Only new or changed notices go forward; the hash is the idempotency key for the whole system.
+11:30
+Filter
+CPV filter, then English lexicon match at function level; filter_result stored with the reason string. Unit tests on ten hand-picked TED notices, five relevant, five noise.
+The free stage decides the cost of everything after it. Measure the drop rate before touching the model.
+12:30
+Break
+13:15
+Scorer
+Anthropic SDK, tool use with the appendix C schema as the tool input schema, cached system prompt built from function_map.yaml and lexicon_en.yaml, user message per notice with the first 3,000 tokens of text. Validate the returned object with the pydantic model; one retry on schema failure, then park. Log model, prompt_version, tokens, cost per call. Daily caps of 600 calls and USD 25 enforced before each call.
+The core task. Tool use gives structured output the pipeline can validate; caps make a runaway impossible.
+15:00
+Run design-cop against everything built so far
+Before delegating anything. Calibrating the reviewer on code I wrote and fully understand.
+If it manufactures findings or misses something obvious, the agent file gets fixed now rather than after it has been applied across six generated connectors.
+15:30
+Mini golden set
+30 TED notices from this morning's fetch, labelled by me in a CSV (15 relevant, 15 not). pytest -m golden prints precision, recall and schema validity per prompt_version.
+Without a number, Sunday's threshold is a guess. Matthew extends this to 150 in weeks 4 to 6.
+16:30
+Dedupe and candidates
+Exact hash, then rapidfuzz token-set ratio on English title within country and deadline window, then shared system name plus deadline. Candidate created or joined; candidate_notices records the method.
+A World Bank notice and its TED mirror must be one candidate before the queue exists, or the reviewer sees doubles on Sunday.
+18:00
+Prozorro and Find a Tender connectors
+First delegation: feed-connector-builder, one invocation each, named explicitly. Prozorro public API: tenders modified in the last day, DK021 codes mapped to CPV prefixes, titles kept in Ukrainian with the English rendering left for the translation stage. Find a Tender OCDS release packages, CPV filter in the query. Fixtures and contract tests for both. Review the diff, not the summary.
+Two more feeds, both open APIs, both structured; each is under an hour once TED works, and two is enough to learn the rhythm of driving the agents.
+19:30
+Gate S
+A full run over the three feeds ends with candidates in Postgres, a scored-and-staged count in the log, health rows per source, cost line under USD 2. design-cop clean. Commit, push, write the day's line in the runbook.
+The pipeline side is done. Sunday is the checkpoint and the way out.
+Sunday 13 September, 09:00 to 22:00: the checkpoint, the export, the fourth feed, the demo
+Time
+What
+How
+Why
+09:00
+Review app
+review-app-builder, driven by BUILD_ORDER step 8. FastAPI on port 8080, server-rendered with Jinja templates, connecting as monitor_review. Pages: queue (pending, sorted by score, region and language filters), candidate detail (score, functions with evidence, system names, summary, original text if not English, source links, proposed record), decided list, sources health, audit log. Reviewer name is a required field on the decision form; no cookies, no login this weekend, the app is bound to localhost or the SSM tunnel.
+The queue is what the reviewer sees; it must exist before the fourth feed, not after. This is the permanent interface now, so it is worth the morning.
+10:30
+Decisions and the single write path
+Approve: in one transaction as monitor_review, update candidates.status to approved, insert the Opportunity-shaped record into approved_records per Architecture v0.4 appendix E (Account Name proposed as text for the import operator to resolve, Funding Source and Partners Involved from the source cluster, FreeBalance Products Required and Product Gaps from the function map, everything BD-only defaulted to TBD, Unknown, a dash or 0 exactly as today's CRM records show it), write two events rows. The candidate page carries a standing reminder to check Zoho for an existing Opportunity on the same buyer before approving, because with no integration the reviewer is the only duplicate control. Edit-then-approve: the edited fields are what goes into the record and an edited event records before and after. Reject: reason mandatory and enforced server side, event written. Test with three hand-staged candidates before wiring the pipeline.
+This is the only code anywhere that creates an approved record, and it runs under a role the pipeline does not have. The design's central claim becomes true here.
+12:00
+Stager and role proof
+Stager sets status = pending_review on candidates at or above threshold (per-source cap of 15 a day, config); the review app reads them directly, so there is no push and no sync. Prove the roles: a pytest that connects as monitor_pipeline and attempts INSERT INTO approved_records must fail with a permission error; the same test as monitor_review must succeed; a third asserts the pipeline cannot set a candidate to approved.
+No inbound endpoint, no webhook. The role matrix is now a fact, not a slide.
+13:30
+Break
+14:15
+World Bank connector
+feed-connector-builder. Procurement notices API filtered to the 47 countries and the last two days; project pipeline deferred. Fixture and contract test. Run the full pipeline; confirm a WB notice that mirrors a TED notice joins its cluster.
+Stream B's most important feed; also the best dedupe test available.
+15:15
+The export
+review-app-builder, BUILD_ORDER step 11. One command and one button: UTF-8 CSV with a BOM, one row per approved record, columns in the CRM's Opportunity field order and naming per appendix E, plus monitor_candidate_id and monitor_export_batch. Batch id and timestamp written back to exported_at and export_batch. Sibling manifest with batch id, row count, date range, reviewer names and the sha256 of the file. A named batch is never exported twice without an explicit re-export.
+A file BD can open is a far better Monday than a database row I describe. It also proves the one-way boundary: nothing goes back in.
+16:15
+Scheduler and operations
+systemd timers on the host (or a Compose cron service on the workstation): fetch hourly during the weekend, score-and-stage hourly, health check after each fetch. Structured logs to a file; a make status target that prints source health, today's calls and cost, queue depth and export backlog.
+Unattended runs are the difference between a script and a system.
+17:00
+Failure drills, six of them
+Kill the model key mid-run (expect parked notices, no partial writes). Point one connector at a fixture with a changed layout (expect a loud contract failure, source unhealthy, others unaffected). Exceed the daily call cap with a low test value (expect the run to stop and alert). Reject a candidate without a reason in the review app (expect server-side refusal). Attempt the approved_records insert as the pipeline role (expect permission denied). Interrupt an export halfway (expect either a complete file with a manifest or no file at all, and no rows marked exported).
+The properties I said were not up for debate get exercised, not asserted. A drill that passes because the code path was never reached is a failed drill.
+18:30
+Runbook and demo path
+Runbook: start, stop, add a source, read health, change a keyword, roll back a prompt version, produce an export. Demo path: open the review app queue, show a TED and a WB notice clustered, approve one as Matthew, show the approved_records row, run the export and open the CSV, show the audit trail, the health table and the cost line. Rehearse once, timed.
+Monday's meeting is ten minutes; the demo must not be improvised.
+20:30
+Gate W
+Definition of done in section 3 ticked line by line. design-cop clean. Final commit tagged weekend-slice. A short status message to Martin and Matthew with the demo time.
+5. Options to expedite, with the trade-off stated
+Option
+What it saves
+What it costs
+My call
+Claude Code for the whole build, one BUILD_ORDER step per session
+Three to four hours on Friday and Saturday, more on Sunday for the review app
+Every generated file is reviewed and tested before commit; the CLAUDE.md rules stop the agent adding fallbacks, retries and abstractions the design forbids
+Taken. CLAUDE.md and BUILD_ORDER.md are the brief and they are written first.
+Skip CLAUDE.md and BUILD_ORDER.md and prompt from the design documents
+Two hours tonight
+Every agent session invents its own conventions, design-cop and the builders drift apart, and I arbitrate on every commit
+No. This is the cheapest two hours in the project.
+Workstation in Docker instead of EC2 for the weekend
+Removes the account creation from the critical path
+Not a stable egress IP; fine for API feeds, not for portals. Nothing client-related on the machine.
+Yes if the member account is not created today. Move to EC2 in week 1 with the same Compose file.
+Hourly schedule during the weekend rather than daily
+Progress is visible every hour; bugs surface in hours not days
+More API calls to the feeds; still inside every portal's terms and the daily cap
+Yes for the weekend; revert to daily windows on Monday.
+Skip the mini golden set
+Ninety minutes on Saturday
+The threshold on Sunday is a guess and the demo cannot state a precision number
+No. It is the one number Matthew will ask for.
+Skip the export until week 1
+An hour on Sunday
+Monday shows a database row instead of the file BD would actually receive, which is the whole hand-off story under the new scope
+No. It is the thing that makes the scope decision legible to Martin.
+Add West African page connectors this weekend
+Nothing; it adds scope
+Each is a fixture, a parser and a ToS check; none can be done properly in the time
+No. Feeds only.
+A second developer for the weekend
+Could parallelise the review app with the World Bank connector
+Onboarding cost is most of a weekend; the interfaces are not stable enough yet to split
+No for the weekend; yes from week 2 if the calendar matters (D22).
+6. What can go wrong over the weekend, and the response
+Risk
+Response
+TED API field names differ from what I expect
+The first hour on Saturday is reading the live response, not the documentation; the fixture is recorded from the real call. Budget one hour of drift.
+TED volume after CPV filter is still in the hundreds
+Add a TED-specific threshold and a per-source staging cap of 15 for the weekend; both are config.
+Prozorro's DK021 to CPV mapping is imperfect
+Use the top-level prefix only for the weekend; note it in the runbook.
+The review app grows into a product
+It is five pages, one form and one export. If a page is not in BUILD_ORDER step 8, it is not built. Under the new scope there is no Zoho build waiting to absorb the extras, which makes this discipline more important, not less.
+Claude Code adds a retry, a fallback or a second code path
+CLAUDE.md forbids it; design-cop before each commit checks for try/except around connectors and for any second client or selector. Reject and re-prompt.
+Claude Code adds a Zoho client because the older documents mention Zoho
+design-cop rule 15 treats any CRM client, OAuth flow, Deluge script or webhook as blocking. CLAUDE.md states the scope in one unambiguous paragraph. This is exactly why the brief is written before the code.
+I run out of time on Sunday
+The order is chosen so the checkpoint comes before the fourth feed and the export comes after it. A three-feed system with a working checkpoint and an export is a better Monday than a four-feed system without either.
+Something leaks: a key in a commit, a credential in a log
+Pre-commit secret scan on Friday night; env file git-ignored; logs never print request bodies.
+7. Monday morning: what is shown, what is asked, what starts
+Show, in ten minutes: the queue with live notices from four feeds, one cluster spanning two sources, one approval under Matthew's name, the CSV that would be imported into Zoho opened side by side with a real Opportunity record, the audit trail, the health table, the precision number from the golden set, and the cost of the weekend's model calls.
+Ask for: endorsement of the Postgres-only scope in writing (D31); the reviewer confirmation and a named import operator with a cadence (D7, D32); the AWS member account (D13); Matthew's first five real misses to replay on Tuesday; and thirty minutes from BD in week 8 to run the dry-run import and save the column mapping (D33).
+Start on Monday: Terraform for the member account and host; repository transfer to the FreeBalance organisation; the Source Inventory into the repository as a versioned CSV with access and ToS columns, since source-onboarder is defined as one invocation per inventory row and nothing in weeks 0 to 2 starts without it; and the credential rotation from the BD worksheets (D27), which is independent of all of this and is overdue.
+8. Bedrock: when, and why not now
+Direct API now is the right call and I would not bring Bedrock forward. Functionally the two routes are the same models, the same SDK and the same prompts; the only code difference is the client class. What Bedrock buys is governance and billing, not capability: the calls land on the existing AWS invoice under the existing AWS agreement, the data stays in ca-central-1, and the CEO sign-off reads better. None of that matters while the pipeline is running on fixtures and public feeds in shadow mode.
+Cut over at whichever comes first: the governance approval is written up and names Bedrock as the route, or entry to live mode in week 11, when the system becomes something the company relies on. The cutover is half a day: enable model access in the member account, swap Anthropic() for AnthropicBedrock(), re-run the golden set to confirm identical scores at the same prompt_version, and record it in the decision register (D1). Keep the direct key alive for two weeks after as the recorded alternative, then revoke it.
+Two reasons to cut over sooner: the direct API key ends up on a personal rather than a company account (move to Bedrock immediately, or at least to an organisation-owned key with a spend limit), or Haiku 4.5 and Sonnet 5 turn out not to be served in ca-central-1 and a cross-region decision has to be taken before the residency line goes into any governance paper.
+Appendix A. Weekend checklist
+Friday 18:00: API key issued with a spend limit; repository created.
+Friday 20:00: CLAUDE.md and BUILD_ORDER.md committed as commit one.
+Friday 23:00: Gate F. Compose, migrations, three roles, role test green, models, registry, config, tests green.
+Saturday 12:30: TED end to end into Postgres with filter results.
+Saturday 15:00: design-cop calibrated against hand-written code.
+Saturday 19:30: Gate S. Three feeds, scoring, dedupe, golden-set numbers, cost line.
+Sunday 12:00: review app up; approve, edit and reject tested with hand-staged candidates; all three role tests pass.
+Sunday 16:00: four feeds, export producing a CSV and manifest, hourly schedule.
+Sunday 18:00: six drills passed.
+Sunday 20:30: Gate W. Runbook, demo rehearsed, tag pushed, status sent.
+Appendix B. Repository layout
+CLAUDE.md          the brief every agent session reads
+BUILD_ORDER.md     numbered steps, weeks 0 to 14
+monitor/
+registry/        load and validate sources/*.yaml
+connectors/      base.py, feed.py (TED, Prozorro, FTS, WB); page.py, browser.py, mail.py in week 1+
+normalise/       to canonical Notice; language and deadline rules
+translate/       haiku client, strict JSON, built but not exercised this weekend
+filter/          cpv.py, lexicon.py
+score/           prompt.py, client.py, schema.py, caps.py
+dedupe/          hash.py, fuzzy.py, cluster.py
+stage/           stager.py (threshold, per-source cap, status change), record.py (the record builder)
+health/          source_health, anomalies, alerts
+review/            FastAPI app, templates/, decisions.py (the single write path, runs as monitor_review), export.py
+sources/           one YAML per source
+config/            function_map.yaml, lexicon_en.yaml, lexicon_fr.yaml, thresholds.yaml, record_defaults.yaml
+migrations/        001_schema.sql ...
+tests/             unit, contract (fixtures/), golden (golden.csv), roles
+.claude/agents/    the seven subagent files
+docker-compose.yml, Makefile, RUNBOOK.md

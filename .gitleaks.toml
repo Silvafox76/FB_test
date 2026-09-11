@@ -1,0 +1,29 @@
+# Extends gitleaks' own rule set rather than replacing it. The extra rule exists
+# because a portal password or a model key pasted into a fixture is the failure
+# mode this project actually has (rule 20).
+[extend]
+useDefault = true
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-[a-zA-Z0-9_\-]{16,}'''
+keywords = ["sk-ant"]
+
+[[rules]]
+id = "monitor-portal-credential"
+description = "Portal or database password assigned in code, config or a fixture"
+regex = '''(?i)(portal_password|portal_pass|db_password|pgpassword)\s*[:=]\s*['"][^'"\s]{6,}['"]'''
+keywords = ["portal_password", "portal_pass", "db_password", "pgpassword"]
+
+[allowlist]
+description = "Placeholders that are meant to be in the tree"
+regexTarget = "line"
+regexes = [
+  '''CHANGE_ME''',
+  '''CONTACT_EMAIL_HERE''',
+]
+paths = [
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+]

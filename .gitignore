@@ -1,0 +1,29 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+uv.lock.bak
+
+# Runtime output
+logs/
+*.log
+exports/
+reports/*.csv
+reports/*.json
+storage/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

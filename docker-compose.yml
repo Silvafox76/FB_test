@@ -1,0 +1,69 @@
+# Three services, one Dockerfile, two commands (CLAUDE.md, Stack).
+# Nothing here exposes an inbound network path off the host: Postgres and the
+# review app both bind to 127.0.0.1 only (rule 17).
+
+services:
+  postgres:
+    # pgvector is installed but unused this phase; it is here so step 29 does not
+    # need a database rebuild if the cross-language duplicate rate says build it.
+    image: pgvector/pgvector:pg16
+    container_name: monitor-postgres
+    environment:
+      POSTGRES_DB: monitor
+      POSTGRES_USER: monitor_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - monitor_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor_owner -d monitor"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-pipeline
+    command: ["python", "-m", "monitor.cli", "status"]
+    env_file: .env
+    environment:
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./sources:/app/sources:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./storage:/app/storage
+    restart: "no"
+
+  review:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-review
+    command: ["uvicorn", "review.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    env_file: .env
+    environment:
+      DATABASE_URL_REVIEW: postgresql://monitor_review:${MONITOR_REVIEW_PASSWORD:?set MONITOR_REVIEW_PASSWORD in .env}@postgres:5432/monitor
+    ports:
+      # Published on the loopback interface only. The binding is the access control
+      # for the pilot; there is no auth on the review app (BUILD_ORDER step 10).
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config:ro
+      - ./exports:/app/exports
+    restart: unless-stopped
+
+volumes:
+  monitor_pgdata:
+    name: monitor_pgdata
