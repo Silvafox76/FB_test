@@ -93,8 +93,12 @@ landed at step 2, before any code that might need it, and runs on every commit f
 
 ## Build status
 
-Step 3 of 31 (registry, models, config) complete. The checkpoint test runs on every commit in CI. See
-`BUILD_ORDER.md` for what is next and what gates it.
+Step 3 of 31 (registry, models, config) complete. Step 4 is partly built and blocked: the
+`FeedConnector` base, the normaliser's hash, deadline and CPV rules and the source-health transitions
+are done and tested, but the TED parser waits on a recorded fixture, because a parser is never written
+against documentation memory. Run `scripts/record_ted_fixture.py` from a host with outbound access to
+`api.ted.europa.eu` to unblock it. The checkpoint test runs on every commit in CI. See
+`BUILD_ORDER.md` for what is next and what gates it, and `docs/open_decisions.md` for what is open.
 
 `config/function_map.yaml` is generated, not hand-written. Regenerate it with:
 
