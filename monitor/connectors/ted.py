@@ -19,11 +19,12 @@ Four things the live response settled that a guess would have got wrong:
      eForms business-term names. A wrong name fails the whole request with a 400
      listing all of them; it does not silently return less.
   2. `notice-title`, `description-proc` and `buyer-name` are objects keyed by a
-     three-letter language code, with a translation into all 24 EU languages.
-     TED does its own translating, so `eng` is present on every notice. The
-     original-language value is still what is stored (rule 9); the English one is
-     carried to the score as a derived field and is why TED will not need the
-     step 14 translation stage.
+     three-letter language code. TED translates the title into all 24 EU
+     languages, so `eng` is on the title of every recorded notice. It does not
+     translate the description: 48 of the 50 carry exactly one language there, and
+     only 3 have English at all. So the English title is free and the English body
+     is not, and TED still needs the step 14 translation stage for its bodies.
+     The original-language value is what is stored either way (rule 9).
   3. Codes are three letters: `ESP` for the country, `SPA` for the language. The
      registry, the geography weights and the lexicons are all two-letter.
   4. Dates are `2026-09-09+02:00`: a date with an offset and no time at all. The

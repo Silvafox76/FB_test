@@ -13,12 +13,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import structlog
+
 from monitor.connectors.ted import notice_url
 from monitor.models import Notice
 from monitor.normalise.codes import country_alpha2, language_alpha2
 from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
+
+log = structlog.get_logger(__name__)
 
 SOURCE_ID = "ted"
 
@@ -27,8 +31,14 @@ SOURCE_ID = "ted"
 # public law, which takes the level of whichever authority it hangs off. Anything
 # unrecognised is national, which is the conservative reading for scoring: a
 # national buyer is the larger opportunity, so it is the one a reviewer should see.
+# An unqualified code ("body-pl", "pub-undert") states the kind of body without
+# stating its level, which covers 17 of the 50 recorded notices. National is the
+# conservative reading for those, for the same reason it is the default: a national
+# buyer is the larger opportunity and the one a reviewer should see.
 ADMIN_LEVEL_BY_LEGAL_TYPE = {
     "cga": "national",
+    "body-pl": "national",
+    "pub-undert": "national",
     "body-pl-cga": "national",
     "pub-undert-cga": "national",
     "eu-ins-bod-ag": "national",
@@ -41,8 +51,10 @@ ADMIN_LEVEL_BY_LEGAL_TYPE = {
 }
 DEFAULT_ADMIN_LEVEL = "national"
 
-# TED translates every notice into all 24 EU languages itself, so the English
-# rendering is free and the step 14 translation stage never has to run for TED.
+# TED translates the *title* into all 24 EU languages: `eng` is present on the
+# title of all 50 recorded notices. The *description* is not translated. It
+# carries one language on 48 of those 50, so an English body is the exception, not
+# the rule, and TED still needs the step 14 translation stage for its bodies.
 ENGLISH = "eng"
 
 
@@ -54,6 +66,10 @@ class TedNotice:
     a provenance, and TED's provenance is TED rather than a model call. It is
     carried here so the scorer can use it without a translation and without
     anything overwriting `notice.title` (rule 9).
+
+    `body_en` is empty far more often than not: TED translates titles, not
+    descriptions. Empty means no English was published, never that the body was
+    English.
     """
 
     notice: Notice
@@ -66,13 +82,14 @@ def map_notice(raw: dict) -> TedNotice:
     language = language_alpha2(raw["official-language"][0])
     original = raw["official-language"][0].lower()
 
-    title = _in_language(raw["notice-title"], original)
-    body = _in_language(raw["description-proc"], original)
+    external_id = raw["publication-number"]
+    title = _original(raw["notice-title"], original, "notice-title", external_id)
+    body = _original(raw["description-proc"], original, "description-proc", external_id)
 
     notice = Notice(
         content_hash=content_hash(title, body),
         source_id=SOURCE_ID,
-        external_id=raw["publication-number"],
+        external_id=external_id,
         url=notice_url(raw),
         title=title,
         buyer=_buyer(raw, original),
@@ -91,16 +108,37 @@ def map_notice(raw: dict) -> TedNotice:
     )
     return TedNotice(
         notice=notice,
-        title_en=_in_language(raw["notice-title"], ENGLISH),
-        body_en=_in_language(raw["description-proc"], ENGLISH),
+        title_en=_english(raw["notice-title"], "notice-title", external_id),
+        body_en=_english(raw["description-proc"], "description-proc", external_id),
     )
 
 
-def _in_language(values: dict[str, str], code: str) -> str:
-    """One rendering from TED's per-language object, deterministically."""
-    if code in values:
-        return values[code]
-    return values[sorted(values)[0]]
+def _original(values: dict[str, str], code: str, field: str, external_id: str) -> str:
+    """The notice's own language. Raises if TED does not carry it.
+
+    Substituting another language here would store, say, an Italian title on a
+    notice whose `language` column says `es`, and every stage downstream would
+    believe the column. That is the drift codes.py raises for; this raises too.
+    """
+    if code not in values:
+        raise ValueError(
+            f"{external_id}: {field} has no entry for the notice's own language {code!r}; got {sorted(values)}"
+        )
+    return values[code]
+
+
+def _english(values: dict[str, str], field: str, external_id: str) -> str:
+    """TED's English rendering, or nothing at all.
+
+    TED translates into all 24 EU languages, so `eng` is present on every notice
+    in the recorded response. If it ever is not, no English is better than another
+    language stored as though it were English: the caller writes no translations
+    row and the scorer sees the original.
+    """
+    if ENGLISH in values:
+        return values[ENGLISH]
+    log.warning("ted_no_english_rendering", field=field, external_id=external_id, languages=sorted(values))
+    return ""
 
 
 def _buyer(raw: dict, language: str) -> str:
@@ -111,11 +149,26 @@ def _buyer(raw: dict, language: str) -> str:
 
 
 def _admin_level(raw: dict) -> str:
+    """The buyer's level of government.
+
+    Absent is normal: 4 of the 50 recorded notices carry no legal type, and
+    national is the conservative reading, since a national buyer is the larger
+    opportunity and the one a reviewer should see. Present but unrecognised is
+    not normal: TED's vocabulary is longer than the ten values below, and a new
+    code silently becoming "national" is a scoring error nobody would find.
+    """
     legal_types = raw.get("buyer-legal-type") or []
+    if not legal_types:
+        return DEFAULT_ADMIN_LEVEL
+
     for legal_type in legal_types:
         if legal_type in ADMIN_LEVEL_BY_LEGAL_TYPE:
             return ADMIN_LEVEL_BY_LEGAL_TYPE[legal_type]
-    return DEFAULT_ADMIN_LEVEL
+
+    raise ValueError(
+        f"{raw['publication-number']}: unknown buyer-legal-type {legal_types}; "
+        "add it to ADMIN_LEVEL_BY_LEGAL_TYPE in monitor/normalise/ted.py"
+    )
 
 
 def _deadline(raw: dict):

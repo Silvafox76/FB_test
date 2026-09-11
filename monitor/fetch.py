@@ -8,6 +8,19 @@ is not already stored.
 Change detection is the content hash and nothing else. A second run over an
 unchanged source inserts nothing and reports zero new, which is what makes a daily
 pass cheap and what `make fetch S=ted` twice proves.
+
+Two deliberate exceptions to "failures raise" (rule 3) live here, both narrow:
+
+  - `NormaliseError` wraps whatever a mapper raises with the source and the notice
+    it was reading, the same shape and for the same reason as `ConnectorError`.
+    The mappers are built to raise: an unknown country code or an unrecognised
+    buyer type is a real change in the source, and it has to become that source's
+    failure rather than a traceback.
+  - `fetch_source` turns both into a `FetchResult(failed=True)` instead of
+    re-raising, because one broken source must mark itself unhealthy without
+    taking the others down with it. That isolation is what step 11's second drill
+    tests. Nothing is swallowed: the run is recorded failed with its error, health
+    is updated, the failure is logged, and the CLI exits non-zero.
 """
 
 from __future__ import annotations
@@ -24,7 +37,7 @@ import yaml
 from monitor.connectors.base import ConnectorError
 from monitor.connectors.ted import TedConnector
 from monitor.health import source_health
-from monitor.models import Source
+from monitor.models import Source, Translation
 from monitor.normalise import ted as ted_normalise
 from monitor.registry.load import CONFIG_DIR, load_sources
 
@@ -39,6 +52,22 @@ STORAGE = REPO / "storage"
 CONNECTORS = {
     "ted": (TedConnector, ted_normalise.map_notice),
 }
+
+# The provenance stamped on an English rendering the source itself supplied, as
+# opposed to one a model produced. TED translates into all 24 EU languages, so its
+# English arrives with the notice and costs nothing.
+SOURCE_NATIVE_MODEL = "ted-eforms"
+SOURCE_NATIVE_PROMPT_VERSION = "source-native"
+
+
+class NormaliseError(Exception):
+    """A mapper could not read a notice. Carries the source and the notice."""
+
+    def __init__(self, source_id: str, reference: str, cause: BaseException) -> None:
+        super().__init__(f"{source_id}: notice {reference}: {type(cause).__name__}: {cause}")
+        self.source_id = source_id
+        self.reference = reference
+        self.cause = cause
 
 
 @dataclass(frozen=True)
@@ -82,23 +111,25 @@ def fetch_source(conn: psycopg.Connection, source: Source) -> FetchResult:
     conn.commit()
     bound = log.bind(source_id=source.id, run_id=str(run_id))
 
+    seen = new = 0
     try:
         raw_notices = connector.fetch()
-    except ConnectorError as error:
+        for raw in raw_notices:
+            seen += 1
+            if _store_notice(conn, source, raw.payload, mapper, raw.url, raw.mime):
+                new += 1
+    except (ConnectorError, NormaliseError) as error:
+        # The run is recorded failed and the source goes unhealthy. Rolled back
+        # first so a half-stored page does not survive as though it were complete.
+        conn.rollback()
         conn.execute(
-            "update fetch_runs set finished_at = now(), status = 'failed', error = %s where id = %s",
-            (str(error), run_id),
+            "update fetch_runs set finished_at = now(), status = 'failed', items_seen = %s, error = %s where id = %s",
+            (seen, str(error), run_id),
         )
-        _update_health(conn, source, started, failed=True, seen=0, new=0)
+        _update_health(conn, source, started, failed=True, seen=seen, new=0)
         conn.commit()
         bound.error("fetch_failed", error=str(error))
-        return FetchResult(source.id, seen=0, new=0, failed=True, error=str(error))
-
-    seen = new = 0
-    for raw in raw_notices:
-        seen += 1
-        if _store_notice(conn, source, raw.payload, mapper, raw.url, raw.mime):
-            new += 1
+        return FetchResult(source.id, seen=seen, new=0, failed=True, error=str(error))
 
     conn.execute(
         """
@@ -115,7 +146,11 @@ def fetch_source(conn: psycopg.Connection, source: Source) -> FetchResult:
 
 def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: str) -> bool:
     """Insert one notice if its content hash is new. Returns whether it was new."""
-    mapped = mapper(json.loads(payload))
+    document = json.loads(payload)
+    try:
+        mapped = mapper(document)
+    except Exception as cause:  # noqa: BLE001 - re-raised with the source and notice attached
+        raise NormaliseError(source.id, str(document.get("publication-number", url)), cause) from cause
     notice = mapped.notice
 
     existing = conn.execute("select 1 from notices_raw where content_hash = %s", (notice.content_hash,)).fetchone()
@@ -149,14 +184,24 @@ def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: st
     # step 14 translation stage never has to run for this source. The original
     # title and body are untouched.
     if mapped.title_en and mapped.title_en != notice.title:
+        translation = Translation(
+            notice_id=str(notice_id),
+            title_en=mapped.title_en,
+            body_en=mapped.body_en,
+            model=SOURCE_NATIVE_MODEL,
+            prompt_version=SOURCE_NATIVE_PROMPT_VERSION,
+            latency_ms=0,
+            cost_usd=0.0,
+        )
         conn.execute(
             """
             insert into translations (notice_id, title_en, body_en, model, prompt_version,
                                       latency_ms, cost_usd)
-            values (%s, %s, %s, 'ted-eforms', 'source-native', 0, 0)
+            values (%(notice_id)s, %(title_en)s, %(body_en)s, %(model)s, %(prompt_version)s,
+                    %(latency_ms)s, %(cost_usd)s)
             on conflict (notice_id, prompt_version) do nothing
             """,
-            (notice_id, mapped.title_en, mapped.body_en),
+            translation.model_dump(),
         )
     return True
 

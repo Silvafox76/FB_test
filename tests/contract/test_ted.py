@@ -176,3 +176,63 @@ def test_the_query_asks_for_the_configured_prefixes_only(source):
     assert "classification-cpv=72*" in query
     assert "79" not in query
     assert "publication-date>=20260909" in query
+
+
+def test_a_notice_missing_its_own_language_raises(notices):
+    """Substituting another language would store a title the language column lies about."""
+    broken = json.loads(json.dumps(notices[0]))
+    broken["official-language"] = ["POL"]  # a language TED did not translate this notice into
+    del broken["notice-title"]["pol"]
+
+    with pytest.raises(ValueError, match="no entry for the notice's own language"):
+        map_notice(broken)
+
+
+def test_an_unknown_buyer_legal_type_raises(notices):
+    """Present but unrecognised is a changed vocabulary, not a national buyer."""
+    broken = json.loads(json.dumps(notices[0]))
+    broken["buyer-legal-type"] = ["some-new-eforms-code"]
+
+    with pytest.raises(ValueError, match="unknown buyer-legal-type"):
+        map_notice(broken)
+
+
+def test_a_missing_buyer_legal_type_defaults_to_national(notices):
+    """Absent is normal: 4 of the 50 recorded notices carry none."""
+    without = json.loads(json.dumps(notices[0]))
+    without.pop("buyer-legal-type", None)
+
+    assert map_notice(without).notice.admin_level == "national"
+
+
+def test_an_unknown_country_code_raises(notices):
+    broken = json.loads(json.dumps(notices[0]))
+    broken["buyer-country"] = ["ZZZ"]
+
+    with pytest.raises(ValueError, match="unknown country code"):
+        map_notice(broken)
+
+
+def test_no_english_rendering_yields_no_english_rather_than_another_language(notices):
+    """No English beats another language stored as though it were English."""
+    without_english = json.loads(json.dumps(notices[0]))
+    del without_english["notice-title"]["eng"]
+
+    mapped = map_notice(without_english)
+
+    assert mapped.title_en == ""
+    assert mapped.notice.title  # the original is untouched
+
+
+def test_ted_translates_titles_but_not_descriptions(notices):
+    """The reason TED still needs step 14: only the title comes back in English."""
+    assert all("eng" in raw["notice-title"] for raw in notices)
+
+    with_english_body = [raw for raw in notices if "eng" in raw["description-proc"]]
+    assert len(with_english_body) < len(notices) / 2, "descriptions are not translated by TED"
+
+    for raw in notices:
+        mapped = map_notice(raw)
+        assert mapped.title_en
+        if "eng" not in raw["description-proc"]:
+            assert mapped.body_en == ""
