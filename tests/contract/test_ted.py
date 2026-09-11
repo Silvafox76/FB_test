@@ -152,12 +152,55 @@ def test_a_non_usd_value_is_not_converted(notices):
     assert all(map_notice(raw).notice.estimated_value_usd is None for raw in euro_valued)
 
 
-def test_award_notices_are_carried_through_not_dropped(notices):
-    """Rule 5: dropping already-awarded tenders is the filter's job at step 5."""
-    types = {raw["notice-type"] for raw in notices}
+def test_award_notices_are_excluded_at_the_query_not_after_the_fetch(notices, source):
+    """Acquisition scope: they are never asked for, so they are never read.
 
-    assert "can-standard" in types, "fixture should contain award notices"
-    assert all(map_notice(raw).notice.status == "detected" for raw in notices)
+    Measured 2026-09-12: excluding them took a two-day window from 1,449 matched
+    notices to 822. Every one removed is a tender already decided.
+    """
+    assert source.exclude_notice_types == ["can-standard", "can-modif", "can-social", "veat"]
+    assert not {raw["notice-type"] for raw in notices} & set(source.exclude_notice_types)
+
+
+def test_the_query_carries_the_registrys_exclusions(source):
+    from datetime import date
+
+    query = TedConnector(source, ["48"]).query(today=date(2026, 9, 12))
+
+    assert "NOT (notice-type IN (can-standard can-modif can-social veat))" in query
+
+
+def test_a_source_that_excludes_nothing_asks_for_everything(source):
+    """The exclusion is the registry's, not the connector's."""
+    from datetime import date
+
+    everything = source.model_copy(update={"exclude_notice_types": []})
+
+    assert "notice-type" not in TedConnector(everything, ["48"]).query(today=date(2026, 9, 12))
+
+
+def test_an_award_notice_that_did_arrive_would_still_be_carried_through(notices):
+    """Rule 5: the mapper does not drop things. Dropping is the filter's job.
+
+    Constructed, because the query means one no longer reaches the fixture. If the
+    exclusion is ever reversed for competitor intelligence, this is what says the
+    rest of the pipeline still handles them.
+    """
+    award = json.loads(json.dumps(notices[0]))
+    award["notice-type"] = "can-standard"
+
+    assert map_notice(award).notice.status == "detected"
+
+
+def test_excluding_awards_raised_the_share_of_notices_with_a_deadline(notices):
+    """A side effect worth knowing: contract notices have deadlines, awards do not.
+
+    16 of 50 carried one before the exclusion; 198 of 250 after. The deduper needs
+    two known deadlines to join on a title, so this directly improves clustering.
+    """
+    with_deadline = [raw for raw in notices if raw.get("deadline-receipt-tender-date-lot")]
+
+    assert len(with_deadline) / len(notices) > 0.5
 
 
 def test_the_url_is_the_english_permalink(notices):

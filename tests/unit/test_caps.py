@@ -107,13 +107,28 @@ def test_an_unpriced_model_raises_rather_than_costing_nothing():
         caps.cost_usd("claude-opus-5", tokens_in=100, tokens_out=50)
 
 
+def test_the_cost_cap_is_the_one_that_binds():
+    """Raising the call cap to 2,000 was safe because the USD cap did not move.
+
+    One day of TED needed 1,132 translate calls against a 600 cap. 2,000 Haiku
+    calls of that shape is about USD 8, still inside the USD 25 cap, so the cap
+    that binds is the one denominated in the thing anyone actually cares about.
+    """
+    from monitor.translate.client import MODEL
+
+    limits = caps.caps()
+    a_full_day = limits.calls * caps.cost_usd(MODEL, tokens_in=1200, tokens_out=600)
+
+    assert a_full_day < limits.usd, "the call cap can now exceed the cost cap; one of them is wrong"
+
+
 def test_the_caps_come_from_config_and_the_environment_overrides_them(monkeypatch):
     monkeypatch.delenv("DAILY_CALL_CAP", raising=False)
     monkeypatch.delenv("DAILY_USD_CAP", raising=False)
     caps._thresholds.cache_clear()
 
     from_config = caps.caps()
-    assert (from_config.calls, from_config.usd) == (600, 25.0)
+    assert (from_config.calls, from_config.usd) == (2000, 25.0)
 
     monkeypatch.setenv("DAILY_CALL_CAP", "2")
     assert caps.caps().calls == 2

@@ -123,10 +123,21 @@ class TedConnector(FeedConnector):
 
         Dates are yyyymmdd with no separators and `field=value*` is the prefix
         form; both verified against the live API.
+
+        The notice types the registry excludes are dropped here rather than after
+        the fetch. Measured on 2026-09-12: it takes a two-day window from 1,449
+        matched to 822.
         """
         since = ((today or date.today()) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y%m%d")
         prefixes = " OR ".join(f"classification-cpv={p}*" for p in self.cpv_prefixes)
-        return f"({prefixes}) AND publication-date>={since}"
+        query = f"({prefixes}) AND publication-date>={since}"
+
+        excluded = self.source.exclude_notice_types
+        if excluded:
+            # Verified against the live API on 2026-09-12. Values are space
+            # separated inside the parentheses, not comma separated.
+            query += f" AND NOT (notice-type IN ({' '.join(excluded)}))"
+        return query
 
     def fetch_raw(self, client: httpx.Client) -> list[RawNotice]:
         query = self.query()

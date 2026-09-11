@@ -52,8 +52,31 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+# How the model is reached. Set explicitly; there is no detection and no falling
+# back from one to the other, because which credential a deployment uses is a
+# decision a person takes rather than a branch the code takes (rule 1). Step 12
+# adds `bedrock` here for the cutover, which is why this is a route name rather
+# than a boolean.
+#
+#   direct   the key is in the environment, as ANTHROPIC_API_KEY. Local runs and
+#            the pilot host.
+#   proxy    the key is held by Anthropic's agent proxy on the cloud environment
+#            and attached after the request leaves the sandbox. The key is never in
+#            the environment, never in a log and never in a container image, which
+#            is why this is the better route where it is available.
+MODEL_ROUTES = ("direct", "proxy")
+DEFAULT_MODEL_ROUTE = "direct"
+
+
+def model_route() -> str:
+    route = os.environ.get("MODEL_ROUTE", DEFAULT_MODEL_ROUTE).strip().lower()
+    if route not in MODEL_ROUTES:
+        raise RuntimeError(f"MODEL_ROUTE is {route!r}; it must be one of {', '.join(MODEL_ROUTES)}")
+    return route
+
+
 def model_client():
-    """The Anthropic client, or a message a person can act on.
+    """The Anthropic client for the configured route, or a message a person can act on.
 
     The SDK raises a TypeError from inside its own constructor when no credential
     is resolvable, which is loud but not legible: in the middle of `monitor run` it
@@ -61,9 +84,20 @@ def model_client():
     """
     import anthropic
 
+    route = model_route()
+
+    if route == "proxy":
+        # The proxy attaches the credential at egress, so the request has to leave
+        # with no auth header at all. `anthropic.omit` is the SDK's own sanctioned
+        # way to say that: its error names "the `X-Api-Key` or `Authorization`
+        # headers explicitly omitted" as the alternative to a key. Verified against
+        # the SDK on 2026-09-12: the request goes out carrying neither header.
+        return anthropic.Anthropic(api_key=None, default_headers={"X-Api-Key": anthropic.omit})
+
     if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
         raise RuntimeError(
-            "no model credential: set ANTHROPIC_API_KEY in .env. "
+            "no model credential on the direct route: set ANTHROPIC_API_KEY in .env, "
+            "or set MODEL_ROUTE=proxy if the credential is held by the cloud environment. "
             "Every model call is capped and logged, so nothing runs without one."
         )
     return anthropic.Anthropic()

@@ -40,18 +40,22 @@ SOURCE_YAML = REPO / "sources" / "ted.yaml"
 THRESHOLDS = REPO / "config" / "thresholds.yaml"
 
 LOOKBACK_DAYS = 2
-PAGE_SIZE = 50
+PAGE_SIZE = 250  # the API's maximum, verified 2026-09-12
 
 
-def build_query(pass_prefixes: list[str]) -> str:
-    """CPV in the pass prefixes, published in the last two days.
+def build_query(pass_prefixes: list[str], exclude_notice_types: list[str]) -> str:
+    """The connector's own query, so the fixture is what the connector fetches.
 
-    Expert-query syntax verified against the live API on 2026-09-11: dates are
-    yyyymmdd with no separators, and `field=value*` is the prefix form.
+    Expert-query syntax verified against the live API on 2026-09-11 and 2026-09-12:
+    dates are yyyymmdd with no separators, `field=value*` is the prefix form, and
+    the values inside `IN (...)` are space separated.
     """
     since = (date.today() - timedelta(days=LOOKBACK_DAYS)).strftime("%Y%m%d")
     cpv = " OR ".join(f"classification-cpv={prefix}*" for prefix in pass_prefixes)
-    return f"({cpv}) AND publication-date>={since}"
+    query = f"({cpv}) AND publication-date>={since}"
+    if exclude_notice_types:
+        query += f" AND NOT (notice-type IN ({' '.join(exclude_notice_types)}))"
+    return query
 
 
 # Verified against the live API on 2026-09-11. `fields` is mandatory and every
@@ -87,7 +91,12 @@ def main() -> int:
     source = yaml.safe_load(SOURCE_YAML.read_text(encoding="utf-8"))
     prefixes = yaml.safe_load(THRESHOLDS.read_text(encoding="utf-8"))["cpv_pass_prefixes"]
     url = source["api_url"]
-    body = {"query": build_query(prefixes), "fields": FIELDS, "limit": PAGE_SIZE, "page": 1}
+    body = {
+        "query": build_query(prefixes, source.get("exclude_notice_types") or []),
+        "fields": FIELDS,
+        "limit": PAGE_SIZE,
+        "page": 1,
+    }
 
     print(f"POST {url}")
     print(f"  query: {body['query']}")

@@ -79,7 +79,14 @@ cpv_pass_prefixes: ["48", "72", "79"]
 # Every model call is capped and logged (rule 22). The caps are per day, checked
 # before each call, and a run that would exceed either stops with an event rather
 # than trimming its work quietly.
-daily_call_cap: 600
+# Raised from 600 on 2026-09-12. One day of TED needed 1,132 translate calls
+# against a 600 cap, so a single source was 532 calls over and the backlog grew
+# every day. The cost cap is the one that protects the budget and it is untouched:
+# 2,000 Haiku calls of this shape is about USD 8, still inside the USD 25 cap, and
+# the cap that binds is therefore the one denominated in the thing anyone actually
+# cares about. Excluding award notices at the TED query (sources/ted.yaml) cut the
+# same backlog by 43% in the same change, so both halves of the problem moved.
+daily_call_cap: 2000
 daily_usd_cap: 25
 
 # Rate card, USD per million tokens. Used to compute a call's cost from its own

@@ -17,8 +17,30 @@ a number that moves gets a new row with its date, so the trend is visible.
 | 2026-09-11 | ted (paged) | 1,449 | 1,449 | 270 | 33 | 237 | 88% | 1,132 |
 | 2026-09-12 | fts | 25 | 25 | 25 | 2 | 23 | 92% | 0 |
 | 2026-09-12 | prozorro | ~2,000/day | 400 | 380 | 0 | 380 | 100% | 10 |
+| 2026-09-12 | ted (awards excluded) | 822 | 822 | 176 | 21 | 155 | 88% | 630 |
 
-Three sources, 94.8% dropped overall for the price of zero model calls.
+The last TED row is after two decisions taken on 2026-09-12: award and post-award
+notice types are excluded at the query, and the daily call cap moved from 600 to
+2,000. Together they turned an unreachable backlog into a reachable one.
+
+| | before | after |
+| --- | --- | --- |
+| TED notices matched per two-day window | 1,449 | 822 |
+| held for translation | 1,132 | 630 |
+| daily call cap | 600 | 2,000 |
+| over or under the cap | 532 over | 1,370 under |
+
+The stored TED notices were cleared and re-fetched under the new query, because the
+old ones included about 600 award notices that would each have cost a translate
+call to discover we did not want them. Nothing downstream had consumed them: no
+scores, no candidates, no model translations.
+
+A side effect worth knowing: 198 of 250 recorded notices now carry a deadline,
+against 16 of 50 before. Contract notices have deadlines and award notices do not,
+so excluding awards directly improves clustering, because the deduper needs two
+known deadlines to join on a title.
+
+Three sources, 96% dropped overall for the price of zero model calls.
 
 **Prozorro is what the CPV stage is for.** 380 of its 390 notices were dropped on
 their classification alone: tyres, fuel, food, vehicle parts, the ordinary goods

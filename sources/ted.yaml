@@ -17,6 +17,14 @@ connector: FeedConnector
 schedule: '0 6 * * *'          # 06:00 UTC daily; TED publishes overnight
 api_url: https://api.ted.europa.eu/v3/notices/search
 tos_status: reviewed_ok        # open data, documented public API, no registration
+# Award and post-award notices are tenders that are already decided. Measured
+# 2026-09-12: excluding these four takes a two-day window from 1,449 matched
+# notices to 822, a 43% cut, and every notice removed is finished. That halves the
+# translation backlog as well, which is what made the daily call cap reachable.
+# Reversible: an award notice names the winner, and Architecture v0.4 section 8
+# counts competitor incumbency as something that changes a score, so if BD wants
+# that signal back this list is where it comes from.
+exclude_notice_types: [can-standard, can-modif, can-social, veat]
 enabled: true         # step 4: fixture recorded 2026-09-11, contract test passing
 health:
   # Measured 2026-09-11: the CPV-filtered two-day query matched 1,449 notices.

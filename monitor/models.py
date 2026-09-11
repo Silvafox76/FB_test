@@ -98,6 +98,11 @@ class Source(BaseModel):
     list_url: str = ""  # one of list_url or api_url is set; checked below
     api_url: str = ""
     tos_status: TosStatus
+    # Notice types to exclude at the query, where the source classifies them.
+    # Acquisition scope rather than a filter stage: it decides what to ask for, not
+    # what to keep, so nothing is read and then thrown away. Empty means ask for
+    # everything the other query terms match.
+    exclude_notice_types: list[str] = Field(default_factory=list)
     enabled: bool = False
     owner: str = Field(min_length=1)
     expected_min: int = Field(ge=0)
