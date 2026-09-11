@@ -48,3 +48,23 @@ geography:
 # dropped before any model call. A notice with no CPV code at all goes on to the
 # lexicon stage; absence is not a failed match.
 cpv_pass_prefixes: ["48", "72", "79"]
+
+# Every model call is capped and logged (rule 22). The caps are per day, checked
+# before each call, and a run that would exceed either stops with an event rather
+# than trimming its work quietly.
+daily_call_cap: 600
+daily_usd_cap: 25
+
+# Rate card, USD per million tokens. Used to compute a call's cost from its own
+# token counts, because the API does not return a price. Update when Anthropic's
+# published rates change; the number is here rather than in a .py file so that is
+# a config edit with a version history (rule 6).
+rate_card:
+  claude-haiku-4-5:
+    input: 1.00
+    output: 5.00
+  claude-sonnet-5:
+    input: 2.00
+    output: 10.00
+  # A cache read is billed at a tenth of the input rate.
+  cache_read_factor: 0.1

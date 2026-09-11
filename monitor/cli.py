@@ -34,6 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument("source", help="source id from sources/*.yaml, or 'all'")
 
     subparsers.add_parser("filter", help="run the free filter over every notice not yet filtered")
+    translate = subparsers.add_parser(
+        "translate", help="translate notices held for want of a lexicon, then re-filter them"
+    )
+    translate.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
     subparsers.add_parser("score", help="score every notice that survived the filter")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
@@ -80,6 +84,27 @@ def run_filter() -> int:
     return 0
 
 
+def run_translate(limit: int) -> int:
+    """Translate what the filter held, then put it back through the filter."""
+    import anthropic
+
+    from monitor.db import connect
+    from monitor.translate.run import run
+
+    client = anthropic.Anthropic()
+    with connect("pipeline") as conn:
+        counts = run(conn, client, limit=limit)
+
+    print(
+        f"considered {counts.considered}, translated {counts.translated}, "
+        f"passed {counts.passed}, dropped {counts.dropped}, parked {counts.parked}"
+    )
+    if counts.flagged:
+        print(f"flagged for a dropped system name: {counts.flagged}")
+    print(f"cost USD {counts.cost_usd:.4f}")
+    return 0
+
+
 def run_status() -> int:
     """Source health and the filter's arithmetic, per source."""
     from monitor.db import connect
@@ -97,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_fetch(args.source)
     if args.command == "filter":
         return run_filter()
+    if args.command == "translate":
+        return run_translate(args.limit)
     if args.command == "status":
         return run_status()
 

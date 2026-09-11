@@ -75,6 +75,7 @@ make test          # ruff check . && pytest
 make fetch S=ted   # run one connector once
 make run           # fetch all, filter, score, dedupe, stage (one full pass)
 make status        # source health, today's calls and cost, queue depth, export backlog
+make translate     # translate notices held for want of a lexicon, then re-filter them
 make golden        # precision, recall, schema validity per prompt_version
 make review        # start the review app on 127.0.0.1:8080
 make export        # produce a CSV batch and its manifest from approved, unexported records
