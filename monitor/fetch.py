@@ -153,7 +153,13 @@ def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: st
         raise NormaliseError(source.id, str(document.get("publication-number", url)), cause) from cause
     notice = mapped.notice
 
-    existing = conn.execute("select 1 from notices_raw where content_hash = %s", (notice.content_hash,)).fetchone()
+    # Scoped to the source (migration 007). The hash is still the change-detection
+    # key, but two sources publishing the same tender each keep their own notice so
+    # the deduper can join them into one candidate and the export can name both.
+    existing = conn.execute(
+        "select 1 from notices_raw where source_id = %s and content_hash = %s",
+        (source.id, notice.content_hash),
+    ).fetchone()
     if existing:
         return False
 

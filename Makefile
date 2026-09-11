@@ -7,7 +7,7 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs migrate seed filter translate score golden-export test lint fmt fetch run status golden review export
+.PHONY: help up down logs migrate seed filter translate score stage golden-export test lint fmt fetch run status golden review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -59,6 +59,9 @@ translate: ## Translate notices held for want of a lexicon, then re-filter them
 
 score: ## Score every notice the free filter passed
 	uv run python -m monitor.cli score
+
+stage: ## Dedupe scored notices into candidates and stage them for review
+	uv run python -m monitor.cli stage
 
 run: ## One full pass: fetch all, filter, score, dedupe, stage
 	uv run python -m monitor.cli run

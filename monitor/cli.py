@@ -10,15 +10,14 @@ lands. A stub exits 2 and says so; it never returns 0 having done nothing.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 NOT_IMPLEMENTED_EXIT = 2
 
 # Command -> the BUILD_ORDER.md step that implements it. Kept here so a stub can
 # say what is missing rather than only that something is.
-IMPLEMENTED_BY = {
-    "stage": "step 8 (dedupe, candidates, stager)",
-}
+IMPLEMENTED_BY: dict[str, str] = {}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,6 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     score = subparsers.add_parser("score", help="score every notice that survived the filter")
     score.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
+    subparsers.add_parser("run", help="one full pass: fetch all, filter, score, dedupe, stage")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
     golden = subparsers.add_parser(
         "golden", help="precision, recall and schema validity for the current prompt version"
@@ -50,6 +50,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def model_client():
+    """The Anthropic client, or a message a person can act on.
+
+    The SDK raises a TypeError from inside its own constructor when no credential
+    is resolvable, which is loud but not legible: in the middle of `monitor run` it
+    reads as a bug in the pipeline. This says what is missing and what to do.
+    """
+    import anthropic
+
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        raise RuntimeError(
+            "no model credential: set ANTHROPIC_API_KEY in .env. "
+            "Every model call is capped and logged, so nothing runs without one."
+        )
+    return anthropic.Anthropic()
 
 
 def run_fetch(source_id: str) -> int:
@@ -92,12 +109,10 @@ def run_filter() -> int:
 
 def run_translate(limit: int) -> int:
     """Translate what the filter held, then put it back through the filter."""
-    import anthropic
-
     from monitor.db import connect
     from monitor.translate.run import run
 
-    client = anthropic.Anthropic()
+    client = model_client()
     with connect("pipeline") as conn:
         counts = run(conn, client, limit=limit)
 
@@ -113,12 +128,10 @@ def run_translate(limit: int) -> int:
 
 def run_score(limit: int) -> int:
     """Score what the filter passed and report schema validity."""
-    import anthropic
-
     from monitor.db import connect
     from monitor.score.run import run
 
-    client = anthropic.Anthropic()
+    client = model_client()
     with connect("pipeline") as conn:
         counts = run(conn, client, limit=limit)
 
@@ -143,9 +156,7 @@ def run_golden(export_only: bool) -> int:
         print("The pipeline does not label its own golden set: it would be measuring its own opinion.")
         return 0
 
-    import anthropic
-
-    client = anthropic.Anthropic()
+    client = model_client()
     with connect("pipeline") as conn:
         try:
             result = run_golden_set(conn, client)
@@ -156,6 +167,50 @@ def run_golden(export_only: bool) -> int:
     print(render(result))
     append_history(result)
     print(f"appended to {HISTORY_CSV}")
+    return 0
+
+
+def run_stage() -> int:
+    """Dedupe scored notices into candidates, then stage what clears the bar."""
+    from monitor.db import connect
+    from monitor.stage.stager import run
+
+    with connect("pipeline") as conn:
+        counts = run(conn)
+
+    print(
+        f"scored notices {counts.scored_notices}, candidates created {counts.candidates_created}, "
+        f"joined {counts.joined}"
+    )
+    print(
+        f"staged {counts.staged}, held by the per-source cap {counts.held_by_cap}, "
+        f"below threshold {counts.below_threshold}"
+    )
+    return 0
+
+
+def run_full_pass() -> int:
+    """fetch all, filter, score, dedupe, stage. Stops at the first stage that fails.
+
+    Each stage commits its own work, so a pass that stops at the scorer keeps what
+    was fetched and filtered. That is the point of stopping rather than unwinding:
+    the next pass picks up where this one left off.
+    """
+    for name, step in (
+        ("fetch", lambda: run_fetch("all")),
+        ("filter", run_filter),
+        ("score", lambda: run_score(0)),
+        ("stage", run_stage),
+    ):
+        print(f"\n== {name} ==")
+        try:
+            code = step()
+        except RuntimeError as error:
+            print(f"run stopped at {name}: {error}", file=sys.stderr)
+            return 1
+        if code != 0:
+            print(f"run stopped at {name}", file=sys.stderr)
+            return code
     return 0
 
 
@@ -182,11 +237,15 @@ def main(argv: list[str] | None = None) -> int:
         return run_score(args.limit)
     if args.command == "golden":
         return run_golden(args.export)
+    if args.command == "stage":
+        return run_stage()
+    if args.command == "run":
+        return run_full_pass()
     if args.command == "status":
         return run_status()
 
     print(f"monitor {args.command}: not implemented, arrives in {IMPLEMENTED_BY[args.command]}", file=sys.stderr)
-    return NOT_IMPLEMENTED_EXIT
+    return NOT_IMPLEMENTED_EXIT  # pragma: no cover - every command is implemented
 
 
 if __name__ == "__main__":

@@ -43,6 +43,33 @@ geography:
   # EU, EEA, UK and Switzerland, and anything else a source carries
   default: 0.6
 
+# Which region a country belongs to. Used for the review queue's region filter
+# (step 10) and for the Industry field in the export (appendix E), so the names
+# here have to match the keys in config/record_defaults.yaml's industry_by_region.
+# A country with a geography weight and no region is a gap; a test asserts they
+# agree rather than leaving it to be noticed later.
+regions:
+  BJ: West Africa
+  BF: West Africa
+  CI: West Africa
+  GM: West Africa
+  GH: West Africa
+  LR: West Africa
+  ML: West Africa
+  MR: West Africa
+  NE: West Africa
+  NG: West Africa
+  SN: West Africa
+  SL: West Africa
+  TG: West Africa
+  UA: Balkans and Ukraine
+  AL: Balkans and Ukraine
+  BA: Balkans and Ukraine
+  XK: Balkans and Ukraine
+  ME: Balkans and Ukraine
+  MK: Balkans and Ukraine
+  default: Europe
+
 # CPV top-level codes that survive the free filter: 48 software, 72 IT services,
 # 79 business and consultancy. A notice that carries CPV codes and none of these is
 # dropped before any model call. A notice with no CPV code at all goes on to the

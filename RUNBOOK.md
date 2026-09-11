@@ -125,6 +125,19 @@ reports and appends a line to `tests/golden/history.csv`. The line carries the
 `prompt_version` and the model with every number, because a score is only
 comparable to another made under the same prompt.
 
+### Candidates
+
+None yet. `make stage` has nothing to do until notices reach `scored`, which is the
+scorer's output and therefore waits on the model credential. The dedupe and staging
+logic is tested against real database rows (`tests/unit/test_stager.py`), including
+the cap: the sixteenth candidate from one source on one day stays at `scored` and
+keeps its score.
+
+`make run` chains the whole pass and currently stops at the scorer, after fetching
+1,449 notices and filtering them, which is the intended behaviour rather than a
+failure: each stage commits its own work, so a pass that stops keeps everything
+before the stopping point and the next pass resumes there.
+
 ## What is not here yet
 
 Start and stop, adding a source, reading health, changing a keyword, rolling back

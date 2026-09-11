@@ -1,7 +1,9 @@
-"""The CLI's contract while its commands are stubs: say what is missing, exit 2.
+"""The CLI's surface: every command reachable, every argument validated.
 
-This is the step 1 suite. It is replaced command by command as each step lands;
-it is not a placeholder that survives to week 14.
+This started at step 1 as a test that each stub exited 2 and said which step would
+build it. Every command is now built, so what is left is the thing that would
+otherwise go unnoticed: a subcommand added to the parser with no branch in main()
+parses cleanly, exits 0, and does nothing at all.
 """
 
 import pytest
@@ -9,11 +11,10 @@ import pytest
 from monitor.cli import IMPLEMENTED_BY, NOT_IMPLEMENTED_EXIT, main
 
 
-@pytest.mark.parametrize("command", sorted(IMPLEMENTED_BY))
-def test_stub_exits_two_and_names_its_step(command, capsys):
-    """fetch is not here any more: it was implemented at step 4."""
-    assert main([command]) == NOT_IMPLEMENTED_EXIT
-    assert "not implemented" in capsys.readouterr().err
+def test_no_command_is_a_stub_any_more():
+    """Every command in the CLI is implemented. The table is empty and stays empty."""
+    assert IMPLEMENTED_BY == {}
+    assert NOT_IMPLEMENTED_EXIT == 2
 
 
 def test_unknown_command_is_a_usage_error():
@@ -28,3 +29,13 @@ def test_fetch_requires_a_source():
         main(["fetch"])
 
     assert raised.value.code == 2
+
+
+def test_every_subcommand_is_reachable():
+    """A command in the parser with no branch in main() would silently do nothing."""
+    from monitor.cli import build_parser
+
+    parser = build_parser()
+    commands = sorted(name for action in parser._subparsers._group_actions for name in action.choices)
+
+    assert commands == ["fetch", "filter", "golden", "run", "score", "stage", "status", "translate"]

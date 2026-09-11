@@ -32,6 +32,8 @@ a step's files be said out loud.
 
 | Step | File | Why |
 | --- | --- | --- |
+| 8 | `migrations/007_content_hash_is_per_source.sql`, `monitor/fetch.py` | `content_hash` was globally unique, so the same tender from two sources was stored once and the second copy dropped at ingest. That makes step 8's first dedupe rule unable to fire, its own acceptance ("the same notice text from two sources joins") impossible, step 11's World Bank join impossible, and appendix E's Partners Involved permanently empty. The hash is now scoped to its source. |
+| 8 | `config/thresholds.yaml` (`regions`) | `candidates.region` had no source. The names match `record_defaults.yaml`'s `industry_by_region` keys, and a test asserts every country with a geography weight has a region. |
 | 4 | `monitor/fetch.py` | Change detection has to write to the database and neither the connectors nor the normalisers may. New module rather than fattening `cli.py`. |
 | 4 | `monitor/normalise/codes.py` | ISO 3166 and ISO 639 conversion, needed by every source, not only TED. |
 | 5 | `migrations/005_notice_filtered_in.sql`, `monitor/models.py` | The four-value notice status vocabulary had no name for "passed the filter, waiting to be scored", which step 6 has to query for. |
