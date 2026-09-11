@@ -17,7 +17,6 @@ NOT_IMPLEMENTED_EXIT = 2
 # Command -> the BUILD_ORDER.md step that implements it. Kept here so a stub can
 # say what is missing rather than only that something is.
 IMPLEMENTED_BY = {
-    "score": "step 6 (scorer)",
     "stage": "step 8 (dedupe, candidates, stager)",
     "golden": "step 7 (mini golden set)",
 }
@@ -38,7 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
         "translate", help="translate notices held for want of a lexicon, then re-filter them"
     )
     translate.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
-    subparsers.add_parser("score", help="score every notice that survived the filter")
+    score = subparsers.add_parser("score", help="score every notice that survived the filter")
+    score.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
     subparsers.add_parser("golden", help="precision, recall and schema validity for the current prompt version")
@@ -105,6 +105,24 @@ def run_translate(limit: int) -> int:
     return 0
 
 
+def run_score(limit: int) -> int:
+    """Score what the filter passed and report schema validity."""
+    import anthropic
+
+    from monitor.db import connect
+    from monitor.score.run import run
+
+    client = anthropic.Anthropic()
+    with connect("pipeline") as conn:
+        counts = run(conn, client, limit=limit)
+
+    print(f"considered {counts.considered}, scored {counts.scored}, parked {counts.parked}")
+    if counts.considered:
+        print(f"schema validity {counts.schema_validity:.1%}")
+    print(f"cost USD {counts.cost_usd:.4f}, prompt_version {counts.prompt_version}")
+    return 0
+
+
 def run_status() -> int:
     """Source health and the filter's arithmetic, per source."""
     from monitor.db import connect
@@ -124,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_filter()
     if args.command == "translate":
         return run_translate(args.limit)
+    if args.command == "score":
+        return run_score(args.limit)
     if args.command == "status":
         return run_status()
 

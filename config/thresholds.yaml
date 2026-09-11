@@ -68,3 +68,11 @@ rate_card:
     output: 10.00
   # A cache read is billed at a tenth of the input rate.
   cache_read_factor: 0.1
+
+# How much of a notice body reaches the scorer. Architecture v0.4 section 8 says
+# "the first 3,000 tokens of body text"; this is that budget in characters, because
+# counting tokens exactly would mean a count_tokens call per notice and double the
+# call count against the 600-a-day cap for no gain. Roughly four characters per
+# token for Latin scripts and fewer for Cyrillic, so this errs on the side of
+# sending less rather than more.
+score_body_chars: 12000
