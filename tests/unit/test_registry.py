@@ -126,16 +126,21 @@ def test_every_config_and_source_file_is_version_hashed():
     assert {path for path, _, _ in config_files()} == on_disk
 
 
-def test_a_config_file_with_no_declared_kind_fails():
-    """A new file in config/ has to be classified, or it stops being traceable silently."""
-    stray = CONFIG_DIR / "stray_for_test.yaml"
-    stray.write_text("nothing: here\n")
-    try:
-        with pytest.raises(RegistryError) as raised:
-            config_files()
-        assert "CONFIG_KINDS" in str(raised.value)
-    finally:
-        stray.unlink()
+def test_a_config_file_with_no_declared_kind_fails(tmp_path):
+    """A new file in config/ has to be classified, or it stops being traceable silently.
+
+    Run against a copy. Writing the stray file into the real config/ and cleaning
+    up in a finally works until a run is killed, and then it fails for everyone.
+    """
+    config_copy = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, config_copy)
+    (config_copy / "stray_for_test.yaml").write_text("nothing: here\n")
+
+    with pytest.raises(RegistryError) as raised:
+        config_files(SOURCES_DIR, config_copy)
+
+    assert "CONFIG_KINDS" in str(raised.value)
+    assert "stray_for_test.yaml" in str(raised.value)
 
 
 def test_a_lexicon_declaring_the_wrong_language_fails(tmp_path):

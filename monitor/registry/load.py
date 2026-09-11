@@ -104,11 +104,16 @@ def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, lis
     return functions, content_hash(path)
 
 
-def config_files() -> list[tuple[Path, str, str | None]]:
-    """Every hashed file as (path, kind, language). Language is set for lexicons only."""
-    files: list[tuple[Path, str, str | None]] = [(path, "source", None) for path in sorted(SOURCES_DIR.glob("*.yaml"))]
+def config_files(sources_dir: Path = SOURCES_DIR, config_dir: Path = CONFIG_DIR) -> list[tuple[Path, str, str | None]]:
+    """Every hashed file as (path, kind, language). Language is set for lexicons only.
 
-    for path in sorted(CONFIG_DIR.glob("*.yaml")):
+    The directories are arguments for the same reason `load_sources` takes one: a
+    test that wants to see what happens to a stray file points this at a copy
+    rather than writing into the real config directory and relying on cleanup.
+    """
+    files: list[tuple[Path, str, str | None]] = [(path, "source", None) for path in sorted(sources_dir.glob("*.yaml"))]
+
+    for path in sorted(config_dir.glob("*.yaml")):
         kind = CONFIG_KINDS.get(path.name)
         if kind is None:
             raise RegistryError(f"{path.name}: no kind in CONFIG_KINDS, so it would not be version-hashed (rule 6)")
