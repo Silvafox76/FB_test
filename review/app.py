@@ -1,9 +1,9 @@
-"""The reviewer's interface. Five pages, server-rendered, no JavaScript beyond a confirm.
+"""The reviewer's interface. Six pages, server-rendered, no JavaScript beyond a confirm.
 
 This is the permanent interface for the whole pilot, not a stand-in for a CRM build
 in weeks 3 to 5 (D31). There is no later surface that absorbs what is left out here,
-which is a reason to build these five pages properly and still a reason not to build
-a sixth.
+which is a reason to build these six pages properly and still a reason not to build
+a seventh.
 
 Three properties, all of them deliberate:
 
@@ -15,9 +15,11 @@ Three properties, all of them deliberate:
     control. A reviewer on the host reaches it directly; anyone else reaches it
     through the SSM tunnel or not at all. Do not change the host in the Makefile
     without changing rule 17 first.
-  - **It writes through `review/decisions.py` and nowhere else** (rule 12). Every
-    query in this file is a select. The two POST handlers call `approve` and
-    `reject`, and neither one touches a table itself.
+  - **It writes through `review/decisions.py` and `review/export.py` and nowhere
+    else** (rule 12). Every query in this file is a select. The three POST handlers
+    call `approve`, `reject` and `export`, and none of them touches a table itself.
+    The export's POST produces a file on disk and a batch row; it sends nothing
+    anywhere, because there is nowhere to send it (rules 15 to 18).
 
 Every request opens a connection and closes it. That is not a pool and does not need
 to be: one reviewer, a page at a time, a few requests a minute.
@@ -50,6 +52,7 @@ from review.decisions import (
     review_config,
 )
 from review.decisions import reject as reject_candidate
+from review.export import ExportRefused, day_range, export
 
 log = structlog.get_logger(__name__)
 
@@ -102,6 +105,19 @@ AUDIT = """
     where (%s = '' or entity_type = %s)
     order by id desc
     limit 300
+"""
+
+BACKLOG = """
+    select count(*), min(created_at), max(created_at)
+    from approved_records
+    where exported_at is null
+"""
+
+BATCH = """
+    select batch_id, created_at, operator, row_count, range_from, range_to,
+           file_path, manifest_path, sha256
+    from export_batches
+    where batch_id = %s
 """
 
 CANDIDATE = """
@@ -272,3 +288,48 @@ def audit(request: Request, entity_type: str = "") -> HTMLResponse:
         "audit.html",
         {"events": events, "entity_type": entity_type, "entity_types": ["candidate", "approved_record", "source"]},
     )
+
+
+@app.get("/export", response_class=HTMLResponse)
+def export_page(request: Request, batch: str = "", error: str = "") -> HTMLResponse:
+    """The backlog waiting to leave, the form that produces a batch, and the last one produced.
+
+    The range defaults to the backlog's own window — the day of the oldest approved record
+    that has not been exported, through today — so the operator can press the button
+    without first working out which records are still waiting.
+    """
+    with db.connect("review") as conn:
+        waiting, oldest, newest = conn.execute(BACKLOG).fetchone()
+        produced = conn.execute(BATCH, (batch,)).fetchone() if batch else None
+
+    today = datetime.now(UTC).date()
+    return templates.TemplateResponse(
+        request,
+        "export.html",
+        {
+            "waiting": waiting,
+            "oldest": oldest,
+            "newest": newest,
+            "range_from": (oldest.date() if oldest else today).isoformat(),
+            "range_to": today.isoformat(),
+            "batch": produced,
+            "error": error,
+        },
+    )
+
+
+@app.post("/export")
+def export_form(
+    range_from: Annotated[str, Form()] = "",
+    range_to: Annotated[str, Form()] = "",
+    operator: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    """Produce one batch. It writes a file and a row and it sends nothing anywhere (rules 16 to 18)."""
+    try:
+        first, last = day_range(range_from, range_to)
+        batch_id = export(first, last, operator)
+    except ExportRefused as refused:
+        return RedirectResponse(f"/export?error={refused}", status_code=303)
+
+    log.info("export_from_form", batch_id=batch_id, operator=operator)
+    return RedirectResponse(f"/export?batch={batch_id}", status_code=303)

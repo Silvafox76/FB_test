@@ -78,5 +78,10 @@ golden-export: ## Write the unlabelled golden set for a person to label
 review: ## Serve the review app on 127.0.0.1:8080
 	uv run uvicorn review.app:app --host 127.0.0.1 --port 8080
 
-export: ## Produce a CSV batch and its manifest from approved, unexported records
-	uv run python -m review.export
+export: ## Produce a CSV batch and its manifest: OPERATOR='Name' FROM=YYYY-MM-DD TO=YYYY-MM-DD
+	@test -n "$(OPERATOR)" -a -n "$(FROM)" -a -n "$(TO)" || { \
+		echo "usage: make export OPERATOR='Full Name' FROM=YYYY-MM-DD TO=YYYY-MM-DD"; \
+		echo "the dates are approval days, both inclusive; all three are required because a default"; \
+		echo "window would silently decide which approved records are not in the batch"; \
+		exit 1; }
+	uv run python -m review.export --operator "$(OPERATOR)" --from "$(FROM)" --to "$(TO)"

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Export — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Export</h1>
+<p class="summary">
+  The only way anything leaves the Monitor. The button writes a CSV and a manifest to disk and a
+  batch row to the database. It sends nothing anywhere: there is no CRM connection here, and
+  nothing is ever read back in.
+</p>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<section>
+  <h2>Waiting to leave</h2>
+  {% if waiting %}
+    <p>
+      <strong>{{ waiting }}</strong> approved record{{ 's' if waiting != 1 }} not yet exported,
+      approved between {{ oldest.strftime('%Y-%m-%d') }} and {{ newest.strftime('%Y-%m-%d') }}.
+    </p>
+  {% else %}
+    <p class="empty">Nothing is waiting. Every approved record has been exported.</p>
+  {% endif %}
+</section>
+
+<section class="decision">
+  <h2>Produce a batch</h2>
+  <p class="reminder">
+    Before importing: check Zoho by hand for an existing Opportunity on each buyer. The Monitor
+    never searches the CRM (D31) and the person importing is the only duplicate control. Every
+    duplicate that reaches a batch is logged as a finding and counted at the week 14 gate.
+  </p>
+
+  <form method="post" action="/export">
+    <label class="reviewer">
+      Approved from (inclusive)
+      <input type="date" name="range_from" value="{{ range_from }}" required>
+    </label>
+    <label class="reviewer">
+      Approved to (inclusive)
+      <input type="date" name="range_to" value="{{ range_to }}" required>
+    </label>
+    <label class="reviewer">
+      Operator (the person producing this batch; it goes on the batch row)
+      <input type="text" name="operator" placeholder="Full name" required>
+    </label>
+    <button type="submit" class="approve">Produce the batch</button>
+  </form>
+
+  <p class="muted">
+    Records already exported are never in a second batch. A range with nothing new in it still
+    produces a batch, with a header row and no rows, so a run that found nothing is on the record.
+  </p>
+</section>
+
+{% if batch %}
+<section>
+  <h2>{{ batch[0] }}</h2>
+  <section class="facts">
+    <dl>
+      <dt>Produced</dt><dd>{{ batch[1].strftime('%Y-%m-%d %H:%M %Z') }}</dd>
+      <dt>Operator</dt><dd>{{ batch[2] }}</dd>
+      <dt>Rows</dt><dd>{{ batch[3] }}</dd>
+      <dt>Approval range</dt>
+      <dd>{{ batch[4].strftime('%Y-%m-%d %H:%M %Z') }} to {{ batch[5].strftime('%Y-%m-%d %H:%M %Z') }} (exclusive)</dd>
+      <dt>CSV</dt><dd><code>{{ batch[6] }}</code></dd>
+      <dt>Manifest</dt><dd><code>{{ batch[7] }}</code></dd>
+      <dt>sha256</dt><dd><code>{{ batch[8] }}</code></dd>
+    </dl>
+  </section>
+  <p class="muted">
+    UTF-8 with a byte order mark, so Excel and Zoho's import mapper read accented names as
+    published rather than as the local codepage. The header row is the appendix E column list in
+    order, which is what the import mapper matches on. Check the file against the sha256 above
+    before importing it; the manifest carries the same hash and the names of the reviewers who
+    approved the records in it.
+  </p>
+</section>
+{% endif %}
+{% endblock %}
