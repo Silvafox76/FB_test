@@ -7,7 +7,7 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs migrate seed filter translate score test lint fmt fetch run status golden review export
+.PHONY: help up down logs migrate seed filter translate score golden-export test lint fmt fetch run status golden review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -68,6 +68,9 @@ status: ## Source health, today's calls and cost, queue depth, export backlog
 
 golden: ## Precision, recall and schema validity for the current prompt version
 	uv run python -m monitor.cli golden
+
+golden-export: ## Write the unlabelled golden set for a person to label
+	uv run python -m monitor.cli golden --export
 
 review: ## Serve the review app on 127.0.0.1:8080
 	uv run uvicorn review.app:app --host 127.0.0.1 --port 8080

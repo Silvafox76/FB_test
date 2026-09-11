@@ -18,7 +18,6 @@ NOT_IMPLEMENTED_EXIT = 2
 # say what is missing rather than only that something is.
 IMPLEMENTED_BY = {
     "stage": "step 8 (dedupe, candidates, stager)",
-    "golden": "step 7 (mini golden set)",
 }
 
 
@@ -41,7 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
-    subparsers.add_parser("golden", help="precision, recall and schema validity for the current prompt version")
+    golden = subparsers.add_parser(
+        "golden", help="precision, recall and schema validity for the current prompt version"
+    )
+    golden.add_argument(
+        "--export",
+        action="store_true",
+        help="write the unlabelled golden set and stop; a person labels it, not the pipeline",
+    )
 
     return parser
 
@@ -123,6 +129,36 @@ def run_score(limit: int) -> int:
     return 0
 
 
+def run_golden(export_only: bool) -> int:
+    """Export the set for labelling, or measure against the labels a person wrote."""
+    from monitor.db import connect
+    from monitor.golden import GOLDEN_CSV, HISTORY_CSV, NotLabelled, append_history, export, render
+    from monitor.golden import run as run_golden_set
+
+    if export_only:
+        with connect("pipeline") as conn:
+            rows = export(conn)
+        print(f"wrote {GOLDEN_CSV} with {rows} rows and an empty label column.")
+        print("Label each row 'relevant' or 'not' by hand, then run 'make golden'.")
+        print("The pipeline does not label its own golden set: it would be measuring its own opinion.")
+        return 0
+
+    import anthropic
+
+    client = anthropic.Anthropic()
+    with connect("pipeline") as conn:
+        try:
+            result = run_golden_set(conn, client)
+        except NotLabelled as error:
+            print(f"golden set not ready: {error}", file=sys.stderr)
+            return 2
+
+    print(render(result))
+    append_history(result)
+    print(f"appended to {HISTORY_CSV}")
+    return 0
+
+
 def run_status() -> int:
     """Source health and the filter's arithmetic, per source."""
     from monitor.db import connect
@@ -144,6 +180,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_translate(args.limit)
     if args.command == "score":
         return run_score(args.limit)
+    if args.command == "golden":
+        return run_golden(args.export)
     if args.command == "status":
         return run_status()
 

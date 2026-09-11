@@ -98,6 +98,33 @@ To run it: put the key in `.env`, then `make score`. Record the four numbers
 above, and keep the `prompt_version`, because a score is only comparable to
 another score made under the same prompt.
 
+### Golden set
+
+| Date | Labelled | Scored | Precision at 60 | Recall | Schema validity | Mean cost | prompt_version |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| not yet run | 0 of 30 | - | - | - | - | - | `5cb6a4eb2de9` |
+
+`tests/golden/golden.csv` holds 30 real TED notices with an empty label column.
+Two things have to happen before there is a number, and they are independent:
+
+1. **A person labels the set.** `relevant` or `not`, one per row, by hand. The
+   pipeline will not do it and `make golden` refuses to run until it is done. A
+   golden set labelled by the same family of model it measures scores well against
+   its own opinion, and a real regression reads as agreement.
+2. **A model credential exists**, as for steps 6 and 14.
+
+The 30 are what the free filter passed, which is the population the scorer is
+actually given. Reading them is a fair warning about what the filter currently
+lets through: alongside asset management and payroll systems there is temporary
+staffing, 360-degree feedback consultancy and graphic design. Expect a low first
+precision, and expect that to be the honest starting point rather than a problem
+with the harness. `docs/open_decisions.md` item 12 has the evidence.
+
+To run it: `make golden-export` writes the file, a person labels it, `make golden`
+reports and appends a line to `tests/golden/history.csv`. The line carries the
+`prompt_version` and the model with every number, because a score is only
+comparable to another made under the same prompt.
+
 ## What is not here yet
 
 Start and stop, adding a source, reading health, changing a keyword, rolling back
