@@ -1,0 +1,84 @@
+# One full pipeline pass under systemd: fetch all, filter, score, dedupe, stage.
+#
+# The command is the Makefile's `run` target verbatim (`uv run python -m monitor.cli
+# run`). A host that runs something the Makefile does not is a host nobody can
+# reproduce on a laptop, so if the target changes this file changes with it.
+#
+# There is no [Install] section here on purpose: monitor-run.timer owns the
+# schedule and is the unit you enable. Enabling a timer-driven .service would run
+# it once at boot and never again, which looks like a working scheduler for about
+# a day.
+#
+# Rule 17: this opens no port and listens for nothing. A timer running a command
+# is the whole mechanism. No unit in this directory starts the review app; a
+# person starts it with `make review` on 127.0.0.1.
+# Rule 20: no credential appears in this file. Everything secret arrives through
+# EnvironmentFile, which is not in the repository; deploy/README.md says where
+# that file comes from.
+
+[Unit]
+Description=PFM Opportunity Monitor: one full pass (fetch, filter, score, dedupe, stage)
+Documentation=file:/opt/monitor/deploy/README.md
+# The connectors need egress, so wait for the network. Postgres is deliberately
+# not a dependency: depending on the deployment it is a container, a native
+# service or a remote host, and systemd here cannot know which. If it is down the
+# pass fails on the first connection, the run is recorded failed and the source
+# health row says so, which is the loud failure rule 4 asks for rather than a unit
+# that sits in "activating" waiting for a database that will never arrive.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=monitor
+Group=monitor
+WorkingDirectory=/opt/monitor
+
+# The one file with secrets in it, and it lives outside the checkout: the three
+# database URLs and the model credential, copied by hand from .env.example on the
+# host (0600, owned by the service user). No leading '-' on the path: a missing
+# env file must fail the unit, not start a pass that will connect to nothing.
+EnvironmentFile=/etc/monitor/monitor.env
+# Line-buffered, so the log file can be read while a pass is running instead of
+# arriving in 4 KiB blocks once it ends.
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/usr/local/bin/uv run python -m monitor.cli run
+
+# The log file BUILD_ORDER step 11 asks for. systemd creates /var/log/monitor
+# (LogsDirectory) owned by the service user before ExecStart runs, so nothing has
+# to pre-create it. `append:` keeps history across passes. With it the command's
+# own output goes to the file and not to the journal, so `journalctl -u
+# monitor-run` shows the start, the exit status and nothing else - that division
+# is documented in deploy/README.md so nobody hunts for output in the wrong place.
+# Both streams go to one file: structlog's JSON and a traceback interleaved in
+# order is how a failed pass is read. Needs systemd >= 240; Ubuntu 24.04 has 255.
+LogsDirectory=monitor
+LogsDirectoryMode=0750
+StandardOutput=append:/var/log/monitor/run.log
+StandardError=append:/var/log/monitor/run.log
+
+# A pass that has not finished in half an hour is wedged, not slow: the largest
+# source recorded so far is TED at 1,449 notices over a two-day lookback, and the
+# model calls behind it are capped at 600 a day (rule 22). Killing it frees the
+# next tick.
+TimeoutStartSec=30min
+
+# No Restart= and no RestartSec=, deliberately (rule 2). A failed pass is not
+# retried by the unit: it marks the source unhealthy, exits non-zero and waits for
+# the next tick. Each stage commits its own work (monitor/cli.py, run_full_pass),
+# so the next pass resumes from where this one stopped rather than starting over -
+# which is what makes not retrying cheap.
+
+# Modest hardening. ProtectSystem=full rather than =strict because `uv run` syncs
+# the environment inside the checkout and the fetch stage writes storage/; strict
+# needs a ReadWritePaths list that goes stale silently as the layout changes, and
+# a scheduler that breaks when a new write path appears is worse than one degree
+# less isolation. ProtectHome is not set: uv's cache lives under the service
+# user's home and is the one thing this unit cannot run without.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true

@@ -1,0 +1,117 @@
+# The workstation alternative to the systemd timers: the same two commands on the
+# same weekend cadence, for a machine that has Docker but no systemd (a Mac, or a
+# laptop where nobody wants units installed). Not a second implementation of the
+# scheduler - the same commands at the same wall-clock times, so a run here and a
+# run on the pilot host are comparable when one of them looks wrong.
+#
+# This is an overlay on docker-compose.yml and does not stand alone:
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.cron.yml \
+#       up -d pipeline-cron status-cron
+#
+# Run it from the repository root and keep that file order. Compose resolves
+# relative paths against the project directory, which is the directory of the
+# FIRST -f file, so ./logs below is the repository's logs/ and not deploy/logs/.
+# Naming this file second also means it can only add services, never quietly
+# rewrite the three that docker-compose.yml defines.
+#
+# Rule 17: neither service publishes a port and neither listens for anything; both
+# only reach out to the portals and to Postgres on the compose network.
+# Rule 20: no credential in this file. Both services read .env exactly as the
+# pipeline service already does, and .env is git-ignored.
+# Rule 2: no `restart:` policy other than "no". Docker's restart backoff is a
+# retry loop wearing a different hat, and a scheduler that cannot start is a
+# failure a person has to see rather than one the daemon hides by trying again.
+# The cost is real and is in deploy/README.md: after a reboot, start it by hand.
+
+services:
+  # `monitor run` on the hour.
+  pipeline-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-pipeline-cron
+    env_file: .env
+    environment:
+      # The same line as the `pipeline` service in docker-compose.yml. Compose has
+      # no way to share it - YAML anchors do not cross files, and `extends` drops
+      # depends_on - so it is duplicated deliberately and marked here, because the
+      # next person to change one of the two needs to know about the other.
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+      # Line-buffered, so `tail -f logs/run.log` shows a pass as it happens.
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./sources:/app/sources:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./storage:/app/storage
+    # The sleep-then-run loop is the whole scheduler. No cron daemon in the image:
+    # adding one would be a second way to schedule the same command (rule 1) and a
+    # second place to look when a pass did not happen.
+    #
+    # `$$` is Compose's escape for a literal `$`, so the shell in the container
+    # sees `$(date +%s)`. The arithmetic sleeps to the next :00 boundary rather
+    # than for a flat hour, so passes land on the hour after a restart instead of
+    # drifting to whenever the container happened to start.
+    #
+    # It sleeps before its first pass rather than running immediately, which is
+    # what enabling a systemd timer does too: a timer schedules a pass, it does not
+    # take one. `make run` is how you take a pass now.
+    #
+    # The exit status is echoed rather than swallowed: this loop must not turn a
+    # failed pass into a quiet one. Nothing is retried - the next hour comes round
+    # regardless, and each stage commits its own work so the next pass resumes
+    # where this one stopped.
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          sleep $$(( 3600 - $$(date +%s) % 3600 ))
+          echo "== monitor run $$(date -u +%Y-%m-%dT%H:%M:%SZ) ==" >> /app/logs/run.log
+          python -m monitor.cli run >> /app/logs/run.log 2>&1
+          echo "== monitor run exit $$? ==" >> /app/logs/run.log
+        done
+    restart: "no"
+    # A pass in flight survives `docker compose stop` for this long before SIGKILL.
+    # Being killed mid-pass costs nothing that matters - each stage commits its own
+    # work - but finishing the fetch it is in the middle of is politer to the
+    # portal at the other end.
+    stop_grace_period: 60s
+
+  # `monitor status` on the half hour. Same offset and the same reason as
+  # monitor-status.timer: the reading is only useful if it is not taken in the
+  # middle of the pass it is reporting on.
+  status-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-status-cron
+    env_file: .env
+    environment:
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./sources:/app/sources:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    # Same loop, offset by half an hour: the next boundary at :30 is the next
+    # multiple of 3600 counted from 1800 past the hour. Never sleeps zero, so the
+    # loop cannot spin.
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          sleep $$(( 3600 - ( $$(date +%s) - 1800 ) % 3600 ))
+          echo "== monitor status $$(date -u +%Y-%m-%dT%H:%M:%SZ) ==" >> /app/logs/status.log
+          python -m monitor.cli status >> /app/logs/status.log 2>&1
+          echo "== monitor status exit $$? ==" >> /app/logs/status.log
+        done
+    restart: "no"

@@ -216,3 +216,47 @@ def test_an_exact_hash_beats_a_fuzzy_title_on_an_earlier_candidate():
 
 def test_no_candidates_means_no_match():
     assert find_match(incoming(), []) is None
+
+
+# --- the donor notice joining the national one, step 11's first acceptance test -
+
+
+def test_a_world_bank_notice_joins_the_national_notice_for_the_same_tender():
+    """Constructed, because no real pair existed on 2026-09-11. Said plainly:
+
+    The live World Bank run that day fetched 13 notices, in BJ, ME, MK, NE (five),
+    NG (two), SL, TG and UA. The only one of those countries any other enabled
+    source carries is Ukraine, and against all 390 Prozorro notices the best
+    `token_set_ratio` was 29 with no content-hash collision anywhere, so nothing
+    joined and nothing should have. The national half of a West African pair comes
+    from the portals at step 17; until then this case can only be constructed.
+
+    What is real here is the donor side: notice OP00468043, Togo, Electric Power
+    Company of Togo, closing 2026-10-28 at 10:00, fetched today. Its title is
+    published in French and the `title_en` below is the English rendering step 14
+    produces, because that is what the deduper compares (the originals would never
+    match). `admin_level` is `donor` on the World Bank side and national on the
+    other, which is the whole point: one candidate, two sources behind it.
+    """
+    world_bank = incoming(
+        notice_id="wb-OP00468043",
+        country="TG",
+        title_en="Supply and commissioning of equipment for the continuation of the Revenue Protection Programme",
+        system_names=(),
+        deadline_at=datetime(2026, 10, 28, 10, 0, tzinfo=UTC),
+        content_hash="hash-worldbank-OP00468043",
+    )
+    national_portal = candidate(
+        id="C000042",
+        country="TG",
+        title_en="Supply and commissioning of equipment for the Revenue Protection Programme, lot 1",
+        system_names=(),
+        deadline_at=datetime(2026, 10, 28, 12, 0, tzinfo=UTC),
+        content_hashes=frozenset({"hash-togo-portal"}),
+    )
+
+    match = find_match(world_bank, [national_portal])
+
+    assert match is not None
+    assert (match.candidate_id, match.method) == ("C000042", MATCH_TITLE_FUZZY)
+    assert match.score >= 85

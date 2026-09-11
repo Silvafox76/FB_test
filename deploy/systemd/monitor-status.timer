@@ -1,0 +1,38 @@
+# The status reading, hourly at :30.
+#
+# Offset half an hour from monitor-run.timer on purpose. The reading is safe at
+# any moment - monitor/health/status.py only reads - but a reading taken while a
+# pass is still fetching describes a half-finished pass, and the whole point of
+# the line is answering "did the pipeline see anything this morning". :30 puts it
+# as far from the start of a pass as an hourly cadence allows. A pass still
+# running at :30 is reported mid-flight rather than hidden, which is itself worth
+# seeing.
+#
+# The cadence here is this timer's own business, not the registry's: it reports on
+# the database, not on any source, so nothing in sources/*.yaml has an opinion
+# about it. It stays hourly after Monday even when the pass goes daily - an empty
+# morning is exactly when a person wants a recent reading.
+
+[Unit]
+Description=Hourly PFM Opportunity Monitor status reading
+Documentation=file:/opt/monitor/deploy/README.md
+
+[Timer]
+Unit=monitor-status.service
+
+# UTC for the same reason as monitor-run.timer: one clock, written down.
+OnCalendar=*-*-* *:30:00 UTC
+
+# No jitter: this touches the local database only, so there is no portal to be
+# polite to, and a reading that lands on the half hour every hour is easier to
+# scan in a log file.
+
+# Persistent=false (the default, stated because the other timer says true and a
+# reader should see the difference is deliberate). A status line is a reading of
+# the moment. One missed at 03:30 has nothing to recover: replaying it at 09:00
+# would write a line describing 09:00, which the 09:30 tick writes anyway.
+# Catch-up is for work that was not done, and this is not work.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

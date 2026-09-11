@@ -1,0 +1,60 @@
+# The morning reading: source health, today's calls and cost, queue depth, export
+# backlog, appended to a log file on the half hour.
+#
+# The command is the Makefile's `status` target verbatim (`uv run python -m
+# monitor.cli status`). monitor/health/status.py is read-only by construction, so
+# taking a reading while a pass is in flight is safe; monitor-status.timer runs it
+# at :30 so the reading is also useful rather than only safe.
+#
+# Separate unit rather than a second ExecStart on monitor-run.service: they have
+# different cadences, different timeouts and different log files, and a status
+# reading that only exists when a pass succeeded is exactly the reading you want
+# on the morning a pass did not.
+#
+# Rule 17: opens no port. Rule 20: no credential here; see EnvironmentFile.
+
+[Unit]
+Description=PFM Opportunity Monitor: status reading to /var/log/monitor/status.log
+Documentation=file:/opt/monitor/deploy/README.md
+# Database only, no egress, but the database may be over the network on the pilot
+# host, so the same wait applies.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=monitor
+Group=monitor
+WorkingDirectory=/opt/monitor
+
+# Same env file as monitor-run.service, and for the same reasons: it is outside
+# the checkout, it is not in the repository, and its absence must fail the unit.
+# `monitor status` connects as monitor_pipeline (rule 11); the review role's URL
+# is in the same file but no unit here uses it.
+EnvironmentFile=/etc/monitor/monitor.env
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/usr/local/bin/uv run python -m monitor.cli status
+
+# Its own file, not run.log. This is the log a person greps in the morning;
+# interleaving it with a pass's JSON would mean reading past a pass to find the
+# lines that say what the pass produced.
+LogsDirectory=monitor
+LogsDirectoryMode=0750
+StandardOutput=append:/var/log/monitor/status.log
+StandardError=append:/var/log/monitor/status.log
+
+# A read-only report over a handful of aggregate queries. If it has not returned
+# in five minutes the database is the problem, and the reading is worthless by
+# then anyway.
+TimeoutStartSec=5min
+
+# No Restart= (rule 2). A reading that failed is not retried; the next tick is
+# half an hour away and will take a fresher one.
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true

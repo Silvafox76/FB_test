@@ -1,0 +1,60 @@
+# When the host wakes the pipeline. Hourly as shipped, which is the weekend
+# cadence BUILD_ORDER step 11 asks for so the Sunday demo has notices arriving
+# during it.
+#
+# WHICH SCHEDULE IS AUTHORITATIVE, because there are two and only one of them is:
+#
+#   sources/*.yaml holds each source's `schedule` and the registry is
+#   authoritative for it (monitor/models.py, Source.schedule; BUILD_ORDER step
+#   11). Those values are deliberately NOT copied into this file. Two places
+#   holding a schedule means one of them is wrong by Wednesday, and the one that
+#   is wrong will be the one nobody reads.
+#
+#   What this timer decides is only how often the host wakes the pipeline. Which
+#   sources a wake should read is the registry's business.
+#
+# Monday, when the per-source windows take over: hourly stops being defensible -
+# one polite pass per schedule (rule 21) is a weekend-demo reading at best - and
+# the cadence comes from the registry. Switch with a drop-in GENERATED from
+# sources/*.yaml rather than typed: deploy/README.md, "Switching to the Monday
+# windows". The drop-in lands in /etc/systemd/system/monitor-run.timer.d/ and
+# this file stays as shipped, so the weekend cadence is one `rm` away from being
+# back for the next demo.
+#
+# The gap that switch cannot close by itself, stated plainly because a reader will
+# otherwise assume it is closed: `monitor run` fetches every enabled source on
+# every wake (monitor/cli.py -> monitor/fetch.py). Nothing in the code reads
+# Source.schedule yet. So N wakes a day means N passes per source a day, whatever
+# the registry says. Until the fetch stage learns to skip a source outside its
+# window, the Monday drop-in is ONE wake a day at the latest window the registry
+# declares, which reads every source at or after the time it asks for and reads it
+# exactly once.
+
+[Unit]
+Description=Hourly PFM Opportunity Monitor pass (weekend cadence; Monday windows come from sources/*.yaml)
+Documentation=file:/opt/monitor/deploy/README.md
+
+[Timer]
+Unit=monitor-run.service
+
+# Explicitly UTC: every `schedule` in the registry is UTC, and a host set to
+# Europe/Madrid silently reading these as local time is the sort of thing found in
+# November. The timezone suffix needs systemd >= 252; Ubuntu 24.04 has 255.
+OnCalendar=*-*-* *:00:00 UTC
+
+# Up to 90 seconds of jitter. Politeness, not load shedding: a client that arrives
+# at exactly :00:00 on four public portals every hour is a client that reads as a
+# machine to whoever looks at the access logs (rule 21).
+RandomizedDelaySec=90
+
+# Persistent=true: if the host was down or the laptop asleep at the trigger, take
+# the pass as soon as the timer starts again. Once, not once per missed tick -
+# systemd stores only the last trigger time, so an overnight gap produces a single
+# catch-up pass rather than twelve, and rule 21 survives the laptop lid. This
+# matters more for the Monday daily cadence than for the weekend one: the
+# connectors query a two-day lookback (LOOKBACK_DAYS in monitor/connectors/*.py),
+# so a missed day is fully recoverable, but only if a pass actually runs that day.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
