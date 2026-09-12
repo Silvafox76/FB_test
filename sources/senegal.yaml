@@ -14,7 +14,7 @@
 #   2. https://dcmp.sn and https://www.dcmp.sn -> do not resolve at all
 #      (`socket.gaierror: Name or service not known`, confirmed independent of the
 #      session's egress proxy: the proxy's own status log records the same host as a
-#      "connect_rejected ... gateway answered 502" at the same moment, i.e. its
+#      "connect_rejected ... gateway answered 502" at the same moment, i.e. its own
 #      resolver failed too). DCMP as a standalone host is gone.
 #   3. https://marchespublics.sn -> same, does not resolve at all.
 #      https://www.marchespublics.sn (the www host, which *does* resolve, to
@@ -37,7 +37,7 @@
 # also what robots.txt, the sitemap and every live page on the site itself use; the
 # manual's typo is recorded here so nobody "corrects" this file to the broken form.
 #
-# ROBOTS.TXT, fetched 2026-09-12, verbatim:
+# ROBOTS.TXT (achatspublics.sn, fetched 2026-09-12, verbatim):
 #   # START nuxt-robots (indexable)
 #   User-agent: *
 #   Disallow:
@@ -45,128 +45,179 @@
 #   # END nuxt-robots
 # An empty Disallow permits every path. No crawl-delay is stated.
 #
-# WHAT THE PAGE ACTUALLY SERVES, AND WHY THIS IS A BrowserConnector.
-# The site is a Nuxt single-page application with no server-side rendering. The raw
-# HTML for the home page, `/consultations/tenders` (the tender listing itself) and
+# THE FRONT END IS A JS-ONLY SPA - AND THAT IS NOT WHERE THIS SOURCE ENDS UP READING.
+# achatspublics.sn is a Nuxt single-page application with no server-side rendering.
+# The raw HTML for the home page, `/consultations/tenders` (the tender listing) and
 # `/consultations/avis-generaux` are byte-identical, all 22,857 bytes, and every one
-# of them contains only `<div id="__nuxt" class="isolate"></div>` - an empty mount
-# point - plus `<script>` tags for the app bundle. There is no notice, title, date or
-# table row anywhere in the served document; a second tool (WebFetch, which also does
-# not execute JavaScript) independently rendered the same URL to nothing. This is the
-# proof rule 4 and the onboarding brief ask for: the listing is absent without JS.
-# `monitor/connectors/base.py`'s FeedConnector/selectolax approach, and a PageConnector
-# built the same way, would read 22KB of script tags and zero notices, forever, and
-# would not even fail loudly (rule 4) - it would just report an empty page as if the
-# portal published nothing, which is worse than not onboarding it at all.
+# of them contains only `<div id="__nuxt" class="isolate"></div>` plus `<script>`
+# tags - no notice, title or date anywhere in the served document. A second tool
+# (WebFetch, which also does not execute JavaScript) independently rendered the same
+# URL to nothing. Reading this host with selectolax, PageConnector-style, would parse
+# 22KB of script tags into zero notices forever, which is worse than not onboarding
+# it (rule 4). On its own this would make the source BrowserConnector, contradicting
+# BUILD_ORDER.md step 17's plan ("Build: Benin and Senegal as PageConnector on
+# structured listings") - exactly the kind of assumption this onboarding step exists
+# to check rather than carry forward.
 #
-# This contradicts BUILD_ORDER.md step 17's plan ("Build: Benin and Senegal as
-# PageConnector on structured listings"), which is exactly the kind of assumption
-# this onboarding step exists to check rather than carry forward - the brief says so
-# explicitly ("do not assume any is correct - check what actually serves"). The
-# evidence above is measured against the live site today, not against the build
-# order's expectation, so it is BrowserConnector. Two things a person must resolve
-# before a connector is built against this file:
-#   - tests/unit/test_registry.py::test_every_enabled_source_is_a_feed_connector
-#     currently asserts `"BrowserConnector" not in` the whole registry's
-#     connector_class set, enabled or not - not only "no *enabled* BrowserConnector",
-#     which is what mcc.yaml's PageConnector row relies on being allowed. Writing
-#     this file as `connector: BrowserConnector` fails that assertion as it stands
-#     today. That test is outside this agent's lane (file ownership) and is not
-#     edited here; whoever picks up the step 17 build needs to loosen it to match
-#     what step 17 itself is building (`monitor/connectors/browser_base.py`).
-#   - BUILD_ORDER.md's own step 17 line should be corrected or annotated to match.
+# IT DID NOT END THERE, because a browser is not actually needed: reading the SPA's
+# own shipped JavaScript (fetched live, not documentation memory) rather than
+# executing it found the real data route. `/consultations/tenders` resolves, per the
+# route table in the app's entry bundle, to component chunk `KMI_fVl0.js`, whose
+# compiled source calls a Pinia action `getTenders` that does
+# `M({url:"/anon/tdo", method:"GET", params:a})` against a second host,
+# `api.achatspublics.sn`. That call was reproduced directly with a plain
+# unauthenticated GET and it works:
 #
-# There IS a same-origin API host, `api.achatspublics.sn`, which is what the SPA
-# almost certainly calls once hydrated. Probed 2026-09-12: every path tried -
-# `/`, `/api/consultations`, `/api/tenders`, `/api/public/consultations`,
-# `/actuator/health` and half a dozen more - answers `401` with `WWW-Authenticate:
-# Bearer` (one exception, `/actuator/health`, which is a bare `404`, consistent with
-# Spring Security's default of requiring auth on every path that isn't explicitly
-# excluded). No public, unauthenticated JSON route was found by guessing. This does
-# NOT mean an account is needed to read notices - see below - it means the anonymous
-# read this portal clearly supports is issued through a token the browser negotiates
-# at load time, which was not reverse-engineered further: doing that without running
-# the page's own JavaScript would be guessing at an undocumented internal API rather
-# than reading what the portal actually publishes, and is exactly the kind of
-# assumption CLAUDE.md's "do not build against documentation memory" forbids. A
-# Playwright connector watching the page's own network calls is how the real
-# endpoint (and whatever token flow feeds it) gets found - not more URL-guessing here.
+#   GET https://api.achatspublics.sn/anon/tdo?size=100  -> HTTP 200, application/json
+#   {"success":true,"message":"SUCCESS","data":{"content":[ ...35 tenders... ],
+#    "totalElements":35,"totalPages":1,"size":100,"number":0, ...}}
 #
-# REGISTRATION: NOT REQUIRED TO READ A LISTING. ARCOP's own supplier manual
-# ("Manuel d'utilisation APPEL : Fournisseurs", arcop.sn/wp-content/uploads/2025/12/
-# Manuel_dutilisation_APPEL_Fournisseurs-.pdf, PDF Last-Modified 2026-06-17) says so
-# twice: "L'espace public est accessible sans authentification" (section I.1) and,
-# in bold, "La consultation peut se faire même si on n'est pas connecté et une fois
-# connecté, le bouton « Consultations » permet d'accéder aux appels d'offres."
-# (section III). An account ("Inscription") is needed only to "manifester son
-# intérêt" (express interest), open a tender's full dossier of documents, ask the
-# authority a question, or submit a bid - none of which this pipeline needs: it
-# reads the public notice (reference, contracting authority, procurement type,
-# publication and closing dates, a short title/description), not the attachments.
-# access is therefore `public_listing`, not `registered`, even though the technical
-# route to it needs a browser.
+# This is a real, live, unauthenticated, structured JSON API - not a scrape, not a
+# guess at an internal endpoint, and not "routing around" anything: it is the exact
+# call the portal's own official public page makes to render the exact same public
+# information, called directly instead of through a rendering engine. It ranks above
+# "public HTML listing" in the onboarding brief's access-route order, so it is what
+# this source reads. access is `api`, connector is `FeedConnector`, and
+# BrowserConnector/Playwright is not needed for this source after all - the SPA
+# finding above is recorded rather than deleted because it explains why the obvious
+# first read (selectolax against achatspublics.sn) would have failed, and why
+# BUILD_ORDER.md step 17's "PageConnector on structured listings" line for Senegal is
+# also not quite right: the structured listing is JSON from a second host, not HTML.
 #
-# VOLUME: NOT MEASURED FROM A LIVE 7-DAY WINDOW, BECAUSE THIS AGENT CANNOT RENDER THE
-# PAGE. The one number available is from the manual's own screenshot of the
-# homepage's counters, dated by the PDF to on-or-before 2026-06-17: "En 2025 - 2 Plans
-# de passation, 7 Appel d'offres, 28 Autorités contractantes, 37 Fournisseurs." Seven
-# tenders is the platform's apparent LIFETIME total at that point, not a weekly rate -
-# consistent with APPEL being a newly launched platform (its own homepage copy reads
-# "Construisons une commande publique sûre, agile et endogène", present tense,
-# building it now) replacing the dead marchespublics.sn/dcmp.sn stack found above.
-# Treat `expected_items_per_run` below as a placeholder, not an observation, and
-# replace it from the first live Playwright fetch, the same discipline
-# sources/mcc.yaml uses for a route nobody has read yet.
+# THE SISTER HOST'S DEFAULT POSTURE IS THE OPPOSITE: `api.achatspublics.sn/` and
+# every path guessed on it before `/anon/tdo` was found - `/api/consultations`,
+# `/api/public/consultations`, `/actuator/health`, even `/robots.txt` - answered `401`
+# with `WWW-Authenticate: Bearer` (Spring Security's default of denying everything not
+# explicitly opened; `/actuator/health` alone was a bare 404, i.e. not mapped rather
+# than guarded). `/anon/**` is the one namespace carved out of that default deny, and
+# its name is the platform's own: this is deliberate public-read design, not a hole.
+# Confirmed public, unauthenticated and returning the same shape as the JSON above:
+#   /anon/tdo             the tender listing (this source's list route)
+#   /anon/tdo/count       {"success":true,"data":94} - see COUNTS DISAGREE below
+#   /anon/stats/current-year   {"suppliers":1474,"contractingAuthorities":99,
+#                                "procurementPlan":76,"tdo":220}
+#   /anon/auth/organizations/contact   the platform's own support line, not a person
+#
+# COUNTS DISAGREE ACROSS THESE THREE ENDPOINTS (94 vs 220 vs 35 in-hand), and that is
+# recorded rather than resolved: `/anon/tdo` returns only `status:"PUBLISHED"` records
+# (confirmed: all 35 in hand carry that status) and is very likely scoped to
+# currently-open or otherwise-filtered tenders, while `/anon/tdo/count` (94) and the
+# current-year `tdo` figure (220, which counts 2026 only and so cannot be a subset of
+# a 35-row all-time list) are counting a wider and differently-scoped set that this
+# endpoint's own response does not explain. Whoever builds the connector should read
+# `/anon/tdo`'s own total (`totalElements`) as ground truth for what this source
+# yields, not the two count endpoints, and should not assume 94 or 220 as a ceiling.
+#
+# A PAGINATION HAZARD, measured rather than assumed to work: `?page=1` and `?size=20`
+# together, `?pageNumber=1`, and `?page=1&sort=createdAt,desc` were all tried against
+# `/anon/tdo` and every one of them returned `pageable.pageNumber: 0` and the SAME 20
+# rows as `?page=0` - the `page` parameter is silently ignored, the same shape of
+# hazard `monitor/connectors/ebrd.py` documents for ECEPP ("not one query parameter
+# exists"). What does work is `size`: `?size=100` returns all 35 rows in one response
+# (`totalPages` becomes 1). Given the whole corpus is two figures below 100 today, the
+# working strategy is EBRD's - request one generously-sized page (`size=200` or so)
+# and treat the response as the whole archive, filtering client-side - rather than
+# trusting `page` to walk anything. A connector must compare `numberOfElements` to
+# `totalElements` on every run and raise if the fixed size ever stops covering the
+# total, the same discipline as EBRD's archive-in-one-page read.
+#
+# A TEST RECORD IS LIVE IN THE PUBLIC DATA. One of the 35 rows in hand is
+# `reference: "T_MDE_DSI_627"`, `libelle: "[Marché de test ] Rénovation du bâtiment
+# des archives"`, published by `organization.libelle: "Ministère de la
+# dématérialisation (TESTS APPEL)"` - self-labelled as a test in both the title and
+# the buyer name. Left here rather than filtered, because filtering it is a lexicon or
+# normaliser decision (rule 5) and not this registry's to take; noted so whoever
+# builds the connector is not surprised by a dummy notice from a fake ministry.
+#
+# REGISTRATION: NOT REQUIRED TO READ A LISTING, on two independent lines of evidence.
+# First, `/anon/tdo` answers with no credential at all, as shown above. Second, ARCOP's
+# own supplier manual ("Manuel d'utilisation APPEL : Fournisseurs",
+# arcop.sn/wp-content/uploads/2025/12/Manuel_dutilisation_APPEL_Fournisseurs-.pdf, PDF
+# Last-Modified 2026-06-17) says so twice in prose: "L'espace public est accessible
+# sans authentification" (section I.1) and, in bold, "La consultation peut se faire
+# même si on n'est pas connecté et une fois connecté, le bouton « Consultations »
+# permet d'accéder aux appels d'offres." (section III). An account ("Inscription") is
+# needed only to "manifester son intérêt" (express interest), open a tender's full
+# document dossier, ask the authority a question, or submit a bid - none of which this
+# pipeline needs. access is `public_listing` in spirit (no account gates the notice
+# data) even though the concrete route is the JSON API above rather than the rendered
+# page.
+#
+# VOLUME - MEASURED FROM THE LIVE ARCHIVE, 2026-09-12, not guessed. The 35 rows in
+# hand span 2025-11-11 to 2026-09-11 with real ISO 8601 timestamps (unambiguous,
+# unlike EBRD's dd/mm/yyyy - no day/month guess needed here, rule 10 is easy on this
+# source). Rolling-window counts computed directly over those 35 publicationDates:
+#   7-day window over the archive's lifetime:  min 0, median 0, mean 0.77, max 6;
+#                                               174 of 306 daily windows are zero.
+#   30-day window, same method:                min 0, median 3, mean 3.15, max 10;
+#                                               38 of 306 daily windows are zero.
+#   Last 7 days from today (2026-09-12):       2 published (2026-09-08, 2026-09-11).
+#   Last 30 days from today:                   4 published.
+# Unlike sources/ebrd.yaml, a 30-day window here does NOT get the zero-count problem
+# fully to zero (38 of 306, ~12%, are still empty) - this source is genuinely this
+# sparse some months, not under-measured. It is also very possibly accelerating:
+# `/anon/stats/current-year` reports 1,474 suppliers against the supplier manual's own
+# screenshot of 37 "as of 2025", a roughly 40x jump, and the two most recent
+# publications landed in the last four days measured. A person should decide whether
+# to accept occasional false-unhealthy runs on a 30-day window or use a longer one;
+# the health block below uses 30 days and documents the same tension sources/ebrd.yaml
+# does rather than hiding it.
 #
 # LANGUAGE AND CODES. Every screenshot in the supplier manual is French; the site's
-# sitemap also declares `en` and `ar` alternates (hreflang), but French is the
-# default and `x-default`. No CPV code appears anywhere in the manual's screenshots:
-# the platform classifies "Biens et Services" under its own ten-letter scheme (A
-# "Matières premières..." through J "Services"), a national commodity list, not CPV.
-# The free CPV filter therefore cannot run against this source; it falls to the
-# lexicon stage, the same shape as sources/ebrd.yaml.
+# sitemap also declares `en` and `ar` alternates (hreflang), but French is the default
+# and `x-default`, and every row fetched from `/anon/tdo` is French prose. No CPV code
+# appears anywhere: the platform's own commodity catalogue is called `unspsc`
+# internally (`GET /unspsc`, `GET /unspsc/ChildUnspscs/{id}`, confirmed in the same JS
+# bundle) and is presented in the supplier-facing UI as ten lettered top-level
+# categories, A "Matières premières..." through J "Services". No UNSPSC or category
+# code was present on any of the 35 tender rows read from `/anon/tdo` itself, only on
+# the commodity-search endpoints a supplier uses when registering what it sells, so
+# the free code-based filter has nothing to run against here either way; this source
+# falls to the lexicon stage, the same shape as sources/ebrd.yaml.
 #
-# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or
-# "mentions légales" page was found on achatspublics.sn (fully client-rendered, so a
-# footer link cannot be confirmed without a browser either) or on arcop.sn (its
+# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or "mentions
+# légales" page was found on achatspublics.sn (fully client-rendered, so a footer link
+# cannot be confirmed without running its JavaScript) or on arcop.sn (its
 # `wp-json/wp/v2/pages` listing, checked in full, has no such slug). Registration
-# terms may exist only inside the sign-up flow itself, which this agent will not
-# open (rule: never register an account on FreeBalance's behalf). Absent a clause to
-# quote, this is `pending` for legal review, not a guess in either direction.
+# terms may exist only inside the sign-up flow itself, which this agent will not open
+# (never register an account on FreeBalance's behalf). Absent a clause to quote, this
+# is `pending` for legal review, not a guess in either direction - reviewed alongside
+# the fact that `/anon/tdo` is a same-origin, unauthenticated, purpose-named public
+# endpoint the portal's own frontend calls, not a private or internal one.
 id: senegal
 name: Achat Public en Procédures Électroniques (APPEL), Senegal
 country: SN
 admin_level: national
 language: fr
-stream: portal
-access: public_listing
-# See "WHAT THE PAGE ACTUALLY SERVES" above for the evidence and for the two things
-# (a test assertion and a BUILD_ORDER.md line) a person needs to reconcile with this
-# before step 17's connector is built.
-connector: BrowserConnector
+stream: feed
+access: api
+# See "IT DID NOT END THERE" above: the listing is JSON from api.achatspublics.sn,
+# read directly with one GET, not a rendered page. No BrowserConnector, no Playwright.
+connector: FeedConnector
 wave: 1
 # 11:00 UTC daily = 11:00 Dakar (Senegal is UTC+0 year-round, no DST). Chosen to
 # collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
 # prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
 # 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30.
 schedule: '0 11 * * *'
-# The tender listing itself ("Appels d'offres"), reached from the home page's
-# Consultations menu. Confirmed live 2026-09-12: HTTP 200, but see above - the
-# document served here carries no notices without JavaScript, which is the fact a
-# BrowserConnector has to be built against.
-list_url: https://achatspublics.sn/consultations/tenders
+# The public tender endpoint, confirmed live 2026-09-12 (see the JSON above). Use a
+# generous `size` (the PAGINATION HAZARD note above: `page` is ignored, `size` is not)
+# rather than walking pages.
+api_url: https://api.achatspublics.sn/anon/tdo
 tos_status: pending
 enabled: false
 health:
-  # UNMEASURED. See VOLUME above: the only figure available is a lifetime total (7)
-  # from a screenshot in the supplier manual, not a 7-day count, because reading a
-  # real window needs the browser fetch this agent did not run. Floored at 1 rather
-  # than 0 so a silent run can never read as a healthy empty one (rule 4), same as
-  # sources/mcc.yaml's placeholder. Whoever builds the connector replaces both
-  # numbers from real Playwright runs before this source is enabled - the upper bound
-  # is also a detail-request ceiling in whatever connector is built, not only a
-  # health band, so it should not be raised without also deciding how many notice
-  # pages one run may fetch.
+  # Measured against the live 35-row archive on 2026-09-12 (see VOLUME above), not
+  # guessed. A 30-day connector window gives median 3, mean 3.15, max 10 over the
+  # archive's lifetime, so the upper bound has headroom above the worst day seen.
+  # Floored at 1 rather than 0 so a silent run never reads as a healthy empty one
+  # (rule 4) - but unlike sources/ebrd.yaml this floor is not fully safe: 38 of 306
+  # historical 30-day windows (about 12%) are genuinely zero, so an occasional
+  # false-unhealthy reading on this source is a known, measured possibility and not a
+  # sign the connector is broken. Recent activity (1,474 suppliers now vs. 37 in the
+  # supplier manual's own 2025 screenshot) suggests the true rate is climbing above
+  # this lifetime average, which is one more reason to re-measure after a few weeks of
+  # real runs rather than treat this band as final.
   expected_items_per_run: [1, 15]
   max_consecutive_failures: 3
 owner: ryan.dear

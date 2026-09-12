@@ -7,9 +7,13 @@ D1 to D33. This file holds the small ones that came out of building, so they are
 Closed items stay, with what was decided and where the decision now lives.
 
 **If you are reading this to decide something rather than to understand the build,
-read the first section only.** It holds the five decisions that are blocked on a
+read the first two sections only.** They hold the decisions that are blocked on a
 person rather than on engineering, each with what it costs to leave it. Everything
-after it is the build's own bookkeeping.
+after them is the build's own bookkeeping.
+
+The first section is five sources whose terms **say something restrictive**. The
+second is the West African wave, where the finding is the opposite and needs a
+different kind of answer: five of those sources have **no terms at all** to read.
 
 ## Decisions needing a named person, not a commit
 
@@ -17,7 +21,7 @@ These are the ones to take to management. Each source below is **blocked on a pe
 reading terms and recording an answer**, not on engineering. The technical work is
 either done or deliberately not started, and each row says which.
 
-Five of thirteen sources sit here. Nothing in this group is a defect and nothing in
+Five sources sit here. Nothing in this group is a defect and nothing in
 it is waiting on the pipeline: the acquisition-ethics rule (CLAUDE.md rule 21) and
 the registry's `tos_status` field are doing what they exist for, which is to stop a
 robot from taking a decision about someone else's site.
@@ -58,6 +62,71 @@ each is stopped is a judgement about someone else's terms, and rule 1 says that 
 decision a person takes and not a branch the code takes. Treating any of them as an
 engineering backlog item would be the wrong reading.
 
+## The West African wave: a different question, and a bigger one
+
+Ten West African sources were onboarded on 2026-09-12 for BUILD_ORDER steps 17 to 19.
+This section is separate from the one above because the finding is not the same shape.
+Above, five sources have terms that **say something** and a person has to decide whether
+to accept it. Here, the recurring finding is that **there are no terms to read**.
+
+**The pattern, and it is worth stating plainly because it will not go away.** On Benin,
+Gambia, Mali and Senegal, source-onboarder went looking for conditions d'utilisation,
+mentions légales, a privacy policy or a disclaimer, and found none. Not a restrictive
+clause, not a permissive one: no page. On Gambia the footer carries "Terms of Use" and
+"Privacy Policy" links that are literal `href="#"` placeholders. On Mali and Benin the
+guessed slugs all 404 and the compiled application bundle contains no such route. These
+are national government procurement portals, and the question of whether a foreign
+company may read them on a schedule has simply never been written down.
+
+That is not the same as permission and it is not the same as refusal, so all four sit at
+`tos_status: pending` rather than either answer. **Nobody can lift this by reading
+harder.** It needs either a FreeBalance decision to proceed on the absence, recorded as
+such, or a written approach to each authority. Both are decisions a person takes.
+
+Senegal is the near miss in this group: its robots.txt is an explicit empty `Disallow:`,
+which permits everything, and its data route needs no account. Only the missing terms
+page keeps it at `pending`.
+
+Three sources went the other way on the same test and are `reviewed_ok`: Burkina Faso,
+Liberia and Sierra Leone, each on permissive robots.txt plus no login on the data
+actually read plus no restrictive clause anywhere a clause would live. Nigeria is
+`reviewed_ok` on a stronger footing than any of them — NOCOPO states an explicit ODC
+Public Domain Dedication and Licence.
+
+| Source | Route found | Position | What it needs |
+| --- | --- | --- | --- |
+| **Burkina Faso** | DGCMEF's Drupal listing of the daily *Quotidien* bulletin, server-rendered, plain httpx | `reviewed_ok`. Connector in build. | Nothing. See the BUILD_ORDER correction below. |
+| **Liberia** | PPCC e-GP's **unauthenticated OCDS 1.1 JSON API**, 1,385 records in one 256 KB request | `reviewed_ok`. Connector in build. | Nothing. Best technical route of the ten. |
+| **Sierra Leone** | NPPA's own WordPress page, one server-rendered table, 32 rows | `reviewed_ok`. Connector in build. | Nothing, but see the volume note below. |
+| **Nigeria** | NOCOPO's unauthenticated OCDS 1.1 JSON API under an explicit public-domain licence | `reviewed_ok` on terms, and **blocked on content**. See below. | A product decision, not a terms decision. |
+| **Mali** | `marchespublics.ml` is an Angular SPA; its own backing API answers an unauthenticated GET with real notice JSON | `pending` — no terms page exists | The absence decision above. |
+| **Benin** | `marches-publics.bj`, Angular, data behind `api.marches-publics.bj` after hydration | `pending` — no terms page exists | The absence decision, **and** a browser network path. |
+| **Gambia** | `gppa.gm/tenders/notices`, rows injected by JavaScript | `pending` — terms links are `href="#"` placeholders | The absence decision, **and** a browser network path. |
+| **Senegal** | APPEL at `achatspublics.sn` is a Nuxt SPA, but its own shipped JavaScript names `api.achatspublics.sn/anon/tdo`, which answers a plain unauthenticated GET with full tender JSON | `pending` — no terms page exists | The absence decision only. No browser needed. |
+
+**Nigeria is the one worth a conversation, because every technical answer is yes and the
+answer is still no.** NOCOPO is the best-engineered source in the entire pilot: no login,
+no CAPTCHA, no PDF, no OCR, a documented OCDS 1.1 JSON API, and a licence that
+explicitly permits sharing, creating and adapting. And it is **content-unfit for this
+pipeline**. Four separate records sampled at "Tender Stage" all carried
+`tender.status: "complete"` with no `tenderPeriod`, and one record's award date precedes
+its own bid-opening milestone by five months. That is consistent with whole
+planning-to-award histories being entered in one batch after the fact, which is what
+bpp.gov.ng's own circulars say NOCOPO is for: MDA disclosure of procurement records, not
+a live call-for-bids board. Nigeria is the largest economy in the priority geography and
+the pipeline cannot use its federal portal to find live tenders. The options are to drop
+it, to re-scope it as a *scoring signal* (buyer and MDA procurement history, which is a
+different feature nothing in the schema currently holds), or to find Nigeria's live
+tenders somewhere else — most likely the state portals, which are step 18's other half.
+
+**The volume finding nobody should read past.** Sierra Leone's national portal published
+**0 notices in the last 7 days, 2 in the last 30 and 28 in the last year**, with one
+176-day gap. Liberia's published nothing on 10 of 32 days. These are honest measurements
+of real national portals and they set an expectation for what the West African wave will
+actually yield: it is a thin, bursty feed, not a European-volume one. The pipeline's
+value in this geography is that it does not miss the two notices, not that it processes
+many. Worth saying before week 14 measures throughput and reads low numbers as a defect.
+
 ## Open
 
 | # | Raised at | Question | Decides at |
@@ -68,6 +137,11 @@ engineering backlog item would be the wrong reading.
 | 16 | Step 6, first real run | **The scorer returns no `estimated_value_usd` on any notice, and that is mostly honest but not entirely.** 0 of 221 scored notices carry a value. For most that is correct: the notice states none. But decision 7 below means a EUR value is dropped at the normaliser before the model ever sees it, and TED states one on 21 of 50. So two causes are being reported as one, and appendix E's Total Opportunity Amount is empty for both. The Sierra Leone candidate is the counter-example worth noting: it carries USD 4,000,000, because the World Bank pipeline states its financing in USD. Resolving decision 7 would separate the two. | Step 16, with decision 7 |
 | 17 | Step 15 | **UNDP's recommended fallback is itself blocked.** `sources/undp.yaml` recommends taking UNDP coverage through UNGM rather than seeking UNDP's permission. `sources/ungm.yaml` then blocks UNGM on its own terms. So the cheapest route for each is the other one, and neither is open. Someone should notice that the two files' recommendations do not compose before either is acted on; the honest reading is that UN-system procurement coverage needs one decision, not two. | A named person, taking both files together |
 | 18 | Step 15 | **EBRD's fixture cannot be recorded: the host stopped answering after serving the first pass.** `ecepp.ebrd.com` served the recording pass on 2026-09-12 and then began resetting connections mid-exchange (four `ws_closed_mid_exchange` entries in the egress relay log; a plain GET still returns `[Errno 104] Connection reset by peer`). Most likely rate limiting after that pass. Tried twice and then left alone, because rule 21 allows one polite pass and hammering a refusing host is the opposite. The connector, normaliser, recorder, registry entry and all 56 contract cases are written and committed; the source is `enabled: false` and absent from `CONNECTORS`, and the test file skips at module level with the host's error in the reason, so the gap is reported in every run summary rather than being silent. An earlier `ebrd.json` was deleted rather than kept: it held real data in the recorder's previous shape, with detail pages already parsed into dicts instead of stored as the HTML they arrived as, so 45 of the 56 cases could not run against it and the detail parser could not be tested at all. A fixture that cannot exercise the parser it exists for is worse than none, because it looks like coverage. Re-run `scripts/record_ebrd_fixture.py` when the host answers. | Whoever next runs the recorder against a responsive host |
+| 19 | Step 18 | **Step 18's acceptance test has no fixture, because the scanned bulletin may not exist.** Its acceptance is "the Burkina bulletin fixture (a scanned week) OCRs to text with the expected item count in range". source-onboarder downloaded ten issues spanning 2021-04 to 2026-09 and ran `pdftotext`/`pdffonts` on every one: **all ten carry genuine embedded subsetted TrueType fonts and extract 124,471 to 631,173 characters of real prose.** None is a scan. The bulletin is also **daily on business days**, not weekly as the step says. So the premise that some issues are scanned images is unsupported by a 10-issue sample, and the acceptance test cannot be run as written. `monitor/normalise/ocr.py` is built and its text-layer route is tested against real PDFs, so no work is lost either way. Options: sample further (roughly 1,390 issues are unsampled, and older ones are likelier to be scans); correct the step's premise and its acceptance test; or keep the OCR route for a different source that needs it — Nigeria's Federal Tenders Journal PDFs *were* found to be scanned images with no text layer. | A person correcting BUILD_ORDER step 18, or deciding to keep sampling |
+| 20 | Step 17 | **Two browser sources cannot have their selector captured from this environment.** Benin and Gambia both need a `BrowserConnector`, and each needs a `row_selector` naming a notice row in the rendered page. Senegal was the third until its own JavaScript gave up an unauthenticated JSON endpoint, which is the lesson: read the bundle before reaching for a browser. Capturing one means rendering the page, and real browser TLS sessions to these hosts fail through this session's proxy (`ws_closed_mid_exchange` after about six seconds, reproduced against several West African government hosts with both Chromium and Firefox). That is a documented unsupported proxy pattern, so it reads as an environment limit rather than a fact about the portals. `monitor/connectors/browser_base.py` is built and its guard is tested; what is missing is one string per source. Benin's entry records `row_selector: benin-row-selector-not-yet-captured`, a deliberate non-match so the connector fails loudly rather than returning zero, and Gambia's is an evidence-based guess taken from its loading-skeleton markup and flagged as unverified. | Whoever has a network path that can drive a browser to these hosts |
+| 21 | Step 18 | **An OCDS `contactPoint` carries personal data, and rule 19 makes that blocking if it reaches a model call.** Nigeria's sampled releases carried a supplier's personal phone number and email address in `contactPoint`. Liberia's API is the same standard and may carry the same. Rule 19 permits public notice text and metadata to reach a model and nothing else; a named individual's contact details are neither. The connector stores what was published (rule 9), so the strip belongs in the normaliser, before the filter and well before the scorer — and it is not only a model-call concern, since those values would otherwise sit in `notices.body` and render on the candidate page. Nothing is wrong today: neither source is enabled and neither has ever been fetched. It has to be built before either is. | Whoever builds the normaliser for the OCDS sources, before Nigeria or Liberia is enabled |
+| 22 | Step 18 | **Two BUILD_ORDER connector classes are contradicted by evidence, and this is the cheap kind of correction.** Step 18 calls Liberia "a simpler Page connector"; it publishes an unauthenticated OCDS JSON API and is a `FeedConnector`. Step 17 assumes Benin and Senegal are `PageConnector`s; Benin's listing is Angular-rendered and needs a `BrowserConnector`, while Senegal needs neither — its SPA is backed by a plain JSON API, so it is a `FeedConnector`, simpler than the plan. All three registry entries record the evidence. None of the three costs anything to correct and none changes the shape of the wave — noted so that a later reader does not treat the registry and BUILD_ORDER disagreeing as a defect in the registry. | A person correcting BUILD_ORDER steps 17 and 18 |
+| 23 | Step 19 | **The French lexicon's apostrophe fix is correct and currently worth nothing, which is the useful part.** Real French notices use both apostrophes: 400 of 584 BOAMP notices carry ASCII `'`, 119 carry typographic `’`, and 83 notices across the corpus carry both inside one document. A lexicon phrase can only be written one way, so it misses the other half whichever way it is written, and writing it twice would be the second selector rule 1 forbids. `monitor/filter/lexicon.py` now folds both sides to one canonical form. **Measured delta on all 707 French notices held today: nought**, because neither of the lexicon's two elided phrases matches anything in either form. So step 19's acceptance ("the French lexicon's miss rate is re-measured and improved from its week-1 baseline") is **not met by this change** and should not be recorded as met. It also cannot be met yet on its own terms: it asks for the miss rate on real *West African* French notices, and no West African source has been fetched. | Step 19, once a West African French source is enabled and a week of its notices exists |
 | 2 | Step 3 | **The Zoho picklist values for Industry outside West Africa.** `config/record_defaults.yaml` carries `North & West Africa` from Architecture v0.4. The Europe and Balkans values are CRM picklist strings that appear in no document and in no reference record. **Decided: leave them as `TBD` and confirm at the dry-run import**, rather than guessing now. A wrong picklist value is a rejected column at import; a placeholder is one mapping decision the import operator makes once, in front of the actual picklist. Nothing exports before live mode, so no real record carries the placeholder in the meantime. This is the one derived field in appendix E that ships as a placeholder, and it is deliberate. | Step 16, at the dry-run import with the named import operator |
 
 ## Logged deviations
