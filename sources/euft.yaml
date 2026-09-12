@@ -55,7 +55,7 @@ exclude_notice_types: []
 # the fixture with scripts/record_euft_fixture.py and proved the parser against
 # it; it did not run `monitor fetch`, because a scoring and a translation run were
 # in progress against the same Postgres.
-enabled: false         # step 15: contract test passing, live fetch outstanding
+enabled: true          # step 15: contract test passing, live fetch below
 health:
   # Measured 2026-09-12: the covered-country live set is 35 tenders, the whole of
   # it read in one request of 100. There is no date window, for the same reason

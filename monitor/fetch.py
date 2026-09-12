@@ -37,6 +37,7 @@ import yaml
 from monitor.connectors.base import ConnectorError
 from monitor.connectors.boamp import BoampConnector
 from monitor.connectors.doe import DoeConnector
+from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
 from monitor.connectors.prozorro import ProzorroConnector
 from monitor.connectors.ted import TedConnector
@@ -46,6 +47,7 @@ from monitor.health import source_health
 from monitor.models import Source, Translation
 from monitor.normalise import boamp as boamp_normalise
 from monitor.normalise import doe as doe_normalise
+from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
 from monitor.normalise import prozorro as prozorro_normalise
 from monitor.normalise import ted as ted_normalise
@@ -68,6 +70,7 @@ CONNECTORS = {
     "worldbank": (WorldBankConnector, worldbank_normalise.map_notice),
     "doe": (DoeConnector, doe_normalise.map_notice),
     "worldbank_pipeline": (WorldBankPipelineConnector, worldbank_pipeline_normalise.map_notice),
+    "euft": (EuftConnector, euft_normalise.map_notice),
     # simap is built, fixture-tested and deliberately NOT here. Its registry entry is
     # tos_status reviewed_restricted: AGB clause 5 needs a named person's signature
     # before it may run, and wiring it would let `monitor run` fetch it. The
