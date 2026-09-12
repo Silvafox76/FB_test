@@ -65,13 +65,41 @@ def next_candidate_id(conn: psycopg.Connection) -> str:
     return f"C{conn.execute('select nextval(%s)', ('candidate_id_seq',)).fetchone()[0]:06d}"
 
 
+# One row per notice, and the `distinct on` is load-bearing rather than tidy.
+#
+# `scores` is one row per scoring CALL by design, so a notice legitimately carries
+# more than one: a re-scored notice has two, and until the fix in
+# `monitor/score/run.py` a notice with two translations was scored twice and also has
+# two. Measured on 2026-09-12: 75 of the 146 scored notices carry two `scores` rows.
+#
+# This query used to `join scores` with nothing narrowing it, so those notices came
+# back twice and the loop below read whichever row the planner returned first. That is
+# not an untidy result set, it is a coin flip on the candidate's relevance — and
+# relevance is what decides whether a candidate clears the staging threshold and
+# reaches a reviewer at all. Measured across the 73 candidates built from a
+# dual-scored notice: 16 took the higher of the two scores, 16 took the lower, 41 were
+# tied. A 16/16 split is the signature of an arbitrary choice, not of a rule.
+#
+# `order by s.created_at desc, s.id` takes the most recent score, which is the same
+# rule `SELECT_IN_BAND` in `monitor/score/run.py` already uses to decide what a
+# notice's current score is. The stager and the rescorer must agree on that or a
+# notice can be escalated on one score and staged on another. `s.id` is a second sort
+# key only so the answer cannot depend on the planner when two rows share a timestamp.
 SELECT_SCORED = """
+    with current_score as (
+        select distinct on (s.notice_id)
+               s.notice_id, s.relevance, s.title_en, s.summary_en, s.matched_functions,
+               s.system_names, s.procurement_type, s.estimated_value_usd,
+               s.eligibility_flags, s.deadline_at
+        from scores s
+        order by s.notice_id, s.created_at desc, s.id
+    )
     select n.id, n.source_id, n.content_hash, n.country, n.admin_level, n.language, n.buyer,
            s.relevance, s.title_en, s.summary_en, s.matched_functions, s.system_names,
            s.procurement_type, s.estimated_value_usd, s.eligibility_flags, s.deadline_at,
            n.deadline_at
     from notices n
-    join scores s on s.notice_id = n.id
+    join current_score s on s.notice_id = n.id
     where n.status = 'scored'
       and not exists (select 1 from candidate_notices cn where cn.notice_id = n.id)
     order by n.fetched_at

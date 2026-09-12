@@ -173,3 +173,75 @@ def test_three_renderings_still_yield_one_row(db_conn, notice_with):
     rows = selected(db_conn, notice_id)
     assert len(rows) == 1
     assert rows[0][18] == "newest"
+
+
+# --- the same defect, in the stager, where it costs more than money ----------------
+
+
+def test_the_stager_reads_one_score_per_notice(db_conn, notice_with):
+    """`scores` is one row per scoring call, so a notice legitimately has more than one.
+
+    `SELECT_SCORED` used to join it unnarrowed, so the staging loop read whichever row
+    the planner returned first. That is not an untidy result set: relevance is what
+    decides whether a candidate clears the staging threshold and reaches a reviewer,
+    so an arbitrary row is an arbitrary answer to "does a person see this".
+
+    Measured across the 73 candidates built from a dual-scored notice on 2026-09-12:
+    16 took the higher score, 16 took the lower, 41 were tied. A 16/16 split is the
+    signature of a coin flip rather than a rule.
+    """
+    from monitor.stage.stager import SELECT_SCORED
+
+    notice_id = notice_with(("claude-haiku-4-5", "d2580a36a5d2", "Supply of an IFMIS"))
+    db_conn.execute("update notices set status = 'scored' where id = %s", (notice_id,))
+    for offset, relevance in ((0, 41), (1, 88)):
+        db_conn.execute(
+            """
+            insert into scores (notice_id, model, prompt_version, relevance, title_en,
+                                matched_functions, system_names, procurement_type,
+                                eligibility_flags, summary_en, confidence, raw_json,
+                                tokens_in, tokens_out, latency_ms, cost_usd, created_at)
+            values (%s, 'claude-haiku-4-5', 'v1', %s, 'Supply of an IFMIS', '{}', '{}',
+                    'goods', '{}', 'summary', 'high', '{}', 1, 1, 1, 0,
+                    now() + make_interval(secs => %s))
+            """,
+            (notice_id, relevance, offset),
+        )
+
+    rows = [row for row in db_conn.execute(SELECT_SCORED).fetchall() if row[0] == notice_id]
+
+    assert len(rows) == 1, "two score rows must not stage the notice twice"
+    assert rows[0][7] == 88, "the latest score is the current one, not an arbitrary one"
+
+
+def test_the_stager_and_the_rescorer_agree_on_which_score_is_current(db_conn, notice_with):
+    """They must, or a notice is escalated on one score and staged on another.
+
+    Both use `distinct on (notice_id) order by created_at desc, id`. This asserts the
+    two queries actually return the same relevance for the same notice rather than
+    merely being written to look alike.
+    """
+    from monitor.score.run import SELECT_IN_BAND
+    from monitor.stage.stager import SELECT_SCORED
+
+    notice_id = notice_with(("claude-haiku-4-5", "d2580a36a5d2", "Supply of an IFMIS"))
+    db_conn.execute("update notices set status = 'scored' where id = %s", (notice_id,))
+    for offset, relevance in ((0, 44), (1, 55)):
+        db_conn.execute(
+            """
+            insert into scores (notice_id, model, prompt_version, relevance, title_en,
+                                matched_functions, system_names, procurement_type,
+                                eligibility_flags, summary_en, confidence, raw_json,
+                                tokens_in, tokens_out, latency_ms, cost_usd, created_at)
+            values (%s, 'claude-haiku-4-5', 'v1', %s, 'Supply of an IFMIS', '{}', '{}',
+                    'goods', '{}', 'summary', 'high', '{}', 1, 1, 1, 0,
+                    now() + make_interval(secs => %s))
+            """,
+            (notice_id, relevance, offset),
+        )
+
+    staged = [row for row in db_conn.execute(SELECT_SCORED).fetchall() if row[0] == notice_id]
+    in_band = [row for row in db_conn.execute(SELECT_IN_BAND, (40, 70, "v1")).fetchall() if row[0] == notice_id]
+
+    assert len(staged) == 1 and len(in_band) == 1
+    assert staged[0][7] == in_band[0][21] == 55

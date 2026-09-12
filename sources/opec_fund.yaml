@@ -1,0 +1,212 @@
+# The OPEC Fund for International Development, project procurement notices.
+# BUILD_ORDER step 25's wave-2 pass. A multilateral development finance
+# institution (Vienna-based, distinct from OPEC itself), not a national
+# procurement authority, so admin_level is donor for the same reason
+# sources/worldbank.yaml, sources/ebrd.yaml and sources/boad.yaml are: an OPEC
+# Fund notice and a national notice for the same financed tender can land in
+# one candidate cluster instead of two.
+#
+# THE ROUTE, measured 2026-09-12. Verified live, not against documentation:
+# `curl -A "FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com)"`
+# against `list_url` below returns 200 OK and a single server-rendered
+# `<table>`, 49 `<tr>` (one header, 48 data rows), columns Date, Country,
+# Project / Notice, Sector, Closing Date, Type. No pagination, no archive link,
+# no JavaScript needed. See monitor/connectors/opec_fund.py's module docstring
+# for the full parsing detail; this file covers the route, the terms, and the
+# health/geography reasoning.
+#
+# THREE ROUTES THAT LOOK PLAUSIBLE AND ARE NOT THIS SOURCE, all probed live on
+# 2026-09-12, and all three written up at length in
+# monitor/connectors/opec_fund.py's docstring because a future maintainer is
+# more likely to open that file than this one while "improving" the connector:
+#
+#   1. https://opecfund.org/work-with-us/project-procurement (one path segment
+#      shorter than list_url) - the Project Procurement framework page:
+#      Principles, Procedures, standard bidding documents, templates. 200 OK,
+#      zero <table> elements, zero notices. This is what a person reaches from
+#      the site's own main navigation, and it is not the board.
+#   2. https://opecfund.org/work-with-us/corporate-procurement/bidding - THE
+#      OPEC FUND BUYING FOR ITSELF, not for a government borrower. 200 OK, five
+#      tables, 101 rows, one of them literally "RFP - Program Management Office
+#      Services for SAP S/4HANA Migration Implementation - 2026/047" - exactly
+#      the string this pilot's PFM lexicon and scorer would rank highest, and
+#      exactly the wrong customer: FreeBalance sells to governments running
+#      PFM systems, not to the lender financing them. NEVER read this path.
+#   3. https://opecfund.org/work-with-us/consultants/current-opportunities -
+#      the same problem: the Fund hiring its own consultants (36 rows,
+#      confirmed live). Also never read here.
+#
+# Widening either 2 or 3 into scope "to get more notices" would flood the
+# review queue with high-scoring false positives from the Fund's own back
+# office rather than from a government client, which is the one thing this
+# registry entry exists to prevent a future session from doing by accident.
+#
+# THE BUYER IS NOT IN THE TABLE AND IS NOT REACHABLE. The six columns carry no
+# implementing-ministry field, and each notice's own document is a FlippingBook
+# publication at publications.opecfund.org/view/<id>/, measured at 0 characters
+# of extractable text once <script>/<style> are stripped - the viewer is
+# entirely client-rendered and this connector does not fetch it (rule 1: no
+# browser, no second client). Every candidate this source stages will therefore
+# carry the project name in place of a buyer, for the reviewer to resolve by
+# opening the notice document by hand. Recorded here, not left as a surprise
+# for whoever reads a candidate card later.
+id: opec_fund
+name: OPEC Fund for International Development, project procurement notices
+country: multi
+# Only the weighted countries this source measurably reaches, the same
+# discipline sources/ebrd.yaml and sources/boad.yaml both use for `covers`:
+# it is a statement of which geography weight applies, not a filter this
+# connector applies (the connector reads every row on the board; see
+# monitor/connectors/opec_fund.py's ACQUISITION SCOPE note). Measured across
+# the 48 rows on 2026-09-12: Liberia 8, Niger 2, Mauritania 1 - 11 of 48 rows,
+# about 23%, all at config/thresholds.yaml's West Africa 1.0 weight. No 0.8
+# country (Ukraine, the Western Balkans) appears anywhere in the table.
+# Liberia alone is 8 of those 11 rows and carries this source almost single-
+# handedly; Niger and Mauritania are one and two rows respectively across the
+# whole 425-day span the fixture covers.
+#
+# The other 37 rows are a large Asia and Latin America tail - Türkiye 6,
+# Pakistan 4, Rwanda 4, Uzbekistan 4, Malawi 4, Madagascar 3, and single rows
+# for Nicaragua, Azerbaijan, Bhutan, Cameroon, DR Congo, Chad and Egypt - none
+# of which carries a stated weight in config/thresholds.yaml's geography table,
+# so all of it scores at that file's `default: 0.6`. That is most of what this
+# source yields: 37 of 48 rows will be filtered late, at scoring, on geography
+# weight rather than early, at acquisition, because this connector's own
+# acquisition scope is "the whole board" and not "the covered countries" (see
+# monitor/connectors/opec_fund.py). Recorded here as the honest cost of reading
+# a donor board that has no country query parameter to narrow with.
+covers: ['LR', 'NE', 'MR']
+# <html lang="en"> on the current-opportunities page and on the terms-of-use
+# page, confirmed rather than assumed; every title, sector and type string
+# read from the recorded fixture is English prose (including the Liberian,
+# Nigerien and Mauritanian rows).
+language: en
+admin_level: donor
+stream: feed
+wave: 2
+# public_listing, not api, and this is a real difference from
+# sources/sierra_leone.yaml and sources/ebrd.yaml's own "api" choice for a
+# structurally identical single-table page: those two argue that "api"
+# describes the client (one clean GET of a fixed URL, no browser, no session)
+# rather than a documented interface, and that argument still holds here.
+# public_listing is used instead because there genuinely is no API of any
+# kind on this domain to prefer over it - the page's own JavaScript was read
+# and calls nothing but this same URL and /search-results, neither of which
+# returns anything but rendered HTML - so this is a plain public HTML listing
+# in the most literal sense CLAUDE.md's access-route order describes, and
+# calling it otherwise would overstate what OPEC Fund actually publishes.
+# connector is FeedConnector regardless, because the fetch itself needs no
+# browser: one GET, one selectolax parse, no pagination to walk.
+access: public_listing
+connector: FeedConnector
+# 13:30 UTC daily. Chosen to collide with nothing already in sources/ (boamp
+# 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, undp 07:30, worldbank
+# 08:00, simap/worldbank_pipeline 08:30, euft/place 09:00, mcc Mon 09:30, ungm
+# 10:00, ebrd 10:30, benin/cote_divoire/liberia/senegal/sierra_leone 11:00,
+# gambia/mali/nigeria 11:30, ghana 12:00, kosovo 12:30, boad 13:00). The time of
+# day barely matters: the whole board is re-read every run regardless of when
+# in the day that happens (see HEALTH below), so a run that lands an hour late
+# loses nothing.
+schedule: '30 13 * * *'
+list_url: https://opecfund.org/work-with-us/project-procurement/current-opportunities
+# opecfund.org/robots.txt IS A SOFT 404, NOT A PERMISSIVE ABSENCE, AND THIS IS
+# WORTH A FUTURE READER'S ATTENTION ON ITS OWN. Fetched 2026-09-12: the server
+# answers `HTTP/2 404` on the status line - a real 404, checked on the status
+# code and not inferred - but the response body is 52,549 bytes starting
+# `<!doctype html>`, which is the site's own homepage markup, not an empty or
+# minimal 404 page and certainly not a robots file. A check that tested only
+# "did this URL return 200" would wrongly conclude no robots.txt exists and
+# move on (correct conclusion, wrong reasoning); a check that tested only "does
+# the body look like a robots file" without also reading the status code could
+# be fooled into parsing that homepage HTML as if it were a set of directives,
+# since nothing about the body alone screams "this is an error page." Both
+# signals were read together here: status 404 plus a body that is provably the
+# homepage (matching <title>, matching nav) means no robots.txt exists on this
+# host, so nothing is disallowed - the same conclusion as an honestly empty
+# 404, reached the honest way rather than by trusting either signal alone.
+#
+# TERMS OF USE: FOUND, READ IN FULL, AND GENUINELY RESTRICTIVE IN WORDING IF
+# NOT IN INTENT. https://opecfund.org/terms-of-use answers 200 and is a real
+# page (confirmed by reading its rendered body text directly, not a JSON
+# payload). The operative clause, quoted from the live page on 2026-09-12:
+# "You may not use the ... Web Site in any manner which could damage, disable,
+# overburden, or impair the ... Web Site or interfere with any other party's
+# use and enjoyment... You may not obtain or attempt to obtain any materials or
+# information through any means not intentionally made available or provided
+# for through the ... Web Sites."
+#
+# Read both ways, honestly. A publicly linked tender listing, reached by one
+# polite GET per scheduled run with an identified user agent, is plainly
+# material intentionally made available through this Web Site - it is the
+# thing the page exists to publish, to suppliers, contractors and service
+# providers, and one GET a day cannot plausibly "overburden" or "impair" a
+# production site serving this page to the public already. On that reading the
+# practice this connector performs sits inside the clause, not against it. But
+# the wording is broad ("any means not intentionally made available"), it was
+# written for a different worry (scraping session tokens, defeating access
+# controls, hammering the site) than a once-daily read of a public board, and a
+# connector author's own reading of a clause like this is exactly the kind of
+# self-certification CLAUDE.md's rule 21 does not trust on its own. A named
+# person should sign off that this practice is inside the clause before this
+# source is enabled; that sign-off is not this file, and `enabled: false`
+# below is what stands in for it until it exists.
+#
+# WHAT THE CLAUSE DOES NOT SAY, BECAUSE IT DISTINGUISHES THIS SOURCE FROM
+# ANOTHER IN THIS REGISTRY. There is no non-commercial-use restriction
+# anywhere on the terms-of-use page, and no bar on derivative works - the page
+# states a generic "Copyright 2019 ... All rights reserved" notice (itself
+# seven years stale against a site that is otherwise actively maintained, one
+# more sign this is unreviewed boilerplate rather than counsel's own words
+# about this data) and nothing narrower. So unlike IsDB (the Islamic
+# Development Bank, another donor source assessed for this pilot's wave 2 and
+# not yet onboarded into this registry), whose own terms do carry a
+# non-commercial restriction, nothing here collides with the step 14
+# translator producing a derived English rendering or with the CSV export
+# leaving the system as a file: neither activity is a use this clause singles
+# out. The restriction that exists here is about the manner of access
+# (overburdening, working around access controls), not about what the fetched
+# data may later become.
+tos_status: reviewed_restricted
+# The two notice types that never carry a closing date because there is
+# nothing yet, or nothing still, to bid on: a General Procurement Notice
+# announces a project's future procurement programme before a specific tender
+# exists, and a Contract Award Notice announces who already won. Measured on
+# 2026-09-12: 9 GPNs and 1 CAN of 48 rows, all ten stating Closing Date "N/A",
+# and both strings are exact and unambiguous across the whole table (unlike the
+# REOI/SPN type text, which the Fund itself spells three and two different ways
+# respectively - see monitor/connectors/opec_fund.py). monitor/connectors/
+# opec_fund.py applies this list client-side, the same shape as
+# sources/ebrd.yaml's own exclude_notice_types, because this board has no query
+# parameter of any kind to narrow with (see ACQUISITION SCOPE in that file).
+#
+# NOT included here, and deliberately: rows past their own stated Closing Date
+# but not of either excluded type. Measured 2026-09-12: only 9 of the 48 rows
+# have a Closing Date on or after the day this fixture was recorded, so 29 of
+# the 48 kept rows (48 total, minus the 10 excluded above) are already expired
+# REOIs and SPNs the board simply has not removed. That is a filter-stage or
+# stager-stage decision against a parsed deadline (rule 5), not an acquisition-
+# scope exclusion against a type string, and this connector does not make it.
+exclude_notice_types: ['General Procurement Notice (GPN)', 'Contract Award Notice (CAN)']
+# NON-NEGOTIABLE. Built and held, exactly as sources/simap.yaml is: the
+# connector is written and its contract test passes against a real fixture,
+# but tos_status is reviewed_restricted and needs the named person's sign-off
+# described above, which no file in this repository is. Flipping this to true
+# is that person's decision, not a consequence of this connector working.
+enabled: false
+health:
+  # The board is the whole table re-read every run - there is no windowing to
+  # do and no cost to re-reading it (one request, ~87 KB) - so this models
+  # table size after acquisition scope is applied, not an arrival rate, the
+  # same reasoning sources/sierra_leone.yaml gives for its own always-re-read
+  # table. Measured 2026-09-12: 48 rows total, 10 excluded (9 GPN, 1 CAN; see
+  # exclude_notice_types above), 38 rows this connector actually returns.
+  #
+  # Floor set well below the measured 38 in case the board is ever trimmed of
+  # very old rows - it has not been observed to shrink across the 425-day span
+  # the recorded fixture covers (oldest row 2025-07-11), but nothing here
+  # proves it never will. Ceiling set with headroom for the board roughly
+  # doubling, the same margin sierra_leone.yaml keeps for its own table (60 for
+  # 32 measured rows).
+  expected_items_per_run: [15, 80]
+  max_consecutive_failures: 3
+owner: ryan.dear

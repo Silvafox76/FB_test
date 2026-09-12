@@ -1,0 +1,240 @@
+# Banque Ouest-Africaine de Développement (BOAD, the West African Development
+# Bank), BUILD_ORDER step 25. Headquartered in Lomé, Togo; a regional multilateral
+# development bank, not a national procurement authority, so admin_level is donor
+# the same way sources/worldbank.yaml and sources/ebrd.yaml are: a BOAD notice and
+# a national notice for the same financed project can land in one candidate
+# cluster instead of two.
+#
+# THE ROUTE, measured 2026-09-12. www.boad.org is a Laravel + Vite + Inertia/Vue
+# front end over a headless WordPress at admin.boad.org. The tender listing at
+# THIS SOURCE's list_url returns ordinary HTML to a plain GET, but the same URL
+# answers `200 application/json` when the request carries `X-Inertia: true` and a
+# matching `X-Inertia-Version` header - Inertia's own protocol for asking the
+# server-rendered page for its data without the page shell. `props.tenders` is a
+# standard Laravel paginator (`current_page`, `per_page: 6`, `total`, `last_page`,
+# `next_page_url`, `data: [...]`), paged with `?page=N`. Verified against a live
+# fetch of the whole 379-record French corpus (64 pages) on 2026-09-12, not a
+# sample: every one of the 379 carries `status: "publish"`, `locale: "fr"`,
+# `type: "tender"`, and the six fields `id`, `external_id`, `slug`, `link`,
+# `title`, `date_gmt`, `modified_gmt`; `acf.start_at` and `acf.end_at` are present
+# as keys on every record (DD/MM/YYYY, or null) and `acf.files` is a list of media
+# ids, not resolved URLs - this connector reads what the listing states and does
+# not resolve a document, the same restraint sources/liberia.yaml documents for a
+# different reason (a login wall) and this source does not need one for: nothing
+# here is blocked, resolving a media id is simply a second endpoint this source
+# does not need to be useful (rule 1).
+#
+# THE VERSION HASH ROTATES ON DEPLOY, MEASURED RATHER THAN ASSUMED. A stale
+# `X-Inertia-Version` gets a real `409` with an `x-inertia-location` header (the
+# value Inertia's own client would do a full page visit to), confirmed by sending
+# a deliberately wrong 32-hex-character value against the live endpoint on
+# 2026-09-12. So this is built, and must stay built, as one deliberate two-request
+# sequence per run: GET the listing's own HTML shell first, scrape the version out
+# of its `<div id="app" data-page="...">` attribute, then make the paged JSON
+# calls with that version. This is not try-JSON-then-fall-back-to-HTML - there is
+# no fallback path in monitor/connectors/boad.py at all, only the one sequence,
+# every run, because the version is genuinely unknown until the shell is read.
+# See the module docstring in monitor/connectors/boad.py for the code.
+#
+# A MEASURED HAZARD ON THE OTHER PARAMETER THAT LOOKED PROMISING. The front end's
+# own filter widgets suggest a `project_status` query parameter, and one exists,
+# but sending it - with a real taxonomy slug or a made-up one, tried both ways on
+# 2026-09-12 - does not filter the paginator: it replaces `props.tenders` with a
+# bare empty list (`[]`) instead of the paginator dict every other request
+# returns. That is a different, narrower shape than an ignored parameter (compare
+# sources/worldbank.yaml's API, which answers the unfiltered corpus in the same
+# shape it always uses) and a connector that trusted it would read zero from a
+# live source and call that a healthy run. `search=<term>` was tried in the same
+# session and does return the correct empty-but-well-shaped paginator (`total: 0,
+# last_page: 1`), so this is specific to `project_status` and not a general
+# fragility of the endpoint. Nothing is sent to narrow the query at the source for
+# this reason: the scope decision (which project_status values are an open
+# opportunity) is applied by the connector to the page it already fetched, not by
+# a request parameter, and monitor/connectors/boad.py's own parser raises if
+# `props.tenders` is ever anything other than the paginator shape, which is what
+# would catch this exact hazard if it were ever triggered by accident.
+#
+# THE VOCABULARY, measured against the full 379-record French corpus on
+# 2026-09-12 (six values, no others; a seventh would raise - see
+# monitor/connectors/boad.py):
+#
+#   Avis d'appel d'offre                  85   biddable: a tender notice
+#   Avis de manifestation d'intérêt       94   biddable: a call for EOI
+#   Résultats d'appel d'offre             64   decided: a tender's result
+#   Résultats de manifestation d'intérêt  49   decided: an EOI's result
+#   Avis de passation de marché           22   decided in this registry - see below
+#   Plan de Passation des Marchés          3   a procurement plan, not one bid
+#
+# Only the first two are asked for. This is acquisition scope, the same shape as
+# `exclude_notice_types` on sources/ted.yaml, sources/doe.yaml and
+# sources/ebrd.yaml: a person can put a name back on the list and see it again
+# without a code change, and nothing is read as an opportunity and then thrown
+# away, because the four below are never opportunities in this registry's current
+# reading. It is written here as an EXCLUDE list, not an include list, for a
+# reason worth stating plainly: `Source` (monitor/models.py) forbids unknown
+# fields, so a bespoke `biddable_project_status` field would have to be added to
+# every source's contract for this one source's vocabulary, which is exactly what
+# sources/ebrd.yaml's own note about `EBRD_COUNTRY_NAMES` argues against. Using
+# the field this schema already has, the same way TED, DOE and EBRD do, keeps the
+# vocabulary in the registry (rule 6) without growing the shared model for one
+# source's taxonomy. What closes the gap an exclude list leaves open - a genuinely
+# new seventh status term, or the 65 of 379 records that carry no project_status
+# at all - is monitor/connectors/boad.py's own closed-vocabulary check and its
+# "no status at all is not biddable" rule, both source-specific code for the same
+# reason EBRD_COUNTRY_NAMES is code and not YAML.
+#
+# `Avis de passation de marché` is excluded here on the letter of BUILD_ORDER step
+# 25's own instruction, and it is worth flagging rather than following silently:
+# 22 records carry only this status, and 6 of the 22 carry a real, populated
+# `acf.end_at` with titles that read as genuine tender notices ("Avis de Marché
+# DAO - Acquisition des équipements...", a tender-dossier acquisition notice, one
+# of six checked on 2026-09-12). All six are already past their own deadline as of
+# this build (the newest is 19/06/2026, against today 2026-09-12), so nothing is
+# lost by today's window either way, but a future notice carrying only this status
+# and a live deadline would be silently excluded under the two-value reading this
+# file currently uses. Flagged for whoever next reviews this registry entry;
+# adding this string to `exclude_notice_types`'s complement (i.e. removing it from
+# the excluded set below) is a one-line change once someone decides it should
+# count as biddable.
+#
+# non-null acf.end_at IS ALSO REQUIRED, AND IT IS NOT REDUNDANT WITH THE STATUS
+# CHECK. Measured on the same 379-record corpus: 19 records carry a biddable
+# status with `end_at: null` (a data-entry gap in the source, the same shape
+# sources/sierra_leone.yaml documents for its own listing) and 24 records carry a
+# non-null `end_at` under a status that is not biddable (18 of those carry no
+# status at all - a live deadline with no classification is not enough signal on
+# its own - and 6 carry only `Avis de passation de marché`, the case above). One
+# record in the corpus carries both a biddable and a decided status at once
+# (`ami_...' recruitment notice tagged both "Avis de manifestation d'intérêt" and
+# "Résultats de manifestation d'intérêt"`, meaning its own result has since been
+# published under the same taxonomy entry) - the connector treats any decided tag
+# as disqualifying even alongside a biddable one, which is the reading that
+# matches what the record's own second tag says happened to it.
+#
+# READ THE FR STREAM ONLY. The EN stream at
+# https://www.boad.org/en/opportunities/calls-for-tender/ answers the same
+# Inertia protocol and reports 36 records, but it is abandoned: the newest
+# `acf.end_at` across all 36, checked 2026-09-12, is 15/06/2026, already three
+# months past on the day this file was written. It is not read as a second source
+# (rule 1 - one query shape) and it would not help rule 10 anyway, which parses a
+# deadline from the original notice, not a translation; the French stream is the
+# original for every one of these tenders regardless. Step 14's translator derives
+# `title_en` from what this connector stores.
+#
+# LANGUAGE AND ADMIN LEVEL. `locale: "fr"` on all 379 French-stream records,
+# confirmed rather than assumed. admin_level is donor because BOAD is the
+# publisher and the financier, the same reasoning sources/worldbank.yaml and
+# sources/ebrd.yaml give for their own listings, regardless of which member state
+# a given financed project sits in - the listing carries no per-tender country
+# field at all (see COUNTRY, below), so a national-vs-donor distinction inside
+# this one source is not something the API states.
+#
+# COUNTRY IS NOT A PER-TENDER FIELD IN THIS API, AND THIS CONTRADICTS AN EARLIER
+# ASSUMPTION ABOUT THE RESPONSE SHAPE. `props.countries` and `props.domains` exist
+# on every page, but they are the search page's own filter-option lists (BOAD's
+# `country` and `domain` WordPress taxonomies, used elsewhere on the site for
+# project pages), not fields carried on a tender record - checked against the
+# full 379-record French corpus on 2026-09-12 and not one record carries a
+# `country` or `domain` key of its own. A tender's country, where the underlying
+# project has one, is stated only in its French prose (title or `acf.presentation`
+# body text: "...à Koudougou au Burkina Faso", "...ligne de crédit Niger", and a
+# large share are BOAD's own headquarters procurement in Lomé, Togo, with no
+# member-state project behind them at all). Assigning a per-notice country from
+# that prose is normalisation work, not acquisition, and does not exist yet for
+# this source (rule 5); `covers` below is this registry's statement of BOAD's
+# membership and geography weighting, not a filter this connector applies, because
+# there is nothing in the API response to filter on.
+#
+# `covers` LISTS SEVEN OF BOAD'S EIGHT MEMBER STATES, DELIBERATELY, NOT EIGHT.
+# BOAD's eighth member is Guinea-Bissau (GW), and it is left out of `covers` on
+# purpose: `config/thresholds.yaml`'s geography table carries no GW weight, so a
+# notice normalised to GW would fall to the `default: 0.6` weight there rather
+# than a West Africa 1.0 weight it should plausibly get as a BOAD member, or would
+# raise if a future check requires every covered code to have a stated weight (the
+# same shape sources/ted.yaml and sources/worldbank.yaml's `covers` entries all
+# already have weights for). This is a small, real and permanent leak, not a
+# hypothetical one: 8 of the full 415-URL tender history (both language streams,
+# read from `tenders_sitemap.xml` on 2026-09-12) name Bissau or Guinea-Bissau, so
+# roughly 2% of everything BOAD has ever published for this connector's whole
+# history touches the excluded country. Recorded here so it is visible rather than
+# discovered later as a silent gap; adding GW to both this list and
+# `config/thresholds.yaml`'s geography table is the fix, and it is a decision for
+# whoever owns that config file, not this one.
+id: boad
+name: Banque Ouest-Africaine de Développement (BOAD) tender notices
+country: multi
+covers: ['BJ', 'BF', 'CI', 'ML', 'NE', 'SN', 'TG']
+language: fr
+admin_level: donor
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 13:00 UTC daily = 13:00 in Lomé (Togo is GMT year-round, no DST, the same fact
+# sources/liberia.yaml records for Monrovia). Chosen to collide with nothing
+# already in sources/ (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts
+# 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place
+# 09:00, mcc Mon 09:30, ungm 10:00, ebrd 10:30, benin/cote_divoire/liberia/senegal/
+# sierra_leone 11:00, gambia/mali/nigeria 11:30, ghana 12:00, kosovo 12:30).
+schedule: '0 13 * * *'
+list_url: https://www.boad.org/fr/opportunites/appels-doffre/
+# https://www.boad.org/robots.txt, fetched 2026-09-12, in full:
+#
+#     User-agent: *
+#     Allow: /
+#
+#     Sitemap: https://www.boad.org/sitemap_index.xml
+#
+# No Disallow of any kind and no crawl-delay. The sitemap index in turn advertises
+# a purpose-built https://www.boad.org/tenders_sitemap.xml carrying exactly 415
+# tender URLs (both language streams), each with its own `lastmod`, confirmed by a
+# direct fetch the same day - the site treats this content as meant to be crawled
+# and indexed, not merely tolerated.
+#
+# TERMS OF USE: FOUND, READ, AND NOT A TERMS OF USE IN SUBSTANCE.
+# https://www.boad.org/en/terms-of-use/ answers 200 and is a real page (confirmed
+# by decoding its own Inertia `data-page` payload rather than reading rendered
+# markup), but its entire content is a publication imprint required of a French
+# public-establishment website: the publisher's identity and founding agreement,
+# head office address and switchboard, the named Publishing Director, the
+# Communication and Public Relations Department as site manager, and OVH as
+# hosting provider - roughly 1,550 characters of running text once the imprint's
+# own paragraphs are read out, with no clause anywhere on automated access,
+# scraping, rate limits, reuse of published content or intellectual property. This
+# is the same absence-is-the-finding shape sources/liberia.yaml and
+# sources/sierra_leone.yaml both record for their own hosts, but it does not reach
+# `reviewed_ok` the way theirs do: those two entries lean on a robots.txt that
+# actively permits (Liberia) or a page that states its own transparency purpose in
+# so many words (Sierra Leone), and this page states neither - it simply never
+# raises the question. `tos_status: pending` records that the question has no
+# stated answer on this host, not that an answer was found and it was permissive.
+tos_status: pending
+exclude_notice_types: ["Résultats d'appel d'offre", "Résultats de manifestation d'intérêt", "Avis de passation de marché", "Plan de Passation des Marchés"]
+enabled: false          # step 25: connector built and fixture-tested; tos_status pending (see TERMS OF USE above) - a person's review, not a rebuild, is what stands between this and enabled: true
+health:
+  # Measured against the full 379-record French corpus on 2026-09-12, not a
+  # sample. Biddable-and-with-a-deadline (the two project_status values above,
+  # non-null acf.end_at) arriving in the 30-day window this connector reads:
+  # 4 on the day this file was written. Standing live stock (an open acf.end_at
+  # that has not yet passed, read across the whole corpus rather than one 30-day
+  # window) is about 5 at any moment. Both numbers are small because BOAD funds
+  # energy, roads, water and agriculture rather than PFM systems work and
+  # publishes only a few dozen tenders a year in total (379 in nearly three years
+  # of history, 2023-11-27 to 2026-09-11), not because the connector is narrow.
+  #
+  # expected_min IS ZERO, DELIBERATELY, AND THIS IS THE ONE PLACE IN THIS BUILD
+  # WHERE THE HONEST NUMBER LOOKS LIKE A BUG. Rule 4 treats a zero-yield run on a
+  # source with expected_min above zero as a failure state rather than an empty
+  # success, and every other West African source in this registry keeps
+  # expected_min at 1 or above because its own measured history never shows a
+  # window reading zero (sources/sierra_leone.yaml's 15, sources/liberia.yaml's 3
+  # against a rolling count that never touched zero in 32 days). BOAD's does: the
+  # live-filtered count is small enough, and arrivals bursty enough, that a daily
+  # run reading nothing is the ordinary case, not an anomaly, and expected_min: 1
+  # would make source_health flap unhealthy on a normal week rather than catch a
+  # real outage. expected_max carries headroom for a burst month (12 arrived in a
+  # measured 60-day window on the same date) plus the ceiling this connector
+  # applies to what one page-walk will return.
+  expected_items_per_run: [0, 15]
+  max_consecutive_failures: 3
+owner: ryan.dear
