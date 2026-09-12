@@ -1,0 +1,201 @@
+# EBRD client procurement notices, read from the EBRD Client eProcurement Portal
+# (ECEPP). admin_level is donor: the notice is published by the financier's portal
+# on behalf of its borrower, not by the buyer's own system, which is what lets an
+# EBRD notice and a national notice for the same tender land in one candidate
+# cluster instead of two. Same shape as sources/worldbank.yaml.
+#
+# WHICH OF THREE EBRD ROUTES THIS IS, because all three look plausible from the
+# outside and only one of them is a source. Probed 2026-09-12:
+#
+#   1. ECEPP, ecepp.ebrd.com/delta/noticeSearchResults.html - THIS SOURCE. No
+#      credential, no robots restriction, 4,050 notices from 2015-07-27 to
+#      2026-09-11 in one server-rendered table. Client procurement for contracts
+#      EBRD finances: goods, works, and consultancy services bought by borrowers.
+#   2. www.ebrd.com/home/work-with-us/project-procurement/procurement-notices.html
+#      - NOT THIS SOURCE, and not a second path to it either (rule 1). The page is
+#      Adobe Experience Manager and its list is drawn by JavaScript from
+#      POST /bin/ebrd_dxp/filterlistservlet, which answers without a credential
+#      and reports resultCount 10. The page explains itself in its own first
+#      paragraph: notices "are now only published on ECEPP", and these ten are the
+#      residue of contracts not run through it. Of the ten, one is Ukrainian (NAK
+#      Emergency Gas Finance) and the rest are Egypt, Armenia, Turkey, Serbia and
+#      Latvia. Ten notices in two years is not worth a second connector, and a
+#      second connector for one source is what rule 1 forbids. Recorded here so
+#      the next person knows the gap is deliberate and knows its size.
+#   3. EBRD's OWN corporate and consultancy-services procurement - NOT READ, AND
+#      IT IS THE ONE A PFM PILOT WOULD MOST WANT. www.ebrd.com/home/work-with-us/
+#      corporate-procurement-consultancy-services.html states that this moved to
+#      SMART by GEP and that "Registration is required to view current Procurement
+#      Notices". That is where a Bank-funded technical-cooperation assignment is
+#      tendered, which is the category any EBRD public-finance advisory work would
+#      fall into. It is behind a credential and no attempt was made to get past
+#      one. See WHAT IS MISSING below.
+#
+# There is no RSS feed and no project-summary API for notices. ecepp.ebrd.com/feed/
+# is the WordPress wrapper's own feed and carries a single item, a post titled
+# "test" from 15 November 2020. /delta/rss.html, /delta/syndication.html and
+# noticeSearchResults.rss all 302 to the CAS login. www.ebrd.com has no feed on
+# either the procurement path or the site root (404 on both).
+#
+# THE TWO MEASURED HAZARDS, both in monitor/connectors/ebrd.py's docstring in full:
+#
+#   - NOT ONE QUERY PARAMETER EXISTS. The search form's inputs carry id and no
+#     name, and every filter is DataTables in the browser. noticeType, country,
+#     keyword, currentState and pageSize all return the same 4,050 rows, and so
+#     does a POST to the form's own action. The window, the country scope and
+#     exclude_notice_types below are therefore all applied client-side, because
+#     there is nothing to ask for.
+#   - THE ROWS ARE NOT SORTED. 1,107 of 4,049 adjacent pairs are out of order on
+#     the minute-level sort key and 10 by whole days, the worst jumping 70 days.
+#     One of the ten is inside a 30-day window. A connector that walked down the
+#     page and stopped at the first out-of-window row - which is what
+#     monitor/connectors/worldbank.py correctly does against an API that really is
+#     sorted - would have dropped most of a month here and reported a healthy run.
+#
+# WHAT THIS SOURCE IS MEASURED TO YIELD FOR THIS PILOT, AND IT IS CLOSE TO NOTHING.
+# This is the number a person should decide on before enabling it.
+#
+#   - 911 of the 4,050 notices are in the seven covered countries, arriving at 0.45
+#     a day. So the fetch is cheap and the geography is right: Ukraine and the
+#     Western Balkans are core EBRD countries of operation and carry
+#     config/thresholds.yaml's 0.8 weight.
+#   - Their sectors are not. Of the 911: Municipal and Environmental Infrastructure
+#     398, Transport 395, Energy 265, Nuclear Safety 22, Natural Resources 10,
+#     Financial Institutions 4, Information & Communication Technologies 3. By
+#     category: Works 417, Consultancy 364, Goods 284.
+#   - A deliberately loose PFM keyword net over all 911 (financial management,
+#     public finance, budget, treasury, IFMIS, tax, revenue, payroll, audit,
+#     e-procurement, accounting, fiscal, debt management, PFM, HRMIS, MIS, ERP,
+#     public administration, customs, digitalisation, software, IT system) returns
+#     8 notices in ELEVEN YEARS, and on reading them none is public financial
+#     management: five are building energy audits, two are postal front-office and
+#     sorting IT for Ukrposhta, and one is a water utility's financial and
+#     operational improvement programme. ZERO PFM notices, not few.
+#   - The reason is structural rather than a quiet decade. ECEPP publishes what
+#     EBRD's *borrowers* buy, and EBRD's borrowers are utilities, railways,
+#     municipalities and power companies. Public sector modernisation at EBRD means
+#     municipal utility reform, not a treasury or budget system, and the Bank's own
+#     advisory assignments - route 3 above - are tendered somewhere this connector
+#     cannot see.
+#
+# So the honest expectation is that this source costs one 3.8 MB request and about
+# nine notice pages a day, contributes 0.8-weight geography coverage of
+# infrastructure tenders, and produces no PFM candidate. It costs no model calls
+# for the notices it does produce beyond the lexicon stage, which is free: EBRD
+# publishes no CPV code, so config/lexicon_en.yaml is what drops them. Enabling it
+# is cheap and disabling it loses nothing measured. That is a judgement for a named
+# person and not for this file, which is why enabled is false and why the numbers
+# are here rather than in a commit message.
+#
+# WHAT IS MISSING, AND WHAT A PERSON WOULD HAVE TO DO ABOUT IT. If the pilot wants
+# EBRD PFM work it needs route 3, SMART by GEP, and that needs a supplier
+# registration on the EBRD's platform - a named person completing a registration
+# and the credential landing in Secrets Manager, not in this repository (rule 20).
+# Nobody should build that connector before someone has registered and confirmed
+# from a real logged-in response that (a) PFM and public-administration assignments
+# are actually tendered there, and (b) the platform's terms permit an automated
+# read. Neither is knowable from outside the login, and guessing either is what
+# rule 21 and CLAUDE.md's "do not build against documentation memory" forbid.
+id: ebrd
+name: EBRD client procurement notices (ECEPP)
+country: multi
+# The pilot's countries that EBRD measurably publishes for, and only those. The
+# scope is a membership test against each row's own country metadata, so a country
+# in this list needs EBRD's own spelling of it in EBRD_COUNTRY_NAMES in
+# monitor/connectors/ebrd.py, and the connector raises for any code that has none.
+#
+# NOT the 19 of sources/worldbank.yaml and sources/undp.yaml, and the difference is
+# measured rather than cautious: twelve of the pilot's thirteen West African
+# countries have ZERO rows in the 4,050-row archive across eleven years - Benin,
+# Burkina Faso, Cote d'Ivoire, Gambia, Ghana, Liberia, Mali, Mauritania, Niger,
+# Senegal, Sierra Leone and Togo - because EBRD's sub-Saharan expansion is recent
+# and has produced notices for Nigeria alone. Listing a country EBRD has never
+# published for would mean inventing its spelling in that map, which is the
+# documentation-memory guess this repository builds against real responses to
+# avoid. When EBRD's first Ghanaian notice appears, the archive itself will say
+# what EBRD calls Ghana and the two lines are a one-line change each.
+#
+# Row counts in the archive on 2026-09-12: UA 337, BA 383, MK 196 (154 as "North
+# Macedonia", 41 as "Macedonia FYR", 1 as "FYR Macedonia"), AL 139, ME 104, XK 83,
+# NG 3.
+covers: ['UA', 'BA', 'MK', 'AL', 'ME', 'XK', 'NG']
+# ECEPP's working language, and it is the portal's rule rather than a guess: the
+# notice pages declare <html lang="en_GB"> and the portal's own dialog tells
+# clients that "any data entered into the system must only be entered in English".
+# 4,048 of the 4,050 titles are English; the two that are not are a Cyrillic tender
+# number that reached the portal double-encoded, which is stored as published
+# (rule 9). Per-notice language is the normaliser's anyway.
+language: en
+admin_level: donor
+stream: feed
+wave: 1
+# api / FeedConnector, and both are arguable. The response is HTML rather than JSON
+# and there is no API in any sense a publisher would claim, so public_listing /
+# PageConnector could be defended. api / FeedConnector is written because it is
+# what the connector actually is: one HTTP GET of a fixed URL returning the whole
+# dataset in one document, parsed with selectolax, no browser, no session, no
+# pagination to walk. PageConnector arrives at step 17 with monitor/connectors/
+# page.py for portals that need listing traversal, and this source needs none of
+# it. The field describes the client, not the content type.
+access: api
+connector: FeedConnector
+# 10:30 UTC daily. Chosen to collide with nothing already in sources/ (boamp 04:30,
+# doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00,
+# simap and worldbank_pipeline 08:30, euft and place 09:00, mcc Monday 09:30, ungm
+# 10:00). The time of day barely matters here: the window is 30 days, so a run that
+# misses a morning loses nothing, which is the same property that makes the window
+# 30 days in the first place.
+schedule: '30 10 * * *'
+# The full public notice archive. There are no query parameters to add and adding
+# any changes nothing - measured, see THE TWO MEASURED HAZARDS above.
+list_url: https://ecepp.ebrd.com/delta/noticeSearchResults.html
+# ecepp.ebrd.com/robots.txt is "User-agent: * / Disallow:" - an empty Disallow,
+# which permits everything - plus an Allow for TermlyBot and a sitemap line.
+# www.ebrd.com/robots.txt is "User-agent: * / Allow: /". Both hosts permit reading,
+# neither has a crawl-delay, no registration is needed to see a notice, and one
+# request a day for the listing plus about nine notice pages is one polite pass.
+tos_status: reviewed_ok
+# Notice types that are a tender already decided. EBRD's own strings, exactly as
+# the listing spells them, because this source classifies its notices and the
+# registry is where that vocabulary belongs (rule 6). The connector raises if a
+# name here matches no notice in the archive, so a typo cannot silently exclude
+# nothing.
+#
+# Counts over the whole 4,050-row archive on 2026-09-12: Contract Award Notice
+# 1,109 and Notice of Prequalified Participants 42, so this cuts 28% of the corpus
+# and every notice removed is finished. Nothing is read and then thrown away: the
+# exclusion is applied to the listing before any notice page is fetched.
+#
+# The types that are KEPT, with counts, because two of them are debatable and the
+# decision belongs here where a person can change it rather than in a .py file:
+# Invitation For Tenders Single 923, General Procurement Notice 715, Ebrd Contract
+# Notice Addendum 351, Request For Proposals 299, Invitation For Tenders Two Stage
+# 230, Invitation For Prequalification 135, Shortlist Notice 128, Invitation For
+# Expression Interest 118. A Shortlist Notice names the firms shortlisted for an
+# assignment, so the competition for it is over - it is intelligence rather than an
+# opportunity, and its Closing Date is usually already past. An addendum amends a
+# notice already published, which the deduper clusters with the original. Both are
+# kept because a reviewer seeing a tender they were not shortlisted for is worth
+# more than a shorter queue; add either string to this list to change that.
+exclude_notice_types: ['Contract Award Notice', 'Notice of Prequalified Participants']
+# The orchestrator flips this after the first live fetch. This agent recorded the
+# fixture with scripts/record_ebrd_fixture.py and proved the parser against it; it
+# ran no live fetch into the database, because a scoring run and a translation run
+# were in progress against the same Postgres.
+#
+# Read the WHAT THIS SOURCE IS MEASURED TO YIELD block above before flipping it.
+# The connector works; whether the pilot wants the source is a separate question
+# and the measurements for answering it are there.
+enabled: false
+health:
+  # Measured, not guessed. The rolling 30-day count of in-scope notices - covered
+  # country, notice type not excluded - over the last two years runs 3 to 14 with a
+  # median of 9, and was 11 on the day the fixture was recorded. The lower bound is
+  # 1 rather than 0 so a silent run can never read as a healthy one (rule 4); the
+  # 30-day window is what makes that bound safe, since a two-day window would have
+  # returned nothing on four days in five. The upper bound is also the detail
+  # request ceiling in monitor/connectors/ebrd.py and not only a health band, so
+  # raising it lets a run fetch more notice pages.
+  expected_items_per_run: [1, 30]
+  max_consecutive_failures: 3
+owner: ryan.dear
