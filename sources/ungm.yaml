@@ -1,0 +1,381 @@
+# The United Nations Global Marketplace, the shared procurement portal of 32 UN
+# organizations. admin_level is donor for the same reason as sources/worldbank.yaml:
+# the notice is published by the financing or executing UN agency rather than by the
+# national buyer, which is what lets a UNGM notice and a national notice for the same
+# tender land in one candidate cluster instead of two.
+#
+# NOT BUILT, AND THE BLOCKER IS THE PUBLISHER'S TERMS, NOT THE TECHNOLOGY. There is
+# no monitor/connectors/ungm.py, no monitor/normalise/ungm.py, no
+# tests/contract/fixtures/ungm.* and no contract test. Every technical question the
+# step 15 brief asked is answered below and the answer is favourable each time:
+# robots.txt permits the paths, no login is needed, the search endpoint answers a
+# plain httpx POST, the filters work, and the volume is the best of any donor source
+# in this registry. UNGM's own Terms and Conditions then forbid the use this pipeline
+# makes of the result. That is a decision for a named person and not a branch the
+# code takes (rule 1), so nothing was built and nothing of UNGM's was committed.
+#
+# THIS IS A DIFFERENT FINDING FROM sources/undp.yaml's AND THE DIFFERENCE MATTERS.
+# UNDP is disallowed by robots.txt, which is CLAUDE.md rule 21's first clause and a
+# bright line: no request may be made at all. UNGM allows the request. Rule 21 is
+# satisfied here in every clause - robots respected, identified user agent, one
+# polite pass, no CAPTCHA, no proxy, no mirror, no disguise - and what stops the
+# source is the `tos_status` field below, which exists for exactly this. The two
+# files therefore reach the same `enabled: false` by different routes, and the route
+# decides who can change it: UNDP needs UNDP's permission, UNGM needs a FreeBalance
+# decision-maker's reading of terms that are quoted in full below.
+#
+# ============================ THE MEASUREMENT ============================
+# Taken 2026-09-12 against www.ungm.org with MONITOR_USER_AGENT, roughly 45 requests
+# over fifteen minutes, one at a time. scripts/record_ungm_fixture.py re-runs it and
+# prints the table. NO NOTICE CONTENT WAS WRITTEN INTO THIS REPOSITORY - see the
+# terms section for why that is deliberate and not an oversight.
+#
+#   1. robots.txt -> HTTP 200, 1,376 bytes, text/plain,
+#      last-modified Tue, 23 Jul 2024 06:20:14 GMT. Read first, before anything else.
+#      The `User-Agent: *` stanza disallows:
+#        /UNUser/Documents/* (and three case and trailing-slash variants),
+#        /Styles/, /Scripts/, /Images/, /Content/, /Web References/, /Views/,
+#        /Service References/, /apple-touch-icon.png, /favicon.ico, and the four
+#        error pages; plus `Allow: /SolveUrl?url` followed by `Disallow: /SolveUrl?`,
+#        which a comment in the file attributes to MJ12bot polling invalid URLs.
+#      IT SAYS NOTHING ABOUT /Public/. The listing page, the search endpoint and the
+#      notice detail pages are all under /Public/ and are all permitted.
+#      A second stanza names nine search-engine agents (Bingbot, Googlebot, facebot,
+#      YandexBot, Sogou, Baiduspider, Slurp, ia_archiver, DuckDuckBot) and disallows
+#      a few more paths to them. MONITOR_USER_AGENT is none of those, so the `*`
+#      stanza is the one that applies and it is the one that was obeyed.
+#      /Scripts/UNGM.js IS DISALLOWED AND WAS NOT FETCHED. The endpoint contract in
+#      measurement 3 came from /bundles/ungmcommon, which robots.txt does not
+#      mention; /bundles/ is a separate path from /Scripts/ and was read on that
+#      basis, deliberately and not by accident.
+#
+#   2. NO LOGIN, NO REGISTRATION, NO COOKIE, NO ANTIFORGERY TOKEN. This was the
+#      step 15 brief's first question and the answer is clean. GET /Public/Notice ->
+#      200, 147,104 bytes. POST /Public/Notice/Search with no cookie jar and no
+#      prior GET -> 200 with 15 real notices. GET /Public/Notice/314183 -> 200 with
+#      the full description, the contacts and the UNSPSC tree. The only thing behind
+#      a login is UNGM Pro (the paid Tender Alert Service), and the page says so
+#      itself: "Subscribe to UNGM Pro to be able to save procurement opportunities."
+#      Reading notices is open to anyone.
+#
+#   3. NOT A JAVASCRIPT APPLICATION, SO NOT STEP 17 BROWSER WORK. This was the
+#      brief's second question. GET /Public/Notice returns a page with zero notice
+#      rows in it - the listing is fetched by jQuery after load - but the thing it
+#      fetches is an ordinary server-rendered HTML fragment, and httpx can ask for it
+#      directly. From /bundles/ungmcommon, UNGM.Notice.NoticeSearch.prototype.Search:
+#
+#          url = UNGM.siteRoot + 'Public/Notice/Search';
+#          $.ajax({ url: url, type: 'POST', contentType: 'application/json',
+#                   data: JSON.stringify(opts) });
+#
+#      and BuildOptions names all 21 body fields: PageIndex, PageSize, Title,
+#      Description, Reference, PublishedFrom, PublishedTo, DeadlineFrom, DeadlineTo,
+#      Countries, Agencies, UNSPSCs, NoticeTypes, SortField, SortAscending, isPicker,
+#      IsSustainable, IsActive, NoticeDisplayType, NoticeSearchTotalLabelId,
+#      TypeOfCompetitions. Every one of those was sent for real and the response was
+#      HTML rows parsed with selectolax. So this is a FeedConnector in the shape of
+#      monitor/connectors/prozorro.py - a listing call for ids, then a detail fetch
+#      per notice - and Playwright is not needed. The three fields below say
+#      feed / api / FeedConnector because that is what was measured, not what the
+#      site looks like from outside.
+#
+#   4. THE FILTERS WORK, AND ONE OF THEM FAILS SILENTLY. The brief says to check
+#      whether a filter parameter actually changes the result set, and here it is,
+#      as counts of the `var noticeTotal` the response carries:
+#
+#          baseline, IsActive=true                        1,445
+#          Countries=[2370] Ghana                            55
+#          Countries=[2443] Nigeria                          79
+#          Countries=[2370,2443]                             93   union, see note
+#          Countries=[2504] Ukraine                          81
+#          Countries=[2370,2504]                             99
+#          Countries=[all 19 covered]                       269
+#          NoticeTypes=[RequestForEoi]                       89
+#          PublishedFrom=10-Sep-2026                         280
+#          PublishedFrom=2026-09-11 (ISO accepted too)       133
+#          PublishedTo=10-Sep-2026                         1,312   1,312+133 = 1,445
+#          IsActive=false                               237,019
+#          Countries=[999999] (a bogus id)                     0 rows, no total
+#
+#      Countries is a UNION and the pair totals are below the sum because a notice
+#      can name several beneficiary countries: 55+79 = 134 but the pair returns 93,
+#      so 41 notices are tagged both Ghana and Nigeria. Those are the rows whose
+#      country cell reads "Multiple destinations"; the detail page spells it
+#      "Multiple destinations (see the Countries or territories tab)" and lists them
+#      on a separate tab. There is no apostrophe hazard of the kind
+#      monitor/connectors/worldbank.py documents, because countries are sent as
+#      numeric ids and not as names.
+#
+#      THE SILENT ONE: `PublishedFrom="garbage"` returns HTTP 200 and total 1,445 -
+#      the unfiltered active corpus. So does `PublishedTo="garbage"`. An unreadable
+#      date is not rejected, it is dropped, and the run would look healthy while
+#      reading every open tender on earth instead of yesterday's. A connector built
+#      here must format the date itself and assert the total came back below the
+#      unfiltered count, the way monitor/connectors/worldbank.py asserts that every
+#      row it got back is one it asked for. Unknown JSON keys are dropped the same
+#      way (ASP.NET model binding): a body with `WidgetNonsense: "1"` added returns
+#      exactly the baseline 1,445.
+#      The one parameter that fails LOUDLY is SortField: `SortField="Bogus"` is an
+#      HTTP 500 redirect to /Home/InternalError. Sorting by "DatePublished" or
+#      "Deadline" works and was verified - descending put 11-Sep-2026 on top and
+#      ascending put 29-May-2024 on top.
+#
+#   5. PageSize IS SILENTLY CAPPED AT 15. Measured one value at a time:
+#      PageSize=1 -> 1 row, 5 -> 5 rows, 15 -> 15, 30 -> 15, 50 -> 15, 200 -> 15.
+#      So a page is at most 15 notices and paging is compulsory, not an optimisation.
+#      PageIndex is a page number and it behaves: index 96 of a 1,445-row set
+#      returned 5 rows (96*15 + 5 = 1,445) and index 200 returned 0. At ~25 notices a
+#      day across the covered countries a daily run is 2 listing calls; see 7.
+#
+#   6. VOLUME, and it is the best of any donor source in this registry. Active
+#      notices for the 19 covered countries, by publication date, 2026-09-12:
+#
+#          published on/after 11-Sep (1 day)      23
+#          published on/after 10-Sep (2 days)     49
+#          published on/after 09-Sep (3 days)     78
+#          published on/after 05-Sep (7 days)    103
+#          published on/after 29-Aug (14 days)   189
+#          published on/after 13-Aug (30 days)   247
+#
+#      About 25 a day. The longer windows flatten because the count is of currently
+#      ACTIVE notices and the older ones have closed: the same 7-day window with
+#      IsActive=false is 109 against 103, so only 6 had closed in a week.
+#
+#   7. WHAT A CONNECTOR WOULD HAVE TO FETCH. The listing row carries notice id,
+#      title, deadline, publication date, agency abbreviation, notice type,
+#      reference and country - AND NO DESCRIPTION. The body lives only on
+#      /Public/Notice/{id}. So a run is 2 listing calls plus ~25 detail fetches,
+#      which is the Prozorro shape and well within a polite daily pass.
+#      The detail page carries: Reference, "Beneficiary countries or territories",
+#      Registration level, "Published on" (11-Sep-2026), "Deadline on"
+#      (17-Sep-2026 23:59 (GMT 0.00)), a Description block, a Contacts tab, a Links
+#      tab and a UNSPSC code tree. Three things about it that a later build needs:
+#        a. THE DEADLINE OFFSET VARIES AND MUST BE PARSED. Two notices read the same
+#           hour in different zones: 314183 is "17-Sep-2026 23:59 (GMT 0.00)" and
+#           314152 is "14-Sep-2026 14:00 (GMT 2.00)". Reading the clock and dropping
+#           the offset would move a deadline by hours, which rule 10 forbids.
+#           monitor/normalise/dates.py parses no such format today; this is the one
+#           piece of new parsing the build needs.
+#        b. THE CONTACTS TAB IS PERSONAL DATA AND MUST NOT REACH A MODEL CALL. It
+#           carries a named UN staff member's first name, surname and email address.
+#           Rule 19 keeps contact details out of prompts, so `body` is the
+#           Description block alone and never the whole page.
+#        c. THE CODES ARE UNSPSC, NOT CPV. 53102305 "Infant diapers" is not a CPV
+#           code and there is no CPV anywhere on this source, so `cpv_codes` stays
+#           empty and every notice would reach the lexicon stage. Mapping UNSPSC to
+#           CPV is inventing a field the publisher did not state.
+#
+#   8. NO LANGUAGE IS PUBLISHED, AND THE NOTICES ARE NOT ALL ENGLISH. Unlike the
+#      World Bank's `notice_lang_name` there is no language field anywhere in the
+#      listing row or the detail page. Sampled over 45 rows from the covered
+#      countries on 2026-09-12, the titles are a mix of English and French
+#      ("Services d'entreposage et de gestion des stocks", "Travaux de construction
+#      de poste de police de proximite", "Recrutement Agence de communication
+#      nationale") and the wider corpus carries Spanish too. So `language` would have
+#      to be detected rather than read, `language_confidence` would be below 1.0, and
+#      this repository has no detector in its dependency list. That is a real cost
+#      and it is recorded here so it is priced before the build starts, not during.
+#
+#   9. UNDP IS ON UNGM IN VOLUME, WHICH ANSWERS THE QUESTION sources/undp.yaml ASKED.
+#      That file records that UNDP's own portal disallows every robot, and asks
+#      whoever builds this source to "confirm from real responses that UNDP notices
+#      are actually in UNGM's public listing and how completely". Measured
+#      2026-09-12: Agencies=[1] (UNDP) returns 390 active notices worldwide and 88 of
+#      the 269 active notices in the 19 covered countries - a third of this source's
+#      pilot-relevant volume. The sampled rows carry the UNDP country-office
+#      references directly (UNDP-NGA-01505, UNDP-SEN-00620, UNDP-BIH-01650,
+#      UNDP-UKR-01819, UNDP-SLE-00322, UNDP-MRT-00311, UNDP-CIV-00500).
+#      SO THE ROUTE sources/undp.yaml RECOMMENDS RUNS THROUGH A SOURCE THAT IS ITSELF
+#      RESTRICTED. That file's option (b), "take the coverage through UNGM instead",
+#      was written on the strength of UNGM's robots.txt alone, which is all that had
+#      been checked. It is now checked further and it does not hold: UNDP procurement
+#      is unavailable to this pilot by either route until a person decides something.
+#      Nothing in sources/undp.yaml was edited to say so, because that file is not
+#      this agent's to write; this paragraph is the correction and the two should be
+#      read together.
+#
+# ============================ THE TERMS, AND WHY THIS IS DISABLED ============================
+# Read in full from https://www.ungm.org/Public/Pages/Terms on 2026-09-12. Four
+# clauses decide it. They are quoted rather than summarised because the decision
+# turns on the words and the next person should not have to re-fetch the page.
+#
+#   5.2  "The User is permitted to download or print extracts of the Materials on the
+#         Site for their personal use only, and for lawful purposes only [...] None
+#         of the material on the Site may be used for any commercial or public use,
+#         and no part of such material may be reproduced or stored in or transmitted
+#         to any other website."
+#
+#   5.3  "No material on the Site may be disseminated in any form, either electronic
+#         or non-electronic, or included in any retrieval system or site without the
+#         prior written permission of UNGM. Any request for such permission shall be
+#         sent to the attention of: UNGM Manager, United Nations Global Marketplace
+#         at registry@ungm.org."
+#
+#   7.2  "The Materials relating to procurement opportunities from the United Nations
+#         organizations and its partners available on the Site is copyrighted by
+#         these organizations. It may not be reproduced, stored, transmitted or
+#         photocopied in any form or by any means without the prior written consent
+#         of the respective organizations."
+#
+#   7.5  "UNGM grants the User permission to electronically copy and print in hard
+#         copy the Materials and any e-mail that may be received as part of the TAS
+#         for the purpose of preparing documents to be submitted by the Subscriber in
+#         response of any Materials. Any use of the said Materials in emails
+#         (including reproduction for purposes other than those mentioned above,
+#         modification, distribution, republication and/or inclusion in a compilation)
+#         without the express prior written permission of UNGM is strictly
+#         prohibited."
+#
+# WHAT THIS PIPELINE WOULD DO, MATCHED AGAINST THEM. The Monitor stores each notice
+# in `notices` and its payload in `notices_raw`, which is "stored" under 7.2 and
+# "included in any retrieval system" under 5.3. It does it so a commercial company
+# can find tenders to bid on, which is "commercial use" under 5.2. Both are named
+# prohibitions and both need prior written permission from a named address.
+#
+# THE ARGUMENT ON THE OTHER SIDE, STATED FAIRLY, BECAUSE IT IS NOT WEAK. 7.5 expressly
+# permits copying a notice "for the purpose of preparing documents to be submitted in
+# response" - which is exactly and only what FreeBalance wants these notices for, and
+# it is the purpose the notices are published for in the first place. Sections 2.1 and
+# 5.1 address "the User", defined in section 1 as someone "who submitted the
+# Registration Form", so a reader who never registered has arguably accepted no
+# contract at all. And a deadline, a reference number and a buyer name are facts
+# rather than copyrightable expression. A reasonable person could read 7.5 plus
+# non-registration as permission to do this.
+#
+# THAT ARGUMENT IS NOT THIS FILE'S TO ACCEPT. Note also that UNGM sells the
+# capability this pipeline reproduces: the Tender Alert Service, a paid UNGM Pro
+# subscription that emails subscribers new tenders matching their products, is
+# advertised on the same search page the connector would read. A robot that
+# reproduces a publisher's paid product, against terms that forbid commercial use in
+# terms, is the clearest "a named person decides" in step 15. So the decision is
+# escalated rather than taken, and it is escalated with the technical work already
+# done so that the decision is cheap to act on either way.
+#
+# AND IT IS WHY NO FIXTURE WAS COMMITTED. Every other source in this registry carries
+# tests/contract/fixtures/<id>.json recorded from a real call, because CLAUDE.md says
+# to build against a real response. Committing one here would put UNGM notice text in
+# this repository's git history permanently, which is the precise act 7.2 names, and
+# a commit is not undone by a later decision going the other way. Recording the
+# fixture is the FIRST step of the build the day permission exists, and
+# scripts/record_ungm_fixture.py is written so that step is one flag; it is not a
+# step to take first and justify afterwards. An invented or redacted fixture was
+# never an option: the step 15 brief calls that damage and it is right.
+#
+# CONTRAST WITH sources/simap.yaml, WHICH IS ALSO reviewed_restricted AND DOES HAVE A
+# CONNECTOR AND A FIXTURE. The difference is which way the terms run. simap's API
+# terms clause 4 affirmatively permits taking publication data for commercial
+# purposes and passing it to third parties, and its clause 5 then imposes obligations
+# on how it is displayed - so the build is lawful and a named person signs off the
+# display rules before it is enabled. UNGM's terms contain no clause that permits;
+# 5.2 prohibits commercial use outright. Building against simap and holding it for a
+# signature is therefore right, and doing the same here would not be.
+#
+# WHAT A PERSON WOULD HAVE TO DO TO UNBLOCK IT. Three options, in the order they
+# should be tried:
+#
+#   a. ASK UNGM. One email to registry@ungm.org, the address 5.3 names for exactly
+#      this request, from the contact address in MONITOR_USER_AGENT. The ask is
+#      specific: written permission for an identified client to read the public
+#      procurement notices at /Public/Notice on a daily schedule and store them in an
+#      internal review queue, for the purpose of deciding which to bid on, with no
+#      republication and no onward disclosure. Cheapest in engineering, slowest in
+#      calendar time, and the only option that ends with this source enabled as
+#      written. It is also the option that would unblock UNDP coverage, which nothing
+#      else in this registry can now reach (measurement 9).
+#   b. BUY THE TENDER ALERT SERVICE. UNGM sells a subscription that emails new
+#      tenders matching a supplier's product codes. That is a paid, sanctioned route
+#      to the same notices, its output is email, and step 15 already builds a
+#      MailConnector for the shared intake mailbox (D6) - so the engineering would be
+#      a source registry entry and a sender or subject pattern, not a connector.
+#      It costs money and it is a procurement decision, which is why it is not
+#      recommended from here, only named. Whoever takes it should confirm that the
+#      TAS terms permit storing the alert emails, because 7.5 restricts what may be
+#      done with TAS material too.
+#   c. A NAMED PERSON RECORDS A DECISION that the 7.5 purpose clause and the
+#      non-registration reading above put this use in scope, and accepts the risk.
+#      That decision has to be written where a reviewer can find it, because it is
+#      one of the few places in this pipeline where a publisher's stated terms would
+#      be read down rather than followed.
+#
+# Under none of a, b or c is a connector written before the decision exists. Under
+# (a) and (c) the build is perhaps a day's work and every fact it needs is in the
+# measurement above, starting with the fixture recorder.
+#
+# ================================ THE ENTRY ================================
+id: ungm
+name: UN Global Marketplace procurement notices
+country: multi
+# The pilot's 19 priority countries, from config/thresholds.yaml's geography keys and
+# the same set as sources/worldbank.yaml. Unlike sources/undp.yaml's list this one is
+# MEASURED: every country below was confirmed present in UNGM's own country picker
+# with its numeric id, and the 19 sent together returned 269 active notices on
+# 2026-09-12. UNGM's ids, for whoever builds this, in the order of this list:
+# BJ 2314, BF 2324, CI 2341, GM 2367, GH 2370, LR 2407, ML 2418, MR 2422, NE 2442,
+# NG 2443, SN 2472, SL 2475, TG 2494, UA 2504, AL 2294, BA 2318, XK 2525, ME 2524,
+# MK 2413. Kosovo is XK on both sides, which is the one that usually is not.
+# They belong in the connector next to worldbank.py's BANK_COUNTRY_NAMES rather than
+# here: they are this source's vocabulary, `Source` forbids unknown fields, and a
+# `country_ids` block would have to be added to the model every source validates
+# against.
+covers: ['BJ', 'BF', 'CI', 'GM', 'GH', 'LR', 'ML', 'MR', 'NE', 'NG', 'SN', 'SL', 'TG',
+         'UA', 'AL', 'BA', 'XK', 'ME', 'MK']
+# The portal's own interface language. NOT the language of the notices, which is not
+# published anywhere on this source and is a mix of at least English, French and
+# Spanish (measurement 8). Per-notice language is the normaliser's to decide (rule 9)
+# and on this source it would have to be detected rather than read.
+language: en
+admin_level: donor
+# feed / api / FeedConnector because that is what was measured, not what the site
+# looks like from outside. /Public/Notice/Search is a JSON-in, HTML-fragment-out
+# endpoint that answers a plain httpx POST with no browser, no cookie and no token
+# (measurements 2 and 3), and the per-notice detail fetch that follows is the same
+# shape as monitor/connectors/prozorro.py. Recording it as portal / public_listing /
+# PageConnector would be the conservative guess, and it would be wrong, and it would
+# send a later session to Playwright for no reason.
+stream: feed
+access: api
+connector: FeedConnector
+wave: 1
+# 10:00 UTC daily, provisional and unused while enabled is false. The publication
+# date is a bare day with no time, so the run window would be by date and not by
+# hour. Chosen to collide with nothing already in sources/: boamp 04:30, doe 05:00,
+# ted 06:00, prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap and
+# worldbank_pipeline 08:30, euft and place 09:00, mcc Monday 09:30.
+schedule: '0 10 * * *'
+# The public listing page. The search endpoint it drives is
+# https://www.ungm.org/Public/Notice/Search (POST, application/json) and the detail
+# page is https://www.ungm.org/Public/Notice/{id}; both are recorded in the
+# measurement above rather than here, because `Source` has one url field and the
+# listing page is the one a person should open first.
+list_url: https://www.ungm.org/Public/Notice
+# Reviewed, and the answer is that the notices are public, reading them is permitted
+# by robots.txt, and the site's Terms and Conditions forbid the commercial use and
+# the storage this pipeline is. reviewed_restricted rather than pending, because the
+# review happened and produced an answer; rather than reviewed_ok, because
+# reviewed_ok reads as "ready to enable" and this is not.
+#
+# Written permission from UNGM (option a) is the single piece of evidence that makes
+# this reviewed_ok. Nothing else does: not that the notices are public, not that
+# robots.txt allows the path, not that the endpoint answers without a login.
+tos_status: reviewed_restricted
+# Not a flag the orchestrator flips after a live fetch, which is what separates this
+# file from sources/euft.yaml and sources/simap.yaml. There is no connector to run.
+# A commit that flips this needs decision (a), (b) or (c) recorded by a named person
+# first, and then the fixture, the connector, the normaliser and the contract test
+# that decision implies.
+enabled: false
+health:
+  # MEASURED, unlike sources/undp.yaml's placeholders, and stated as a daily window
+  # over the 19 covered countries: 23 notices published in the last day, 26 the day
+  # before, 29 the day before that, 103 over seven days (measurement 6). About 25 a
+  # day. The minimum is 1 rather than 0 so a silent run can never read as a healthy
+  # one (rule 4); on a source publishing 25 a day a zero is a broken query, and
+  # measurement 4 shows exactly how it would break without saying so.
+  # The maximum is a paging and request ceiling in every connector in this repository
+  # and not only a health band: at 15 rows a page (measurement 5) and one detail
+  # fetch per notice, 80 is 6 listing calls and 80 detail calls, which is the most a
+  # polite daily pass should make. Whoever builds this replaces both numbers from
+  # real runs before enabled becomes true.
+  expected_items_per_run: [1, 80]
+  max_consecutive_failures: 3
+owner: ryan.dear
