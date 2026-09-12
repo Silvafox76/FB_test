@@ -787,14 +787,47 @@ def test_a_notice_with_neither_an_exercise_nor_a_project_raises(details, rows):
 # --- the registry and the mapper agree ----------------------------------------
 
 
-def test_the_registry_entry_is_disabled_until_a_live_fetch(source):
-    """This agent recorded the fixture and ran no live fetch; the orchestrator flips
-    it. And the yield measurements in sources/ebrd.yaml are what a person decides on
-    before it is flipped."""
-    assert source.enabled is False
+def test_the_registry_entry_is_enabled_and_wired(source):
+    """Enabled on 2026-09-12, and this test changed with it rather than being deleted.
+
+    It read `assert source.enabled is False`, with a docstring saying the orchestrator
+    would flip it after the first live fetch. That is how a test quietly becomes a
+    record of the day it was written: the live fetch happened, the source was enabled,
+    and an assertion that had been describing a temporary state started failing as
+    though something had broken.
+
+    What is worth asserting instead is the pair that has to stay true together. A
+    source is enabled in the registry AND wired into `monitor/fetch.py`'s CONNECTORS,
+    or it is neither: enabled without a connector raises at fetch time, and wired
+    without being enabled means nothing ever runs it.
+    `tests/unit/test_fetch.py` asserts the whole registry keeps that property; this
+    asserts it for the one source this file is about.
+    """
+    from monitor.fetch import CONNECTORS
+
+    assert source.enabled is True
+    assert source.id in CONNECTORS
     assert source.tos_status == "reviewed_ok"
     assert source.id == "ebrd"
     assert source.country == "multi"
+
+
+def test_the_schedule_is_daily_because_the_host_refuses_a_second_pass(source):
+    """The condition this source was enabled on, asserted so it cannot quietly change.
+
+    EBRD was enabled once earlier on 2026-09-12 and reverted within the hour. The
+    connector was never the problem: `fetch()` ignored `Source.schedule` while the
+    scheduler woke hourly, so wiring a source whose host serves one pass and then
+    resets meant asking it twenty-four times a day. `monitor/schedule.py` is what
+    made this safe, and a schedule of anything sub-daily here would undo it without
+    any other test noticing.
+    """
+    from monitor.schedule import parse
+
+    cron = parse(source.schedule)
+
+    assert source.schedule == "30 10 * * *"
+    assert cron.days_of_week == frozenset(range(7)), "daily, and once a day"
 
 
 def test_the_covered_codes_all_have_an_ebrd_spelling(source):

@@ -37,6 +37,7 @@ import yaml
 from monitor.connectors.base import ConnectorError
 from monitor.connectors.boamp import BoampConnector
 from monitor.connectors.doe import DoeConnector
+from monitor.connectors.ebrd import EbrdConnector
 from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
 from monitor.connectors.prozorro import ProzorroConnector
@@ -47,6 +48,7 @@ from monitor.health import source_health
 from monitor.models import Source, Translation
 from monitor.normalise import boamp as boamp_normalise
 from monitor.normalise import doe as doe_normalise
+from monitor.normalise import ebrd as ebrd_normalise
 from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
 from monitor.normalise import prozorro as prozorro_normalise
@@ -73,6 +75,7 @@ CONNECTORS = {
     "worldbank_pipeline": (WorldBankPipelineConnector, worldbank_pipeline_normalise.map_notice),
     "euft": (EuftConnector, euft_normalise.map_notice),
     "boamp": (BoampConnector, boamp_normalise.map_notice),
+    "ebrd": (EbrdConnector, ebrd_normalise.map_notice),
 }
 
 # Built, fixture-tested, and deliberately absent from the table above. Listed here
@@ -94,31 +97,33 @@ CONNECTORS = {
 #           cleared terms, and no West African national source is enabled at all, in
 #           a pilot whose priority geography weight for the region is 1.0.
 #
-#   ebrd    THE HOST CANNOT TAKE THE CADENCE THIS PIPELINE ACTUALLY RUNS AT, which
-#           is not the same problem the earlier note here described and is worse.
-#           That note said "no recorded fixture: ecepp.ebrd.com is resetting
-#           connections". Half of it was stale by 2026-09-12 - the fixtures are
-#           recorded and the 56-case contract test runs and passes - and on one
-#           live probe `fetch_raw` returned 4,050 archive rows and 11 notices in
-#           scope, inside the entry's own expected range of 1 to 30. That probe was
-#           read as proof the host was fine and the source was enabled and wired.
-#           The very next fetch, five minutes later, timed out.
+# EBRD WAS IN THIS LIST TWICE ON 2026-09-12 AND IS NOW WIRED, which is worth the
+# space because the second entry was wrong for a better reason than the first.
 #
-#           One success does not disprove "serves the first pass, then resets": it
-#           is what that sentence predicts. The deeper reason not to wire it is
-#           cadence, and it is ours rather than theirs. `sources/ebrd.yaml` asks for
-#           `schedule: '30 10 * * *'`, once a day. `fetch()` below selects every
-#           enabled source with no reference to `schedule`, and the scheduler runs
-#           `monitor run` hourly, so wiring this source asks a host that refuses a
-#           second pass for twenty-four passes a day. That is rule 21's "one polite
-#           pass per schedule" broken by us, and it is a real reason to wait rather
-#           than a cautious one. RUNBOOK.md line 898 records the underlying gap:
-#           nothing in the fetch stage reads a source's schedule yet.
+# The original note said "no recorded fixture: ecepp.ebrd.com is resetting
+# connections". Half had gone stale - the fixtures are recorded and the 56-case
+# contract test passes - and a live `fetch_raw` returned 4,050 archive rows and 11
+# notices in scope, inside the entry's own expected range of 1 to 30. That was read
+# as proof the host was fine, and the source was enabled. The next fetch, four
+# minutes later, timed out. One success does not disprove "serves the first pass,
+# then resets"; it is what that sentence predicts.
 #
-#           So EBRD is unblocked on everything except the one thing nobody had
-#           looked at, and it goes in the moment fetch honours `schedule`.
+# The real blocker was ours. `sources/ebrd.yaml` asks for `schedule: '30 10 * * *'`,
+# once a day, and `fetch()` below ignored `schedule` entirely while the scheduler
+# wakes hourly - so wiring this source asked a host that refuses a second pass for
+# twenty-four passes a day. `monitor/schedule.py` fixed that, and this entry went in
+# on the strength of it rather than on the strength of the probe: EBRD is fetched at
+# 10:30 UTC and not again until the next day. Checked rather than assumed before
+# wiring - its last attempt is the 17:06 timeout, so `is_due` was False for the rest
+# of that day and the enable touched the host no further times.
 #
-# Every source here is `enabled: false` in its registry entry as well. The test
+# What is still unproven is whether a daily cadence suits this host at all. The
+# evidence for it is a successful recording at 08:48, a successful fetch at 17:02 and
+# a timeout at 17:06 - consistent with tolerating requests hours apart and refusing
+# them minutes apart, which is a reasoned expectation and not a measurement.
+# `max_consecutive_failures: 3` is what will say otherwise.
+#
+# Every other source here is `enabled: false` in its registry entry as well. The test
 # `test_every_wired_source_is_enabled_and_every_enabled_source_is_wired` asserts
 # those two facts stay in step.
 

@@ -178,15 +178,46 @@ tos_status: reviewed_ok
 # kept because a reviewer seeing a tender they were not shortlisted for is worth
 # more than a shorter queue; add either string to this list to change that.
 exclude_notice_types: ['Contract Award Notice', 'Notice of Prequalified Participants']
-# The orchestrator flips this after the first live fetch. This agent recorded the
-# fixture with scripts/record_ebrd_fixture.py and proved the parser against it; it
-# ran no live fetch into the database, because a scoring run and a translation run
-# were in progress against the same Postgres.
+# SECOND ATTEMPT. Enabled once already today, 2026-09-12, then reverted the same
+# day. Recording both the failure and what changed underneath it, because a reader
+# who sees only "enabled: true" will not know either.
 #
-# Read the WHAT THIS SOURCE IS MEASURED TO YIELD block above before flipping it.
-# The connector works; whether the pilot wants the source is a separate question
-# and the measurements for answering it are there.
-enabled: false
+# WHAT HAPPENED THE FIRST TIME. EBRD met every stated bar: tos_status reviewed_ok
+# above, tests/contract/test_ebrd.py's 56 cases all passing, and a live
+# EbrdConnector.fetch_raw at 17:02 UTC returning the 4,050-row archive and 11
+# notices in scope, inside this entry's own expected_items_per_run [1, 30]. It was
+# enabled and wired on that evidence. The very next fetch, at 17:06 UTC - four
+# minutes later - timed out with a ReadTimeout. That is not new information: the
+# note above already says this host "serves the first pass, then resets", and one
+# success four minutes before a failure does not disprove that, it is what it
+# predicts. The enable was reverted the same day.
+#
+# WHAT ACTUALLY CHANGED, and it is the reason a second attempt is not the same
+# mistake twice. Until today monitor/fetch.py's fetch() read every enabled source
+# on every call and ignored Source.schedule entirely, while the scheduler wakes
+# hourly - so enabling EBRD would have asked a host that refuses a second pass for
+# TWENTY-FOUR passes a day, against the '30 10 * * *' schedule this entry itself
+# declares. That was rule 21's "one polite pass per schedule" broken by the
+# pipeline, not by EBRD. monitor/schedule.py now exists and fetch all reads only
+# sources that have not been read since their own schedule last fired, so EBRD is
+# fetched once a day at 10:30 UTC and no more. Verified, not assumed: EBRD's last
+# attempt is today's 17:06 failure, so is_due returns False for the rest of
+# 2026-09-12 and True at 10:30 UTC on 2026-09-13. Flipping this flag touches the
+# host zero more times today.
+#
+# THE EVIDENCE THAT MAKES A DAILY CADENCE PLAUSIBLE, AND WHY IT IS STILL A
+# JUDGEMENT CALL AND NOT A PROOF. Three data points on 2026-09-12: a successful
+# fixture recording at 08:48, a successful live fetch at 17:02 (eight hours
+# later), then a timeout at 17:06 (four minutes later). That pattern - tolerating
+# requests hours apart, refusing requests minutes apart - is exactly what a daily
+# schedule respects, and it is the only cadence this repository now ever asks of
+# it (rule 21). It is NOT yet evidence that a daily cadence holds up: three points
+# is not several days of real runs, and the difference between "the host resets
+# quickly" and "the host is flaky regardless of spacing" cannot be told from one
+# failure. max_consecutive_failures: 3 below is what will surface it if today's
+# expectation is wrong - three consecutive daily misses marks the source unhealthy
+# rather than staying silently enabled on a guess.
+enabled: true
 health:
   # Measured, not guessed. The rolling 30-day count of in-scope notices - covered
   # country, notice type not excluded - over the last two years runs 3 to 14 with a
