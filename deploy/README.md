@@ -28,7 +28,11 @@ places holding a schedule means one of them is wrong by Wednesday, and it will b
 the one nobody reads.
 
 What the timer decides is only **how often the host wakes the pipeline**. Which
-sources a wake should read belongs to the registry.
+sources a wake should read belongs to the registry, and since 2026-09-12 that is
+literally true rather than an intention: `monitor/fetch.py` asks each enabled source
+whether it has been read since its own `schedule` last fired and skips the ones that
+have. A wake that reads nothing prints `not due: ...` rather than `seen 0`, so an
+idle pass and a broken one do not look alike in the log.
 
 Read the registry rather than trusting a table in a document:
 
@@ -208,6 +212,18 @@ units.** Over a 14-week pilot at hourly, `run.log` will need either a logrotate
 snippet or a person with `truncate`; that decision is not made here.
 
 ## Switching to the Monday per-source windows
+
+**Read this before generating anything: as of 2026-09-12 you probably do not need
+to.** This section exists because the fetch stage ignored `Source.schedule` and read
+every enabled source on every wake, so the only way to respect a source's window was
+to make the host wake at that window. `monitor/schedule.py` now does it properly -
+`monitor fetch all` reads only the sources that have not been read since their own
+schedule last fired, and reports the rest as `not due` - so **an hourly timer plus
+the registry already gives every source its declared cadence**, and the generated
+drop-in below buys nothing except a later first pass each day.
+
+Keep the hourly timer. Generate this only if a host has a reason to stay asleep,
+such as a metered connection or an instance that is stopped overnight to save money.
 
 Generate the drop-in from the registry. Do not type the times: the point of the
 registry being authoritative is that changing a source's `schedule` and

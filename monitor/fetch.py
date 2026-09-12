@@ -54,6 +54,7 @@ from monitor.normalise import ted as ted_normalise
 from monitor.normalise import worldbank as worldbank_normalise
 from monitor.normalise import worldbank_pipeline as worldbank_pipeline_normalise
 from monitor.registry.load import CONFIG_DIR, load_sources
+from monitor.schedule import is_due
 
 log = structlog.get_logger(__name__)
 
@@ -145,6 +146,10 @@ class FetchResult:
     new: int
     failed: bool
     error: str = ""
+    # A source the schedule said was not due. It is a result rather than an absence
+    # from the list so that "nothing happened" and "nothing was due" cannot look the
+    # same to a caller, which is how an over-eager schedule filter would hide itself.
+    skipped: bool = False
 
 
 def cpv_prefixes() -> list[str]:
@@ -289,17 +294,59 @@ def _update_health(conn, source: Source, at: datetime, *, failed: bool, seen: in
     )
 
 
-def fetch(conn: psycopg.Connection, source_id: str) -> list[FetchResult]:
-    """`monitor fetch <id>` or `monitor fetch all`."""
+# The newest attempt per source, successful or not. Not `last_success_at` from
+# source_health: a source that failed at 10:30 has spent its polite pass for the day,
+# and coming back at 11:30 is a retry (rule 2) aimed at a host that just refused us.
+LAST_ATTEMPT = "select source_id, max(started_at) from fetch_runs group by source_id"
+
+
+def last_attempts(conn: psycopg.Connection) -> dict[str, datetime]:
+    return dict(conn.execute(LAST_ATTEMPT).fetchall())
+
+
+def fetch(conn: psycopg.Connection, source_id: str, *, now: datetime | None = None) -> list[FetchResult]:
+    """`monitor fetch <id>` or `monitor fetch all`.
+
+    `all` reads only the sources whose schedule says they are due, which is what makes
+    an hourly wake correct: every wake asks each source whether it has been fetched
+    since its schedule last fired, and only the ones that have not are read. Before
+    this, `all` read every enabled source on every wake, so a source asking for
+    `30 10 * * *` was fetched twenty-four times a day (decision 49).
+
+    NAMING A SOURCE BYPASSES THE SCHEDULE, deliberately. `make fetch S=ted` is a person
+    asking for this source now - to record a fixture, to check a connector after a
+    change, to see whether a portal is back - and a command that answered "not due"
+    would be obeying a cron expression written for unattended running against someone
+    who is standing there. The politeness rule is about the scheduled cadence, and a
+    person taking one pass by hand is inside it.
+
+    `now` is a parameter so the tests can ask the question at a chosen moment rather
+    than at whatever time they happen to run.
+    """
     sources = {source.id: source for source in load_sources()}
 
-    if source_id == "all":
-        chosen = [source for source in sources.values() if source.enabled]
-        if not chosen:
-            raise RuntimeError("no source is enabled; a source is enabled by the step that proves it parses")
-    else:
+    if source_id != "all":
         if source_id not in sources:
             raise KeyError(f"no source {source_id!r} in the registry")
-        chosen = [sources[source_id]]
+        return [fetch_source(conn, sources[source_id])]
 
-    return [fetch_source(conn, source) for source in chosen]
+    enabled = [source for source in sources.values() if source.enabled]
+    if not enabled:
+        raise RuntimeError("no source is enabled; a source is enabled by the step that proves it parses")
+
+    moment = now or datetime.now(UTC)
+    attempts = last_attempts(conn)
+
+    results: list[FetchResult] = []
+    for source in enabled:
+        if not is_due(source.schedule, attempts.get(source.id), moment):
+            log.info(
+                "fetch_not_due",
+                source_id=source.id,
+                schedule=source.schedule,
+                last_attempt=attempts[source.id].isoformat(),
+            )
+            results.append(FetchResult(source_id=source.id, seen=0, new=0, failed=False, skipped=True))
+            continue
+        results.append(fetch_source(conn, source))
+    return results

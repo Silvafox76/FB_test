@@ -109,10 +109,21 @@ docker compose -f docker-compose.yml -f deploy/docker-compose.cron.yml \
 Hourly is the weekend cadence, for a demo's sake. From Monday the cadence comes
 from each source's `schedule` in `sources/*.yaml` and is installed as a generated
 drop-in; `deploy/README.md` has the generator and the reason it is generated rather
-than typed. **The gap worth knowing before you trust the registry's windows:**
-nothing in the fetch stage reads `Source.schedule` yet, so every wake reads every
-enabled source. That is why the Monday drop-in is one wake a day at the latest
-window any source declares, and why it is not yet one wake per window.
+than typed.
+
+**The fetch stage now reads `Source.schedule`, and that changes what an hourly wake
+means.** Until 2026-09-12 every wake read every enabled source, so a source asking
+for `30 10 * * *` was fetched twenty-four times a day. `monitor fetch all` now asks
+each enabled source whether it has been read since its schedule last fired, and only
+reads the ones that have not; the rest are reported as `not due` and cost nothing. So
+an hourly wake is now safe rather than merely tolerated, and the Monday drop-in is
+less urgent than it was - the timer can stay hourly and let the registry decide.
+
+Two things about it worth knowing before reading a log. It uses the last ATTEMPT, not
+the last success: a source that failed at 10:30 has spent its pass for the day, and
+coming back at 11:30 would be a retry (rule 2) against a host that just refused us.
+And **naming a source bypasses the check** - `make fetch S=ted` is a person asking
+now, and it fetches whether the schedule agrees or not.
 
 Enabling a timer does not take a pass, and neither does starting the Compose loops.
 To take one now:
@@ -895,10 +906,13 @@ operator who assumes otherwise will be wrong at a bad moment.
 - **`monitor status` prints two of the four readings it advertises.** Source health and
   the filter's arithmetic, yes; today's calls and cost, queue depth and export backlog,
   no. "Read health" above says where those three actually live.
-- **Nothing in the fetch stage reads a source's `schedule`.** Every wake reads every
-  enabled source, so the registry's per-source windows are a statement of intent that
-  the scheduler approximates with one wake a day. `deploy/README.md` is explicit about
-  this and generates the Monday drop-in accordingly.
+- ~~**Nothing in the fetch stage reads a source's `schedule`.**~~ FIXED 2026-09-12.
+  `monitor/schedule.py` reads it and `fetch all` skips any source already read since
+  its schedule last fired. The registry's windows are now what the pipeline obeys
+  rather than a statement of intent. What remains: the supported cron subset is a
+  fixed minute and hour with an optional day-of-week, and anything else - a step like
+  `*/4`, a list of hours, a day-of-month - raises rather than being approximated, so a
+  future source needing one of those needs that module extended first.
 - **Logging is not JSON yet.** `structlog.configure` is never called, so lines land in
   the console format shown above and greps written against JSON keys find nothing.
 - **No precision or recall number exists for any prompt version**, because the golden

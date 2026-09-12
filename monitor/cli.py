@@ -246,7 +246,13 @@ def model_client():
 
 
 def run_fetch(source_id: str) -> int:
-    """Run one connector once and report seen, new and failed."""
+    """Run one connector once and report seen, new, skipped and failed.
+
+    Skipped is printed even when it is the whole run, and that is the point: on an
+    hourly wake most sources are not due, so a pass that read nothing has to say
+    "nothing was due" rather than "seen 0, new 0", which is what a broken fetch
+    looks like.
+    """
     from monitor.db import connect
     from monitor.fetch import fetch
 
@@ -254,14 +260,23 @@ def run_fetch(source_id: str) -> int:
         results = fetch(conn, source_id)
 
     failed = 0
+    skipped = [result for result in results if result.skipped]
     for result in results:
+        if result.skipped:
+            continue
         if result.failed:
             failed += 1
             print(f"{result.source_id}: FAILED {result.error}", file=sys.stderr)
         else:
             print(f"{result.source_id}: seen {result.seen}, new {result.new}")
 
-    print(f"seen {sum(r.seen for r in results)}, new {sum(r.new for r in results)}, failed {failed}")
+    if skipped:
+        print(f"not due: {', '.join(sorted(result.source_id for result in skipped))}")
+
+    print(
+        f"seen {sum(r.seen for r in results)}, new {sum(r.new for r in results)}, "
+        f"skipped {len(skipped)}, failed {failed}"
+    )
     return 1 if failed else 0
 
 

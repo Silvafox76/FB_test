@@ -81,3 +81,125 @@ def test_a_mapper_failure_is_wrapped_with_the_source_and_the_notice():
     assert "619297-2026" in message
     assert "unknown country code" in message
     assert isinstance(raised.value.cause, ValueError)
+
+
+# --- the schedule filter on `fetch all` ----------------------------------------
+
+
+class Recording:
+    """A connection stub that answers the last-attempt query and records nothing else.
+
+    A stub rather than the live database, and the reason is what is under test: the
+    decision to skip is made from two values - the source's schedule and its newest
+    `fetch_runs.started_at` - and handing those in directly is what lets the test ask
+    the question at a chosen moment. `monitor/schedule.py` proves the arithmetic on
+    its own; this proves `fetch()` acts on it, and that naming a source bypasses it.
+    """
+
+    def __init__(self, attempts: dict[str, object]) -> None:
+        self.attempts = attempts
+
+    def execute(self, query, params=None):
+        assert "fetch_runs" in query, "the only query fetch() should make here"
+        return self
+
+    def fetchall(self):
+        return list(self.attempts.items())
+
+
+def test_fetch_all_skips_a_source_that_has_been_read_since_its_last_fire(monkeypatch):
+    """The defect this whole change exists to fix, in one assertion.
+
+    Before it, an hourly wake read every enabled source, so a source asking for
+    `30 10 * * *` was fetched twenty-four times a day against a host that asked for
+    one (decision 49).
+    """
+    from datetime import UTC, datetime
+
+    import monitor.fetch as fetch_module
+
+    fetched: list[str] = []
+
+    def record(conn, src):
+        fetched.append(src.id)
+        return fetch_module.FetchResult(source_id=src.id, seen=1, new=0, failed=False)
+
+    monkeypatch.setattr(fetch_module, "fetch_source", record)
+
+    now = datetime(2026, 9, 12, 14, 0, tzinfo=UTC)
+    read_after_todays_fire = {
+        src.id: datetime(2026, 9, 12, 13, 0, tzinfo=UTC) for src in fetch_module.load_sources() if src.enabled
+    }
+
+    results = fetch_module.fetch(Recording(read_after_todays_fire), "all", now=now)
+
+    assert results, "every enabled source should still appear in the results"
+    assert all(result.skipped for result in results), "none was due; all should be skipped"
+    assert fetched == [], "and none should have been fetched"
+
+
+def test_fetch_all_reads_a_source_that_has_not_been_read_since_its_last_fire(monkeypatch):
+    from datetime import UTC, datetime
+
+    import monitor.fetch as fetch_module
+
+    monkeypatch.setattr(
+        fetch_module,
+        "fetch_source",
+        lambda conn, src: fetch_module.FetchResult(source_id=src.id, seen=1, new=0, failed=False),
+    )
+
+    now = datetime(2026, 9, 12, 23, 59, tzinfo=UTC)
+    stale = {src.id: datetime(2026, 9, 1, 0, 0, tzinfo=UTC) for src in fetch_module.load_sources() if src.enabled}
+
+    results = fetch_module.fetch(Recording(stale), "all", now=now)
+
+    assert results and not any(result.skipped for result in results)
+
+
+def test_naming_a_source_ignores_the_schedule(monkeypatch):
+    """`make fetch S=ted` is a person asking now, and must not answer "not due".
+
+    The politeness rule is about the unattended cadence. A person recording a fixture
+    or checking whether a portal is back is inside it, and a command that refused them
+    because a cron expression written for a scheduler said so would be obeying the
+    wrong audience.
+    """
+    from datetime import UTC, datetime
+
+    import monitor.fetch as fetch_module
+
+    monkeypatch.setattr(
+        fetch_module,
+        "fetch_source",
+        lambda conn, src: fetch_module.FetchResult(source_id=src.id, seen=7, new=0, failed=False),
+    )
+
+    just_read = {"ted": datetime(2026, 9, 12, 13, 59, tzinfo=UTC)}
+
+    results = fetch_module.fetch(Recording(just_read), "ted", now=datetime(2026, 9, 12, 14, 0, tzinfo=UTC))
+
+    assert [(r.source_id, r.seen, r.skipped) for r in results] == [("ted", 7, False)]
+
+
+def test_a_source_never_fetched_is_read_even_when_nothing_else_is_due(monkeypatch):
+    """A source enabled today must not wait for tomorrow's fire to be read once."""
+    from datetime import UTC, datetime
+
+    import monitor.fetch as fetch_module
+
+    monkeypatch.setattr(
+        fetch_module,
+        "fetch_source",
+        lambda conn, src: fetch_module.FetchResult(source_id=src.id, seen=1, new=0, failed=False),
+    )
+
+    enabled = [src.id for src in fetch_module.load_sources() if src.enabled]
+    now = datetime(2026, 9, 12, 14, 0, tzinfo=UTC)
+    # everything read an hour ago except one source, which has never been read at all
+    attempts = {src: datetime(2026, 9, 12, 13, 0, tzinfo=UTC) for src in enabled[1:]}
+
+    results = fetch_module.fetch(Recording(attempts), "all", now=now)
+
+    read = [result.source_id for result in results if not result.skipped]
+    assert read == [enabled[0]]

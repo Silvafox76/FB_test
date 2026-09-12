@@ -94,7 +94,14 @@ class Source(BaseModel):
     access_type: AccessType = Field(alias="access")
     connector_class: ConnectorClass = Field(alias="connector")
     wave: int = Field(ge=1, le=3)
-    schedule: str  # five-field cron, in the source's own timezone; the registry is authoritative
+    # Five-field cron, UTC, and the registry is authoritative for it. This said "in the
+    # source's own timezone" until 2026-09-12, which was never implementable: there is no
+    # timezone field on this model and never has been, so nothing could have read one.
+    # Every schedule comment in sources/*.yaml that names a zone says UTC - `'0 5 * * *'
+    # # 05:00 UTC daily, 07:00 Berlin` - so UTC is what the registry has always meant.
+    # `monitor/schedule.py` reads it, documents the subset of cron it accepts, and
+    # validates it below.
+    schedule: str
     list_url: str = ""  # one of list_url or api_url is set; checked below
     api_url: str = ""
     # The CSS selector naming one notice row in a rendered listing. BrowserConnector
@@ -116,6 +123,32 @@ class Source(BaseModel):
     expected_min: int = Field(ge=0)
     expected_max: int = Field(ge=0)
     max_consecutive_failures: int = Field(ge=1)
+
+    @field_validator("schedule")
+    @classmethod
+    def _schedule_is_readable(cls, value: str) -> str:
+        """Reject an unreadable cron here, at the registry boundary, not on a live wake.
+
+        Rule 4 wants validation at the module boundary, and this is the boundary: every
+        path into the registry goes through `Source`, so `make seed`, `monitor fetch`
+        and the test suite all reject a bad schedule the moment the YAML is read.
+
+        Without this the first thing to parse a schedule was `is_due()`, called from
+        inside `fetch()`'s loop over enabled sources - which is OUTSIDE `fetch_source`'s
+        try/except. A single unreadable cron would therefore raise past every remaining
+        source and abort the whole pass, so one mistyped line in one YAML file would
+        stop eight healthy sources being read. That is precisely the isolation
+        `monitor/fetch.py`'s docstring promises ("one broken source must mark itself
+        unhealthy without taking the others down with it"), and the schedule was the one
+        field that could break it.
+        """
+        from monitor.schedule import ScheduleError, parse
+
+        try:
+            parse(value)
+        except ScheduleError as error:
+            raise ValueError(f"schedule {value!r}: {error}") from error
+        return value
 
     @model_validator(mode="before")
     @classmethod
