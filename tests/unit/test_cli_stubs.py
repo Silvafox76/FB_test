@@ -38,13 +38,15 @@ def test_every_subcommand_is_reachable():
     parser = build_parser()
     commands = sorted(name for action in parser._subparsers._group_actions for name in action.choices)
 
-    # `metrics` joined the list at BUILD_ORDER step 22, `rescore` on 2026-09-12. The
+    # `metrics` joined the list at BUILD_ORDER step 22, `rescore` and `fx` on
+    # 2026-09-12. The
     # assertion is the whole list rather than a membership check so that a command added
     # to the parser and never given a branch in main() fails here rather than doing
     # nothing at runtime.
     assert commands == [
         "fetch",
         "filter",
+        "fx",
         "golden",
         "metrics",
         "rescore",

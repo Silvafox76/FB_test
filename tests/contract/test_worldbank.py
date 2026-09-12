@@ -362,7 +362,8 @@ def test_no_notice_carries_a_cpv_code_or_a_value(rows):
         mapped = map_notice(raw).notice
 
         assert mapped.cpv_codes == []
-        assert mapped.estimated_value_usd is None
+        assert mapped.estimated_value is None
+        assert mapped.value_currency is None
 
 
 def test_a_bad_notice_date_raises(rows):

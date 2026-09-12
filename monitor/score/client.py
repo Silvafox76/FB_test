@@ -64,6 +64,15 @@ class ScoreResult:
     attempts: int
 
 
+def _stated_value(notice: Notice) -> str:
+    """The published amount and currency for the prompt, or 'not stated'."""
+    if notice.estimated_value is None or notice.value_currency is None:
+        return "not stated"
+    # Whole units: the minor unit is stored because it is what was published, but a
+    # scoring rubric weighs a band, and ".00" on every line is noise in the prompt.
+    return f"{notice.estimated_value:,.0f} {notice.value_currency}"
+
+
 def user_message(notice: Notice, *, title_en: str = "", body_en: str = "") -> str:
     """Everything the model is told about one notice, and nothing else (rule 19)."""
     lines = [
@@ -75,7 +84,14 @@ def user_message(notice: Notice, *, title_en: str = "", body_en: str = "") -> st
         f"Published: {notice.published_at.date().isoformat() if notice.published_at else 'not stated'}",
         f"Deadline: {notice.deadline_at.date().isoformat() if notice.deadline_at else 'not stated'}",
         f"CPV codes: {', '.join(notice.cpv_codes) if notice.cpv_codes else 'none'}",
-        f"Stated value (USD): {notice.estimated_value_usd if notice.estimated_value_usd else 'not stated'}",
+        # As the publisher stated it, in the publisher's currency. It used to read
+        # "Stated value (USD)" off a column almost nothing filled, so the model was
+        # told "not stated" on 2,476 of 2,487 notices while the payload carried the
+        # figure - and then invented one anyway on the eight it scored a value for.
+        # The rubric's value band is a real signal; it just needed the real number.
+        # It is NOT converted here: the model is given what was published, and the
+        # USD figure is derived at staging where the rate can be stamped.
+        f"Stated value: {_stated_value(notice)}",
         f"Source URL: {notice.url}",
     ]
 

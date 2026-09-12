@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -115,11 +116,23 @@ def test_deadlines_parse_when_the_tender_period_states_one(releases):
         assert map_notice(raw).notice.deadline_at is not None
 
 
-def test_a_sterling_value_is_not_converted(releases):
-    """Find a Tender states GBP; open decision 7."""
-    for raw in releases:
-        if (raw["tender"].get("value") or {}).get("currency") == "GBP":
-            assert map_notice(raw).notice.estimated_value_usd is None
+def test_a_sterling_value_is_carried_as_sterling(releases):
+    """Find a Tender states GBP, and GBP is what is stored.
+
+    This used to assert the value was dropped, because decision 7 had no rate to
+    convert it with. Migration 012 gives the pipeline a stamped rate, so the
+    published figure is kept in the published currency and the conversion is a
+    separate, recorded step at staging.
+    """
+    sterling = [raw for raw in releases if (raw["tender"].get("value") or {}).get("currency") == "GBP"]
+    assert sterling, "expected GBP-denominated releases in the fixture"
+
+    for raw in sterling:
+        notice = map_notice(raw).notice
+        stated = raw["tender"]["value"]["amount"]
+        assert notice.value_currency == "GBP"
+        # A stated zero is the publisher's "not stated" and is dropped, everywhere.
+        assert notice.estimated_value == (Decimal(str(stated)).quantize(Decimal("0.01")) if stated > 0 else None)
 
 
 def test_the_buyer_name_is_carried(releases):

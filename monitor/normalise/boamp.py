@@ -279,7 +279,13 @@ def map_notice(raw: dict) -> MappedNotice:
         cpv_codes=cpv_codes(document, paths),
         # Stated in EUR on 96 of 224 eForms notices and never converted here; see
         # the module docstring.
-        estimated_value_usd=None,
+        # eForms states one on 323 of the 584 stored notices, in EUR, as
+        # `EstimatedOverallContractAmount`. It is NOT read yet: the element occurs 452
+        # times across those 323 documents, so procedure-level and lot-level have to be
+        # told apart before a figure is carried, and reading the wrong one would either
+        # understate the opportunity or count it twice. The three national formats
+        # (FNSimple 218, MAPA 42, DSP 1) carry no value element at all. Deliberately
+        # left for its own change rather than guessed at here.
         body=body,
         status="detected",
     )

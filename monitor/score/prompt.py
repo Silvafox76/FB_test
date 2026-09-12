@@ -42,7 +42,8 @@ Score `relevance` from 0 to 100. It should rise with:
 - System signal. A notice that names an actual financial management system is a far stronger signal than
   one that describes software in the abstract. The names are listed below.
 - Value band. A larger stated contract value is worth more, where one is stated. No stated value is not
-  evidence of a small contract.
+  evidence of a small contract. The value is given to you in the currency the publisher used, and it is
+  the publisher's own figure: weigh the band it falls in, and do not convert it or restate it.
 - Geography. The per-country weights below. They are a business priority, not a judgement about the
   country.
 - Donor financing. A notice financed by the World Bank, AfDB, EU, MCC, IsDB or BOAD is worth more: those
@@ -134,7 +135,9 @@ def system_prompt() -> str:
             "notice is already English, translate it when it is not. `summary_en` is at most 120 words "
             "and says what is being bought, by whom, and why it is or is not a PFM opportunity. "
             "`matched_functions` carries the function_id and the words from the notice that made you "
-            "match it, not a restatement of the function name.",
+            "match it, not a restatement of the function name. Do not report a contract value: "
+            "the pipeline reads it from the source's own structured field and converts it at a "
+            "recorded rate, so any figure you supplied would be discarded.",
         ]
     )
 

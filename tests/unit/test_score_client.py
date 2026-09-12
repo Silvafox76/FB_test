@@ -27,7 +27,6 @@ VALID_SCORE = {
     "matched_functions": [{"function_id": "treasury_accounting", "evidence": "IFMIS"}],
     "system_names": ["IFMIS"],
     "procurement_type": "system",
-    "estimated_value_usd": 1_000_000,
     "eligibility_flags": [],
     "deadline_at": "2026-11-30",
     "summary_en": "A ministry of finance is buying an IFMIS.",
@@ -63,7 +62,6 @@ def notice(**overrides) -> Notice:
         "language": "fr",
         "language_confidence": 1.0,
         "cpv_codes": ["48440000"],
-        "estimated_value_usd": None,
         "body": "Le ministère lance un appel d'offres pour un SIGFiP.",
         "status": "filtered_in",
     }

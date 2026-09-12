@@ -159,12 +159,14 @@ def approved(owner, review):
             """
             insert into candidates (id, primary_notice_id, score, status, region, language, title_en,
                                     buyer, country, admin_level, summary_en, matched_functions,
-                                    system_names, procurement_type, estimated_value_usd,
+                                    system_names, procurement_type, estimated_value, value_currency,
+                                    estimated_value_usd, value_rate, value_rate_date,
                                     eligibility_flags, deadline_at)
             values (%s, %s, 78, 'pending_review', 'West Africa', 'en',
                     'Supply and implementation of an integrated financial management system',
                     %s, %s, 'national', 'The ministry is replacing its IFMIS.',
-                    %s::jsonb, %s, 'system', 4200000, %s, '2026-11-30T17:00:00Z')
+                    %s::jsonb, %s, 'system', 4200000, 'USD', 4200000, 1.0, '2026-09-14',
+                    %s, '2026-11-30T17:00:00Z')
             """,
             (
                 candidate_id,

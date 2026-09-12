@@ -137,7 +137,7 @@ SELECT_FILTERED_IN = """
     )
     select n.id, n.content_hash, n.source_id, n.external_id, n.url, n.title, n.buyer, n.country,
            n.admin_level, n.published_at, n.deadline_at, n.language, n.language_confidence,
-           n.cpv_codes, n.estimated_value_usd, coalesce(n.body, ''), n.filter_result, n.status,
+           n.cpv_codes, n.estimated_value, n.value_currency, coalesce(n.body, ''), n.filter_result, n.status,
            coalesce(r.title_en, ''), coalesce(r.body_en, '')
     from notices n
     left join rendering r on r.notice_id = n.id
@@ -155,7 +155,7 @@ def run(conn: psycopg.Connection, client: anthropic.Anthropic, limit: int = 0) -
     cost = 0.0
 
     for row in rows:
-        notice_id, title_en, body_en = row[0], row[18], row[19]
+        notice_id, title_en, body_en = row[0], row[19], row[20]
         notice = _notice_from(row)
         bound = log.bind(notice_id=str(notice_id), source_id=notice.source_id)
 
@@ -207,10 +207,11 @@ def _notice_from(row) -> Notice:
         language=row[11],
         language_confidence=row[12],
         cpv_codes=list(row[13] or []),
-        estimated_value_usd=row[14],
-        body=row[15],
-        filter_result=row[16] or "",
-        status=row[17],
+        estimated_value=row[14],
+        value_currency=row[15],
+        body=row[16],
+        filter_result=row[17] or "",
+        status=row[18],
     )
 
 
@@ -221,10 +222,10 @@ def _write_score(conn: psycopg.Connection, notice_id, result, version: str) -> N
     conn.execute(
         """
         insert into scores (notice_id, model, prompt_version, relevance, title_en, matched_functions,
-                            system_names, procurement_type, estimated_value_usd, eligibility_flags,
+                            system_names, procurement_type, eligibility_flags,
                             deadline_at, summary_en, confidence, raw_json, tokens_in, tokens_out,
                             latency_ms, cost_usd)
-        values (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
+        values (%s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s)
         """,
         (
             notice_id,
@@ -235,7 +236,6 @@ def _write_score(conn: psycopg.Connection, notice_id, result, version: str) -> N
             json.dumps([f.model_dump() for f in score.matched_functions]),
             score.system_names,
             score.procurement_type,
-            score.estimated_value_usd,
             score.eligibility_flags,
             score.deadline_at,
             score.summary_en,
@@ -344,7 +344,7 @@ SELECT_IN_BAND = """
     )
     select n.id, n.content_hash, n.source_id, n.external_id, n.url, n.title, n.buyer, n.country,
            n.admin_level, n.published_at, n.deadline_at, n.language, n.language_confidence,
-           n.cpv_codes, n.estimated_value_usd, coalesce(n.body, ''), n.filter_result, n.status,
+           n.cpv_codes, n.estimated_value, n.value_currency, coalesce(n.body, ''), n.filter_result, n.status,
            coalesce(r.title_en, ''), coalesce(r.body_en, ''),
            c.score_id, c.relevance, c.confidence, c.model
     from notices n
@@ -381,14 +381,14 @@ def rescore(conn: psycopg.Connection, client: anthropic.Anthropic, limit: int = 
     cost = 0.0
 
     for row in rows:
-        notice_id, score_id = row[0], row[20]
-        stored_relevance, stored_confidence, stored_model = row[21], row[22], row[23]
+        notice_id, score_id = row[0], row[21]
+        stored_relevance, stored_confidence, stored_model = row[22], row[23], row[24]
         notice = _notice_from(row)
         bound = log.bind(notice_id=str(notice_id), source_id=notice.source_id, purpose=RESCORE_PURPOSE)
         before = f"{stored_model} relevance {stored_relevance} confidence {stored_confidence}"
 
         try:
-            result = _escalate(conn, client, notice, title_en=row[18], body_en=row[19], version=version)
+            result = _escalate(conn, client, notice, title_en=row[19], body_en=row[20], version=version)
         except caps.CapExceeded:
             conn.commit()
             bound.error("rescore_cap_exceeded", escalated=escalated, remaining=len(rows) - escalated)
@@ -549,7 +549,7 @@ def _replace_score(conn: psycopg.Connection, score_id, result, version: str) -> 
         update scores
            set model = %s, prompt_version = %s, relevance = %s, title_en = %s,
                matched_functions = %s::jsonb, system_names = %s, procurement_type = %s,
-               estimated_value_usd = %s, eligibility_flags = %s, deadline_at = %s,
+               eligibility_flags = %s, deadline_at = %s,
                summary_en = %s, confidence = %s, raw_json = %s::jsonb, tokens_in = %s,
                tokens_out = %s, latency_ms = %s, cost_usd = %s
          where id = %s
@@ -562,7 +562,6 @@ def _replace_score(conn: psycopg.Connection, score_id, result, version: str) -> 
             json.dumps([f.model_dump() for f in score.matched_functions]),
             score.system_names,
             score.procurement_type,
-            score.estimated_value_usd,
             score.eligibility_flags,
             score.deadline_at,
             score.summary_en,

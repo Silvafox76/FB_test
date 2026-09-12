@@ -30,7 +30,6 @@ def valid_input(**overrides) -> dict:
         ],
         "system_names": ["IFMIS"],
         "procurement_type": "system",
-        "estimated_value_usd": 4_200_000,
         "eligibility_flags": ["local_registration"],
         "deadline_at": "2026-11-30",
         "summary_en": "Ghana's Ministry of Finance seeks a supplier for a national IFMIS replacement.",
@@ -62,11 +61,15 @@ def test_the_tool_input_schema_is_derived_from_the_model_and_not_hand_written():
 def test_every_property_is_required_because_strict_mode_drops_the_rest():
     """The defect this pins cost a whole scoring run.
 
-    Five of appendix C's ten fields have defaults in `Score`, so pydantic leaves
-    them out of `required`, and a strict tool will not carry a property that is not
+    Five of appendix C's ten fields had defaults in `Score`, so pydantic left them
+    out of `required`, and a strict tool will not carry a property that is not
     required. The first 29 notices scored came back with matched_functions,
     system_names, eligibility_flags, estimated_value_usd and deadline_at empty on
     every single one, which read exactly like a model matching nothing.
+
+    `estimated_value_usd` is no longer one of them: it was removed from `Score` on
+    2026-09-12 because the model invented every value it ever reported. The rule
+    this test pins is unchanged and still applies to the four that remain.
     """
     schema = tool_definition()["input_schema"]
 
@@ -75,7 +78,7 @@ def test_every_property_is_required_because_strict_mode_drops_the_rest():
         if definition.get("type") == "object":
             assert set(definition["required"]) == set(definition["properties"]), name
 
-    for field in ("matched_functions", "system_names", "eligibility_flags", "estimated_value_usd", "deadline_at"):
+    for field in ("matched_functions", "system_names", "eligibility_flags", "deadline_at"):
         assert field in schema["required"], f"{field} has a default in Score and must still be required here"
 
 
@@ -128,15 +131,29 @@ def test_a_valid_tool_input_round_trips():
 
 
 def test_the_optional_fields_may_be_absent():
-    """A notice stating no value and no deadline is normal, not invalid."""
+    """A notice stating no deadline is normal, not invalid."""
     payload = valid_input()
-    del payload["estimated_value_usd"]
     del payload["deadline_at"]
 
     score = Score.model_validate(payload)
 
-    assert score.estimated_value_usd is None
     assert score.deadline_at is None
+
+
+def test_the_model_can_no_longer_report_a_value_at_all():
+    """The field is gone from the schema, so a model that supplies one is refused.
+
+    It was removed because it was never right: all eight values the scorer ever
+    produced were absent from the notice text it was given, and on the four where
+    the payload carried a real EUR figure the model could not see, three of the
+    inventions sat at 1.09 to 1.19 times it. The figure now comes from the source's
+    own structured field. `extra="forbid"` on Score is what makes this a refusal
+    rather than a silently ignored key.
+    """
+    assert "estimated_value_usd" not in tool_definition()["input_schema"]["properties"]
+
+    with pytest.raises(ValidationError):
+        Score.model_validate(valid_input() | {"estimated_value_usd": 4_200_000})
 
 
 # --- every invalid variant names its field -----------------------------------

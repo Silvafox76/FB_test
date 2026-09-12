@@ -63,7 +63,7 @@ from monitor.normalise.doe import (
     deadline,
     level_for,
     map_notice,
-    value_usd,
+    published,
     without_fraction,
 )
 
@@ -580,13 +580,27 @@ def test_lot_and_notice_classification_are_the_same_codes(details):
         assert bool(top) == any(bool(block) for block in lots)
 
 
-def test_a_euro_value_is_not_converted(details):
-    """Every value in the day is EUR; converting would need a rate and a date."""
+def test_a_euro_value_is_carried_as_euros_rather_than_dropped(details):
+    """Every value in the day is EUR, and EUR is what is stored.
+
+    This used to assert the opposite: `value_usd` returned None for all 90, so the
+    eight stated figures were thrown away because decision 6 had no rate to convert
+    them with. Migration 012 gives the pipeline a rate it can stamp, so the euro
+    amount is carried as a euro amount and the conversion happens at staging.
+    """
     stated = [detail for detail in details if detail["purpose"].get("estimatedValue")]
 
     assert len(stated) == 8
     assert {detail["purpose"]["estimatedValue"]["currencyID"] for detail in stated} == {"EUR"}
-    assert all(value_usd(detail) is None for detail in details)
+
+    carried = [published(detail) for detail in stated]
+    assert all(currency == "EUR" for _, currency in carried)
+    assert all(amount is not None and amount > 0 for amount, _ in carried)
+
+    # And the 82 that state nothing carry nothing, rather than a zero.
+    silent = [detail for detail in details if not detail["purpose"].get("estimatedValue")]
+    assert len(silent) == len(details) - 8
+    assert all(published(detail) == (None, None) for detail in silent)
 
 
 def test_the_legacy_feed_republishes_the_same_procurement_under_new_ids(details):

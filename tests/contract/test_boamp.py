@@ -324,7 +324,8 @@ def test_the_value_is_never_converted_from_euros(document, roots, source):
     for name, root in roots.items():
         if notice_nature(root, reference=name) in excluded:
             continue
-        assert mapped(document, name).notice.estimated_value_usd is None
+        assert mapped(document, name).notice.estimated_value is None
+        assert mapped(document, name).notice.value_currency is None
 
 
 # --- the envelope ------------------------------------------------------------

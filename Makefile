@@ -60,6 +60,9 @@ translate: ## Translate notices held for want of a lexicon, then re-filter them
 score: ## Score every notice the free filter passed
 	uv run python -m monitor.cli score
 
+fx: ## Fetch and store today's exchange rates from the rate publisher
+	$(RUN) monitor fx
+
 stage: ## Dedupe scored notices into candidates and stage them for review
 	uv run python -m monitor.cli stage
 

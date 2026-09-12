@@ -48,7 +48,6 @@ SONNET_ANSWER = {
     "matched_functions": [{"function_id": "asset_inventory_management", "evidence": "gestion du patrimoine"}],
     "system_names": [],
     "procurement_type": "system",
-    "estimated_value_usd": None,
     "eligibility_flags": [],
     "deadline_at": "2026-10-15",
     "summary_en": "A French region is buying an asset management system.",

@@ -42,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Sonnet call, and `monitor/score/run.py`'s `rescore()` is explicit that sizing the run is
     # a person's job rather than a default. So this asks for the number out loud.
     rescore.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = the whole band)")
+    subparsers.add_parser("fx", help="fetch and store today's exchange rates from the rate publisher")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("run", help="one full pass: fetch all, filter, score, dedupe, stage")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
@@ -385,6 +386,28 @@ def run_golden(export_only: bool) -> int:
     return 0
 
 
+def run_fx() -> int:
+    """Fetch the publisher's day and store it.
+
+    Deliberately its own verb rather than a step inside `run`: rates are a daily
+    fact about the world, not a stage of a pipeline pass, and a staging run that
+    silently fetched its own rate would hide a stale feed instead of reporting it.
+    `monitor stage` reads what is stored and refuses to stamp a record when the
+    newest set is past the tolerance in config/fx.yaml.
+    """
+    from monitor.db import connect
+    from monitor.fx.config import load
+    from monitor.fx.nbu import fetch
+    from monitor.fx.store import store
+
+    config = load()
+    rates = fetch(config)
+    with connect("pipeline") as conn:
+        written = store(conn, rates, config)
+    print(f"fx: {config.publisher.id} {rates[0].rate_date}, {len(rates)} rates, {written} new")
+    return 0
+
+
 def run_stage() -> int:
     """Dedupe scored notices into candidates, then stage what clears the bar."""
     from monitor.db import connect
@@ -494,6 +517,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_golden(args.export)
     if args.command == "rescore":
         return run_rescore(args.limit)
+    if args.command == "fx":
+        return run_fx()
     if args.command == "stage":
         return run_stage()
     if args.command == "run":

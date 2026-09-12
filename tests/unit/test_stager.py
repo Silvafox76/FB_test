@@ -18,10 +18,16 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import date
+from decimal import Decimal
 
 import psycopg
 import pytest
 
+from monitor.fx.config import load as load_fx
+from monitor.fx.nbu import Rate
+from monitor.fx.store import latest
+from monitor.fx.store import store as store_rates
 from monitor.stage.stager import (
     FIXTURE_ID_FLOOR,
     next_candidate_id,
@@ -30,6 +36,29 @@ from monitor.stage.stager import (
     run,
     stage_threshold,
 )
+
+# The rate day these tests stage against. A fixed date so the staleness boundary is
+# exact rather than depending on when the suite runs.
+RATE_DAY = date.today()
+
+
+def _store_a_rate_day(conn, day=None):
+    """Put one day of rates in front of the stager, under the real publisher id.
+
+    The real id and not a test one: `stager.run` reads whatever `config/fx.yaml`
+    names, and pointing it somewhere else would test a different code path from the
+    one that runs. `on conflict do nothing` means this is a no-op when a real
+    `monitor fx` has already stored the same day.
+    """
+    config = load_fx()
+    store_rates(
+        conn,
+        [
+            Rate(currency="USD", rate_date=day or RATE_DAY, uah_per_unit=Decimal("44.5483")),
+            Rate(currency="EUR", rate_date=day or RATE_DAY, uah_per_unit=Decimal("51.6386")),
+        ],
+        config,
+    )
 
 
 @pytest.fixture
@@ -58,7 +87,16 @@ def seeded(db_conn, owner):
         (source_id,),
     )
 
-    def scored_notice(relevance: int, title: str, *, country: str = "GH", system_names=None, deadline=None):
+    def scored_notice(
+        relevance: int,
+        title: str,
+        *,
+        country: str = "GH",
+        system_names=None,
+        deadline=None,
+        value=None,
+        currency=None,
+    ):
         content_hash = f"sha256:{uuid.uuid4().hex}"
         db_conn.execute(
             """
@@ -70,11 +108,12 @@ def seeded(db_conn, owner):
         notice_id = db_conn.execute(
             """
             insert into notices (content_hash, source_id, url, title, country, admin_level,
-                                 language, status, deadline_at)
-            values (%s, %s, 'https://example.invalid/n', %s, %s, 'national', 'en', 'scored', %s)
+                                 language, status, deadline_at, estimated_value, value_currency)
+            values (%s, %s, 'https://example.invalid/n', %s, %s, 'national', 'en', 'scored', %s,
+                    %s, %s)
             returning id
             """,
-            (content_hash, source_id, title, country, deadline),
+            (content_hash, source_id, title, country, deadline, value, currency),
         ).fetchone()[0]
         db_conn.execute(
             """
@@ -411,3 +450,94 @@ def test_the_allocator_is_unaffected_below_the_reservation():
     """The guard must cost nothing in the range the pipeline actually uses."""
     assert next_candidate_id(SequenceAt(815)) == "C000815"
     assert next_candidate_id(SequenceAt(FIXTURE_ID_FLOOR - 1)) == f"C{FIXTURE_ID_FLOOR - 1:06d}"
+
+
+# --- the published value, and the figure derived from it ---------------------
+
+
+def test_a_published_value_is_carried_and_converted_at_a_rate_that_is_stored(db_conn, seeded):
+    """The whole point of the change: a figure, and the arithmetic behind it.
+
+    The candidate carries the amount as the publisher stated it, the converted
+    figure, the rate used and the date that rate is from - so a reviewer looking at
+    "USD 99,408" can see it came from UAH 4,428,444 at 44.548300 on a named day,
+    rather than having to trust a number with no provenance. That is what the eight
+    model-invented values did not have.
+    """
+    source_id, scored_notice = seeded
+    scored_notice(80, "Treasury system", value=Decimal("4428444.00"), currency="UAH")
+
+    _store_a_rate_day(db_conn)
+    run(db_conn)
+
+    row = db_conn.execute(
+        """
+        select c.estimated_value, c.value_currency, c.estimated_value_usd, c.value_rate,
+               c.value_rate_date
+        from candidates c join notices n on n.id = c.primary_notice_id
+        where n.source_id = %s
+        """,
+        (source_id,),
+    ).fetchone()
+
+    assert row[0] == Decimal("4428444.00")
+    assert row[1] == "UAH"
+    assert row[2] == 99408
+    assert row[3] == Decimal("44.548300")
+    # Whatever day `latest` selected, not a day this test assumed: a real
+    # `monitor fx` run may have stored a newer one, and the stager is supposed to
+    # use the newest it holds.
+    assert row[4] == latest(db_conn, load_fx()).rate_date
+    # And the stored pair reproduces the stored figure, which is why the rate is kept.
+    assert int((row[0] / row[3]).quantize(Decimal("1"), rounding="ROUND_HALF_UP")) == row[2]
+
+
+def test_a_currency_no_rate_covers_keeps_its_amount_and_gets_no_usd_figure(db_conn, seeded):
+    """NGN has no NBU row and no peg. The published amount still reaches the reviewer.
+
+    The record showing "NGN 5,000,000" is worth more than a blank, and a blank is
+    what the old code produced for every non-USD notice in the corpus.
+    """
+    source_id, scored_notice = seeded
+    scored_notice(80, "Nigerian IFMIS", country="NG", value=Decimal("5000000.00"), currency="NGN")
+
+    _store_a_rate_day(db_conn)
+    run(db_conn)
+
+    row = db_conn.execute(
+        """
+        select c.estimated_value, c.value_currency, c.estimated_value_usd, c.value_rate
+        from candidates c join notices n on n.id = c.primary_notice_id
+        where n.source_id = %s
+        """,
+        (source_id,),
+    ).fetchone()
+
+    assert row[0] == Decimal("5000000.00")
+    assert row[1] == "NGN"
+    assert row[2] is None
+    assert row[3] is None
+
+
+def test_a_notice_stating_no_value_stages_with_nothing_rather_than_a_zero(db_conn, seeded):
+    source_id, scored_notice = seeded
+    scored_notice(80, "No value stated")
+
+    _store_a_rate_day(db_conn)
+    run(db_conn)
+
+    row = db_conn.execute(
+        """
+        select c.estimated_value, c.value_currency, c.estimated_value_usd
+        from candidates c join notices n on n.id = c.primary_notice_id
+        where n.source_id = %s
+        """,
+        (source_id,),
+    ).fetchone()
+
+    assert row == (None, None, None)
+
+
+# Staleness itself is tested where it lives, in tests/unit/test_fx_config_and_store.py:
+# `latest` is what refuses, and testing it again here would mean emptying a table the
+# rest of the suite and any real `monitor fx` run share.

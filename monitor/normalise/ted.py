@@ -11,6 +11,8 @@ deadline is parsed by rule from the original date string.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import structlog
 
 from monitor.connectors.ted import notice_url
@@ -20,6 +22,7 @@ from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -73,6 +76,7 @@ def map_notice(raw: dict) -> MappedNotice:
     title = _original(raw["notice-title"], original, "notice-title", external_id)
     body = _original(raw["description-proc"], original, "description-proc", external_id)
 
+    estimated_value, value_currency = _published(raw)
     notice = Notice(
         content_hash=content_hash(title, body),
         source_id=SOURCE_ID,
@@ -89,7 +93,8 @@ def map_notice(raw: dict) -> MappedNotice:
         # is nothing to be uncertain about.
         language_confidence=1.0,
         cpv_codes=extract_codes(*raw["classification-cpv"]),
-        estimated_value_usd=_value_usd(raw),
+        estimated_value=estimated_value,
+        value_currency=value_currency,
         body=body,
         status="detected",
     )
@@ -186,16 +191,16 @@ def _deadline(raw: dict):
     return min(parsed) if parsed else None
 
 
-def _value_usd(raw: dict) -> int | None:
-    """The stated value, only when it is already in USD.
+def _published(raw: dict) -> tuple[Decimal | None, str | None]:
+    """The stated value as published, in the currency published.
 
-    TED states a currency alongside the value and most of them are EUR. Converting
-    would need an exchange rate and a date, and nothing in this pilot has either;
-    an invented conversion would reach the reviewer as a number that looks
-    researched. Open decision 6: what the record builder does with a EUR value.
+    404 of the 806 stored notices state one, across ten currencies: EUR 275, PLN
+    30, CZK 28, RON 22, SEK 22, GBP 20, NOK 15, DKK 8 and a handful more. Both
+    fields arrive as JSON strings on all 404, which is why the shared helper parses
+    through `str` rather than `float`. 19 of them state zero, which that helper
+    reads as the publisher's "not stated" rather than as a free contract.
+
+    Decision 6 is closed by this: a EUR value is carried as EUR and converted at a
+    stamped rate at staging (migration 012), not dropped and not silently made USD.
     """
-    value = raw.get("estimated-value-proc")
-    currency = raw.get("estimated-value-cur-proc")
-    if not value or currency != "USD":
-        return None
-    return int(float(value))
+    return published_value(raw.get("estimated-value-proc"), raw.get("estimated-value-cur-proc"), source_id=SOURCE_ID)

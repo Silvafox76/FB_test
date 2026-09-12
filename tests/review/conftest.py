@@ -99,12 +99,18 @@ def staged(owner, review):
         """
         insert into candidates (id, primary_notice_id, score, status, region, language, title_en,
                                 buyer, country, admin_level, summary_en, matched_functions,
-                                system_names, procurement_type, estimated_value_usd,
+                                system_names, procurement_type, estimated_value, value_currency,
+                                estimated_value_usd, value_rate, value_rate_date,
                                 eligibility_flags, deadline_at)
+        -- Published in USD and converted through the identity rate, which is what a
+        -- donor-funded Ghanaian tender quoted in dollars actually looks like. The
+        -- rate and its date are set because migration 012 refuses a USD figure
+        -- without them: an unattributed number is the thing that change removed.
         values (%s, %s, 78, 'pending_review', 'West Africa', 'en',
                 'Supply and implementation of an integrated financial management system',
                 'Ministry of Finance', 'GH', 'national', 'Ghana is replacing its IFMIS.',
-                %s::jsonb, %s, 'system', 4200000, %s, '2026-11-30T17:00:00Z')
+                %s::jsonb, %s, 'system', 4200000, 'USD', 4200000, 1.0, '2026-09-14',
+                %s, '2026-11-30T17:00:00Z')
         """,
         (
             candidate_id,

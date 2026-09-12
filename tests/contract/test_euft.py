@@ -428,7 +428,8 @@ def test_no_value_is_carried_through(results, notices):
 
     assert len(priced) == 24
     assert {one(result["metadata"], "cftEstimatedOverallContractCurrency") for result in priced} == {"EUR"}
-    assert all(mapped.notice.estimated_value_usd is None for mapped in notices)
+    assert all(mapped.notice.estimated_value is None for mapped in notices)
+    assert all(mapped.notice.value_currency is None for mapped in notices)
 
 
 def test_the_publication_date_is_a_calendar_day(results, notices):

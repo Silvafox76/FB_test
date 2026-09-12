@@ -10,6 +10,8 @@ it is not carried as USD.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import structlog
 
 from monitor.models import Notice
@@ -17,6 +19,7 @@ from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -40,6 +43,7 @@ def map_notice(raw: dict) -> MappedNotice:
     body = (tender.get("description") or "").strip()
     url = f"https://www.find-tender.service.gov.uk/Notice/{external_id}"
 
+    estimated_value, value_currency = _published(tender)
     notice = Notice(
         content_hash=content_hash(title, body),
         source_id=SOURCE_ID,
@@ -56,7 +60,8 @@ def map_notice(raw: dict) -> MappedNotice:
         language=(raw.get("language") or "en").split("-")[0].lower(),
         language_confidence=1.0,
         cpv_codes=cpv_codes(tender),
-        estimated_value_usd=_value_usd(tender),
+        estimated_value=estimated_value,
+        value_currency=value_currency,
         body=body,
         status="detected",
     )
@@ -82,9 +87,7 @@ def cpv_codes(tender: dict) -> list[str]:
     return extract_codes(*codes)
 
 
-def _value_usd(tender: dict) -> int | None:
-    """The stated value, only when it is already USD. Find a Tender states GBP."""
+def _published(tender: dict) -> tuple[Decimal | None, str | None]:
+    """The stated value as published. Find a Tender states GBP, which is now carried."""
     value = tender.get("value") or {}
-    if value.get("currency") != "USD" or value.get("amount") is None:
-        return None
-    return int(float(value["amount"]))
+    return published_value(value.get("amount"), value.get("currency"), source_id=SOURCE_ID)

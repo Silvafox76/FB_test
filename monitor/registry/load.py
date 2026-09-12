@@ -40,6 +40,7 @@ CONFIG_KINDS = {
     "record_defaults.yaml": "record_defaults",
     "system_names.yaml": "system_names",
     "review.yaml": "review",
+    "fx.yaml": "fx",
 }
 
 

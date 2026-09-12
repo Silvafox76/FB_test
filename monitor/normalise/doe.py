@@ -78,6 +78,7 @@ empty and every notice reaches the step 14 translation stage (rule 9).
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 
 import structlog
 
@@ -89,6 +90,7 @@ from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
 from monitor.normalise.ted import admin_level_for
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -136,6 +138,7 @@ def map_notice(raw: dict) -> MappedNotice:
     title = _single(purpose.get("title"), "purpose.title", external_id, required=True)
     body = _single(purpose.get("description"), "purpose.description", external_id, required=False)
 
+    estimated_value, value_currency = published(raw)
     notice = Notice(
         content_hash=content_hash(title, body),
         source_id=SOURCE_ID,
@@ -152,7 +155,8 @@ def map_notice(raw: dict) -> MappedNotice:
         # checked against it above, so there is nothing to be uncertain about.
         language_confidence=1.0,
         cpv_codes=cpv_codes(raw),
-        estimated_value_usd=value_usd(raw),
+        estimated_value=estimated_value,
+        value_currency=value_currency,
         body=body,
         status="detected",
     )
@@ -319,18 +323,16 @@ def cpv_codes(raw: dict) -> list[str]:
     return extract_codes(*written)
 
 
-def value_usd(raw: dict) -> int | None:
-    """The stated value, only when it is already in USD.
+def published(raw: dict) -> tuple[Decimal | None, str | None]:
+    """The stated value as published. Every one in the recorded day is EUR.
 
-    Every value in the recorded day is EUR (8 of the 90 state one at all).
-    Converting would need an exchange rate and a date, and nothing in this pilot
-    has either; an invented conversion would reach the reviewer as a number that
-    looks researched. Same rule and the same open decision 6 as TED.
+    8 of the 90 notices state a value at all, and they state it in EUR. It used to
+    be dropped, because decision 6 had no rate to convert it with; migration 012
+    gives the pipeline a stamped rate, so the euro figure is carried as a euro
+    figure and converted at staging like every other source's.
     """
     stated = raw["purpose"].get("estimatedValue") or {}
-    if stated.get("currencyID") != "USD":
-        return None
-    return int(float(stated["value"]))
+    return published_value(stated.get("value"), stated.get("currencyID"), source_id=SOURCE_ID)
 
 
 def _single(entries, field: str, external_id: str, *, required: bool) -> str:

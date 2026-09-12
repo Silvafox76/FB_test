@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -155,11 +156,47 @@ def test_deadlines_come_from_the_tender_period(details):
         assert map_notice(raw).notice.deadline_at is not None
 
 
-def test_a_hryvnia_value_is_not_converted(details):
-    """Prozorro states UAH on essentially everything; open decision 7."""
-    for raw in details:
-        if (raw.get("value") or {}).get("currency") == "UAH":
-            assert map_notice(raw).notice.estimated_value_usd is None
+def test_a_hryvnia_value_is_carried_as_hryvnia(details):
+    """Prozorro states UAH on essentially everything, and UAH is what is stored.
+
+    UAH is the reason the rate publisher is the National Bank of Ukraine rather
+    than the ECB: the ECB does not publish it, and it is the largest single block
+    of stated values in the corpus. Carried here as published; converted at
+    staging at a rate that travels with the figure.
+    """
+    hryvnia = [raw for raw in details if (raw.get("value") or {}).get("currency") == "UAH"]
+    assert hryvnia, "expected UAH-denominated tenders in the fixture"
+
+    for raw in hryvnia:
+        notice = map_notice(raw).notice
+        stated = raw["value"]["amount"]
+        assert notice.value_currency == "UAH"
+        assert notice.estimated_value == (Decimal(str(stated)).quantize(Decimal("0.01")) if stated > 0 else None)
+
+
+def test_the_top_level_value_is_the_total_and_not_one_lot(details):
+    """Reading a lot value would understate a multi-lot opportunity.
+
+    Measured across the 743 stored notices: 531 carry lot-level values as well, and
+    on every one of those the lot amounts sum to exactly the top-level figure. So
+    the top level is the total, and that is what the normaliser reads.
+    """
+    with_lots = [
+        raw
+        for raw in details
+        if (raw.get("value") or {}).get("amount") is not None
+        and [lot for lot in (raw.get("lots") or []) if (lot.get("value") or {}).get("amount") is not None]
+    ]
+    assert with_lots, "expected multi-lot tenders in the fixture"
+
+    for raw in with_lots:
+        amounts = [
+            Decimal(str(lot["value"]["amount"]))
+            for lot in raw["lots"]
+            if (lot.get("value") or {}).get("amount") is not None
+        ]
+        lots = sum(amounts)
+        assert lots == Decimal(str(raw["value"]["amount"]))
 
 
 def test_the_connector_bounds_its_detail_requests(source):

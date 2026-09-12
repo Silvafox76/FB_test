@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
@@ -351,43 +352,54 @@ def test_the_description_is_dropped_when_it_only_repeats_the_title(mapped):
         assert m.notice.body  # non-empty and genuinely different prose
 
 
-def test_the_value_is_carried_natively_in_usd_but_a_zero_amount_is_treated_as_absent(mapped):
-    """Liberia is the first source where `estimated_value_usd` can be carried at
-    all: decision 7 drops any non-USD value rather than converting it, and all 14
-    recorded releases state theirs in USD already (see the normaliser's module
-    docstring).
+def test_the_value_is_carried_in_usd_but_a_zero_amount_is_treated_as_absent(mapped):
+    """All 14 releases state USD, and three of them state zero.
 
-    The interesting property is not the count but what a stated `0` means. Three of
-    the 14 releases carry `tender.value.amount == 0` - for, among others,
-    "Construction of Two District Offices for the Liberia Electricity Corporation",
-    which does not cost nothing. `0` is the publisher's placeholder for "not
-    stated", the same thing `Notice.estimated_value_usd`'s own None means, so the
-    mapper drops it rather than carrying it through as a price. Carrying it through
-    would put `estimated_value_usd = 0` into appendix E's Total Opportunity Amount
-    and show a reviewer "USD 0" for a building - the plausible-looking wrong value
-    CLAUDE.md's export rules exist to prevent, and worse than the missing value a
-    None renders as."""
-    amounts = [m.notice.estimated_value_usd for m in mapped]
+    Liberia used to be the only source whose value survived at all, because
+    decision 7 dropped any non-USD amount rather than convert it. Every source now
+    carries its own currency, so Liberia is no longer special - it just happens to
+    publish in the target currency.
+
+    The property that still matters is what a stated `0` means. Three of the 14
+    carry `tender.value.amount == 0`, among them "Construction of Two District
+    Offices for the Liberia Electricity Corporation", which does not cost nothing.
+    `0` is the publisher's placeholder for "not stated", so it is dropped rather
+    than carried through as a price: carried through it becomes USD 0 in appendix
+    E's Total Opportunity Amount and shows a reviewer "USD 0" for a building, which
+    is the plausible-looking wrong value CLAUDE.md's export rules exist to prevent
+    and is worse than the blank a None renders as. The rule now lives in
+    monitor/normalise/value.py, because TED publishes 19 zeros of its own.
+    """
+    amounts = [m.notice.estimated_value for m in mapped]
 
     assert sum(1 for amount in amounts if amount is not None) == 11
     assert sum(1 for amount in amounts if amount is None) == 3
     assert all(amount > 0 for amount in amounts if amount is not None)
+    # Every carried amount says USD, and every dropped one says nothing at all -
+    # the pair cannot come apart.
+    assert [m.notice.value_currency for m in mapped if m.notice.estimated_value is not None] == ["USD"] * 11
+    assert all(m.notice.value_currency is None for m in mapped if m.notice.estimated_value is None)
     # Locks the field and the units: a regression that read the wrong key, or
     # divided cents to dollars, would still leave 11 non-null amounts but change
     # this one silently.
-    assert 10625 in amounts
+    assert Decimal("10625.00") in amounts
 
 
-def test_a_non_usd_value_is_dropped_rather_than_converted(raw_notice_payloads):
+def test_a_non_usd_value_is_carried_in_its_own_currency(raw_notice_payloads):
     """No release in the live fixture states a non-USD amount, so this is
-    constructed rather than measured: decision 7 (`docs/open_decisions.md`) has to
-    hold the day a EUR- or SLL-denominated release does show up."""
+    constructed rather than measured. It used to assert the amount was dropped;
+    under migration 012 it is kept in the currency published and converted at
+    staging, so what this now locks is that the mapper does not quietly relabel a
+    euro figure as dollars - which is exactly what the scorer was doing before the
+    value stopped coming from the model."""
     payload = json.loads(json.dumps(raw_notice_payloads[0]))
+    stated = payload["detail"]["releases"][0]["tender"]["value"]["amount"]
     payload["detail"]["releases"][0]["tender"]["value"]["currency"] = "EUR"
 
-    mapped_notice = map_notice(payload)
+    notice = map_notice(payload).notice
 
-    assert mapped_notice.notice.estimated_value_usd is None
+    assert notice.value_currency == "EUR"
+    assert notice.estimated_value == Decimal(str(stated)).quantize(Decimal("0.01"))
 
 
 def test_cpv_codes_stay_empty_because_the_scheme_is_isic(mapped):

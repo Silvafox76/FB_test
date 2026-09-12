@@ -14,14 +14,13 @@ most releases. Carrying it into `Notice.body` anyway would send the scorer the s
 sentence twice and pay for the tokens, so the body is set only when it says
 something the title does not. The three that differ keep theirs.
 
-**The value is carried, and this is the first source where that is possible.**
-Decision 7 records that a stated value in a currency other than USD is dropped rather
-than converted, because converting needs a rate and a date and the pipeline has
-neither - so appendix E's Total Opportunity Amount is empty for every EUR notice.
-Liberia publishes in USD natively: all 14 releases carry `tender.value` as
-`{"amount": ..., "currency": "USD"}`. No conversion is involved, so the amount goes
-straight through, and a currency that is not USD is dropped exactly as decision 7
-says rather than being quietly assumed.
+**The value is carried as published.** All 14 releases carry `tender.value` as
+`{"amount": ..., "currency": "USD"}`, so Liberia was for a while the only source whose
+value survived at all: decision 7 dropped any non-USD amount rather than convert it,
+because converting needed a rate and a date the pipeline did not have. Migration 012
+gives it both, so every source now carries its own currency and the conversion is a
+stamped step at staging. Liberia is no longer special; it is just the source that
+happens to publish in the target currency.
 
 **Classifications are ISIC, not CPV, so `cpv_codes` stays empty.** All 18
 classifications across the fixture use the ISIC scheme. Mapping ISIC to CPV would be
@@ -47,6 +46,7 @@ from monitor.models import Notice
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -60,9 +60,6 @@ LANGUAGE_CONFIDENCE = 1.0
 
 # See the module docstring: every buyer in the fixture is a central government body.
 ADMIN_LEVEL = "national"
-
-# Decision 7: a value in any other currency is dropped rather than converted.
-USD = "USD"
 
 
 def _release(raw: dict) -> dict:
@@ -96,19 +93,15 @@ def map_notice(raw: dict) -> MappedNotice:
     buyer = ((release.get("buyer") or {}).get("name") or "").strip()
     url = (raw.get("listing") or {}).get("url") or ""
 
+    # The zero-is-not-stated rule started here - three of the 14 releases carry `0`
+    # for "Construction of Two District Offices", "FY2026 Procurement of Transport
+    # Equipment" and "Procurement of Office Equipment", none of which costs nothing -
+    # and it now lives in `monitor/normalise/value.py` because TED turned out to
+    # publish 19 zeros of its own. Liberia's USD is no longer a special case either:
+    # it is carried as the published currency like every other source's, and it
+    # converts through the identity rate at staging.
     value = tender.get("value") or {}
-    amount = value.get("amount")
-    # A stated amount of zero is the publisher's "not stated", not a price, and it is
-    # dropped for that reason. Three of the 14 releases in the fixture carry `0`:
-    # "Construction of Two District Offices for the Liberia Electricity Corporation",
-    # "FY2026 Procurement of Transport Equipment" and "Procurement of Office
-    # Equipment". None of those costs nothing. Carrying the zero through would put
-    # `estimated_value_usd = 0` into appendix E's Total Opportunity Amount and show a
-    # reviewer USD 0 for a building, which is the plausible-looking wrong value
-    # CLAUDE.md's export rules exist to prevent - and `Notice.estimated_value_usd`
-    # already says None means "the notice states no value", which is exactly this.
-    stated = amount is not None and amount > 0 and value.get("currency") == USD
-    estimated_value_usd = int(amount) if stated else None
+    estimated_value, value_currency = published_value(value.get("amount"), value.get("currency"), source_id=SOURCE_ID)
 
     deadline_raw = (tender.get("tenderPeriod") or {}).get("endDate") or ""
 
@@ -125,7 +118,8 @@ def map_notice(raw: dict) -> MappedNotice:
         deadline_at=parse_deadline(deadline_raw, source_id=SOURCE_ID, url=url),
         language=LANGUAGE,
         language_confidence=LANGUAGE_CONFIDENCE,
-        estimated_value_usd=estimated_value_usd,
+        estimated_value=estimated_value,
+        value_currency=value_currency,
         body=body,
     )
     # Already English; an English rendering would be a translation of nothing.

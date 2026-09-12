@@ -12,6 +12,8 @@ told a DK021 code is a CPV code at full precision.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import structlog
 
 from monitor.models import Notice
@@ -19,6 +21,7 @@ from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -38,6 +41,7 @@ def map_notice(raw: dict) -> MappedNotice:
     body = (raw.get("description") or "").strip()
     url = f"https://prozorro.gov.ua/tender/{external_id}"
 
+    estimated_value, value_currency = _published(raw)
     notice = Notice(
         content_hash=content_hash(title, body),
         source_id=SOURCE_ID,
@@ -58,7 +62,8 @@ def map_notice(raw: dict) -> MappedNotice:
         # field, so this is the registry's statement rather than a detection.
         language_confidence=1.0,
         cpv_codes=cpv_from_dk021(raw),
-        estimated_value_usd=_value_usd(raw),
+        estimated_value=estimated_value,
+        value_currency=value_currency,
         body=body,
         status="detected",
     )
@@ -89,13 +94,17 @@ def _buyer(raw: dict) -> str:
     return (entity.get("name") or "").strip()
 
 
-def _value_usd(raw: dict) -> int | None:
-    """The stated value, only when it is already USD.
+def _published(raw: dict) -> tuple[Decimal | None, str | None]:
+    """The stated value as published, in the currency published.
 
-    Prozorro states UAH on essentially everything. Converting needs a rate and a
-    date and nothing in this pilot has either; open decision 7.
+    Prozorro states UAH on all 742 stored notices and it is carried as UAH; the
+    conversion is a stamped step at staging, not something this module invents
+    (decision 7, revised by migration 012).
+
+    The TOP-LEVEL `value` is the total, not a lot. Checked on the corpus: 531 of
+    the 742 carry lot-level values too, and on every one of those 531 the lot
+    amounts sum to exactly the top-level figure, so reading the top level neither
+    double-counts nor understates the opportunity.
     """
     value = raw.get("value") or {}
-    if value.get("currency") != "USD" or value.get("amount") is None:
-        return None
-    return int(float(value["amount"]))
+    return published_value(value.get("amount"), value.get("currency"), source_id=SOURCE_ID)

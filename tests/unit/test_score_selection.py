@@ -123,7 +123,7 @@ def test_the_rendering_chosen_is_the_machine_translation(db_conn, notice_with):
         ("claude-haiku-4-5", "d2580a36a5d2", "Supply of an integrated financial management system"),
     )
 
-    assert selected(db_conn, notice_id)[0][18] == "Supply of an integrated financial management system"
+    assert selected(db_conn, notice_id)[0][19] == "Supply of an integrated financial management system"
 
 
 def test_the_order_the_rows_were_written_in_does_not_change_the_answer(db_conn, notice_with):
@@ -135,7 +135,7 @@ def test_the_order_the_rows_were_written_in_does_not_change_the_answer(db_conn, 
 
     rows = selected(db_conn, notice_id)
     assert len(rows) == 1
-    assert rows[0][18] == "written second, newer"
+    assert rows[0][19] == "written second, newer"
 
 
 def test_a_notice_with_one_rendering_is_unaffected(db_conn, notice_with):
@@ -144,7 +144,7 @@ def test_a_notice_with_one_rendering_is_unaffected(db_conn, notice_with):
 
     rows = selected(db_conn, notice_id)
     assert len(rows) == 1
-    assert rows[0][18] == "Supply of an IFMIS"
+    assert rows[0][19] == "Supply of an IFMIS"
 
 
 def test_a_notice_with_no_rendering_is_still_selected(db_conn, notice_with):
@@ -158,8 +158,8 @@ def test_a_notice_with_no_rendering_is_still_selected(db_conn, notice_with):
 
     rows = selected(db_conn, notice_id)
     assert len(rows) == 1
-    assert rows[0][18] == ""
     assert rows[0][19] == ""
+    assert rows[0][20] == ""
 
 
 def test_three_renderings_still_yield_one_row(db_conn, notice_with):
@@ -172,7 +172,7 @@ def test_three_renderings_still_yield_one_row(db_conn, notice_with):
 
     rows = selected(db_conn, notice_id)
     assert len(rows) == 1
-    assert rows[0][18] == "newest"
+    assert rows[0][19] == "newest"
 
 
 # --- the same defect, in the stager, where it costs more than money ----------------
@@ -244,4 +244,4 @@ def test_the_stager_and_the_rescorer_agree_on_which_score_is_current(db_conn, no
     in_band = [row for row in db_conn.execute(SELECT_IN_BAND, (40, 70, "v1")).fetchall() if row[0] == notice_id]
 
     assert len(staged) == 1 and len(in_band) == 1
-    assert staged[0][7] == in_band[0][21] == 55
+    assert staged[0][7] == in_band[0][22] == 55

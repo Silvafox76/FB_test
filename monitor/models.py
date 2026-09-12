@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -227,10 +228,31 @@ class Notice(BaseModel):
     language: str
     language_confidence: float = Field(ge=0.0, le=1.0)
     cpv_codes: list[str] = Field(default_factory=list)
-    estimated_value_usd: int | None = None  # None when the notice states no value
+    # The amount exactly as the publisher stated it, and in which currency. Never a
+    # converted figure: conversion is a derived, stamped step that happens at
+    # staging (rule 9, and migration 012 for why the model no longer supplies it).
+    # Both are None together when the notice states no value - "no value" and
+    # "an amount in an unknown currency" are not the same thing, and the pair is
+    # checked below so the second cannot be stored as the first.
+    estimated_value: Decimal | None = None
+    value_currency: str | None = None
     body: str = ""
     filter_result: str = ""
     status: NoticeStatus = "detected"
+
+    @model_validator(mode="after")
+    def _value_and_currency_travel_together(self) -> "Notice":
+        if (self.estimated_value is None) != (self.value_currency is None):
+            raise ValueError(
+                f"{self.source_id}: estimated_value={self.estimated_value!r} with "
+                f"value_currency={self.value_currency!r}; a price needs both or neither"
+            )
+        if self.estimated_value is not None and self.estimated_value <= 0:
+            # Publishers use 0 for "not stated" - Liberia on 3 of 14 releases, TED
+            # on 19 - and a zero carried through becomes USD 0 on a CRM record for
+            # a building. The normaliser drops it; this is the backstop.
+            raise ValueError(f"{self.source_id}: estimated_value={self.estimated_value} is not a price")
+        return self
 
 
 class Translation(BaseModel):
@@ -266,7 +288,15 @@ class Score(BaseModel):
     matched_functions: list[MatchedFunction] = Field(default_factory=list)
     system_names: list[str] = Field(default_factory=list)
     procurement_type: ProcurementType
-    estimated_value_usd: int | None = None
+    # `estimated_value_usd` WAS HERE AND WAS REMOVED ON 2026-09-12. It asked the
+    # model for a figure the model does not have. All eight values it ever produced
+    # were checked against the full notice text it was given, and none of the eight
+    # appears in that text in any format - they were invented, not misread, and on
+    # three of the four notices where the payload carried a real EUR figure the
+    # model never saw, the invention sits at 1.09 to 1.19 times it. The number is
+    # read from the source's own structured field instead, in the currency the
+    # source published, and converted at a stamped rate at staging. See
+    # migrations/012_published_value_and_currency.sql.
     eligibility_flags: list[EligibilityFlag] = Field(default_factory=list)
     deadline_at: date | None = None
     summary_en: str = Field(min_length=1)
@@ -300,7 +330,15 @@ class Candidate(BaseModel):
     matched_functions: list[MatchedFunction] = Field(default_factory=list)
     system_names: list[str] = Field(default_factory=list)
     procurement_type: ProcurementType
+    # As published, carried from the primary notice.
+    estimated_value: Decimal | None = None
+    value_currency: str | None = None
+    # Derived at staging: `estimated_value / value_rate`, at the rate dated
+    # `value_rate_date`. None when no rate covers the currency, which is a
+    # documented absence - the record still shows the published amount.
     estimated_value_usd: int | None = None
+    value_rate: Decimal | None = None
+    value_rate_date: date | None = None
     eligibility_flags: list[EligibilityFlag] = Field(default_factory=list)
     deadline_at: datetime | None = None
     # Set only by the reviewer's decision transaction. The trigger in

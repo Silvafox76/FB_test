@@ -13,6 +13,7 @@ quiet day, and quiet days are exactly when nobody looks.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -144,12 +145,45 @@ def test_the_deadline_is_the_earliest_lot():
     assert (deadline.month, deadline.day) == (9, 30)
 
 
-def test_a_non_usd_value_is_not_converted(notices):
-    """An invented exchange rate would reach the reviewer looking researched."""
+def test_a_euro_value_is_carried_as_euros(notices):
+    """TED states ten different currencies and each is kept as published.
+
+    This used to assert the euro figure was thrown away. It was: 404 of the 806
+    stored notices state a value and only Liberia's eleven USD figures ever
+    survived, while the model invented figures for eight notices whose text carried
+    no number at all. The published amount is now the record (rule 9) and the USD
+    column is derived at a rate that is stored beside it.
+    """
     euro_valued = [n for n in notices if n.get("estimated-value-cur-proc") == "EUR"]
     assert euro_valued, "expected EUR-denominated notices in the fixture"
 
-    assert all(map_notice(raw).notice.estimated_value_usd is None for raw in euro_valued)
+    for raw in euro_valued:
+        notice = map_notice(raw).notice
+        stated = Decimal(str(raw["estimated-value-proc"] or 0))
+        if stated > 0:
+            assert notice.value_currency == "EUR"
+            assert notice.estimated_value == stated.quantize(Decimal("0.01"))
+        else:
+            # A currency with no amount behind it is not a price. Both fields drop
+            # together, which the Notice model also refuses to let come apart.
+            assert notice.estimated_value is None
+            assert notice.value_currency is None
+
+
+def test_a_stated_zero_is_read_as_not_stated_rather_than_as_a_free_contract(notices):
+    """19 of the 404 stated values in the corpus are zero or less.
+
+    A zero carried through becomes USD 0 on a CRM Opportunity for a real
+    procurement, which is exactly the plausible-looking wrong value the export
+    rules exist to prevent. The rule started in the Liberia normaliser for three
+    OCDS releases and now lives in monitor/normalise/value.py because TED does it
+    too.
+    """
+    zeros = [n for n in notices if n.get("estimated-value-proc") and Decimal(str(n["estimated-value-proc"])) <= 0]
+    for raw in zeros:
+        notice = map_notice(raw).notice
+        assert notice.estimated_value is None
+        assert notice.value_currency is None
 
 
 def test_award_notices_are_excluded_at_the_query_not_after_the_fetch(notices, source):

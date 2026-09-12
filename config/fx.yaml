@@ -1,0 +1,80 @@
+# Exchange rates: one publisher, one formula, every figure attributable.
+#
+# `estimated_value_usd` on a candidate is a DERIVED field. It exists so a reviewer
+# and the CRM record can see roughly what an opportunity is worth without doing
+# arithmetic, and it is only honest if the rate that produced it travels with it.
+# So every converted figure is stored beside the rate used and that rate's date
+# (migration 012), the same way a translation is stored beside its model and
+# prompt version (rule 9).
+#
+# WHY THE NATIONAL BANK OF UKRAINE AND NOT THE ECB. The obvious choice is the ECB
+# daily reference rates, and it was rejected on measurement, not preference. The
+# ECB publishes 29 currencies and UAH is not among them, and UAH is 742 of the
+# 1,157 stated values in the corpus - the single largest block, and an 0.8
+# priority geography. NBU publishes everything the corpus actually contains: all
+# eleven currencies seen across TED, Prozorro, BOAMP, FTS and Liberia. Using both
+# would mean choosing a winner for the currencies both publish, which is exactly
+# the second selector rule 1 forbids, so there is one publisher and it is the one
+# that covers the data.
+#
+# Its cross rates were checked against the ECB's on 2026-09-12 before this file was
+# written: NBU EUR 51.6386 / NBU USD 44.5483 = 1.1592, and the ECB's published
+# EUR/USD for 2026-09-11 is 1.1592. They agree to four decimal places.
+#
+# The feed is public, needs no key, no registration and no credential of any kind
+# (rule 20), and it is a central bank publishing its own statutory rate table.
+
+publisher:
+  id: nbu
+  name: National Bank of Ukraine, official exchange rates
+  url: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json
+  # The feed quotes UAH per one unit of every OTHER currency, so there is no row
+  # for UAH itself. This is not an omission to work around: it is the base, and
+  # the conversion treats it as such. A notice published in UAH converts as
+  # `amount / uah_per_unit['USD']` rather than through a lookup that would fail.
+  base_currency: UAH
+  # 09:00 UTC daily. NBU publishes the day's rates in the morning Kyiv time, and
+  # this sits ahead of every fetch slot (boamp 04:30 through ebrd 10:30) so a
+  # staging run later the same day has a fresh rate to stamp.
+  schedule: '0 9 * * *'
+
+# What a conversion targets. Everything in the corpus becomes this.
+target_currency: USD
+
+# Statutory pegs, not market rates. The CFA francs are fixed to the euro by treaty
+# and have not moved since 1 January 1999, so they are arithmetic rather than a
+# second rate source: a pegged amount is divided by the peg to reach EUR and then
+# converted through the one publisher's EUR leg like any other euro figure.
+#
+# Verified 2026-09-12 from the issuing central bank rather than from memory. BCEAO
+# publishes a daily "Cours des devises" table on bceao.int and its euro row reads
+# 655,957 for BOTH achat and vente. A buy price identical to the sell price is the
+# signature of a fixed rate; the same table's dollar row (561,500 on 2026-09-11)
+# differs between the two, because that one is a market cross.
+#
+# This matters for West Africa specifically: BJ, BF, CI, ML, NE, SN and TG are all
+# XOF, and they are seven of the thirteen countries carrying the 1.0 geography
+# weight in thresholds.yaml.
+pegged_to_eur:
+  XOF: 655.957   # BCEAO, West African CFA franc
+  XAF: 655.957   # BEAC, Central African CFA franc, same treaty rate
+
+# A currency with neither an NBU rate nor a peg gets NO converted figure. The local
+# amount is still shown exactly as published; estimated_value_usd stays null and
+# the record says why rather than rendering an unexplained blank. NGN, GHS, GMD,
+# SLE and MRU are in this position today, which is a documented absence and not a
+# failure state - a West African notice is still worth reading at its own number.
+
+# How stale a stored rate may be before a conversion refuses to use it. Seven days
+# covers a long weekend plus public holidays at both ends without ever letting a
+# figure be stamped with a rate from a different month. Past this, staging raises
+# rather than stamping a stale rate onto a record a reviewer will read as current
+# (rule 4: fail fast and loudly, and a quietly out-of-date number is the failure
+# that does not announce itself).
+max_rate_age_days: 7
+
+# Whole dollars, half away from zero. The derived column is a bigint and a CRM
+# Opportunity amount has never needed cents. ROUND_HALF_UP rather than banker's
+# rounding because the figure is read by people, not summed across a ledger, and
+# "round half up" is what a reader checking the arithmetic will expect.
+rounding: ROUND_HALF_UP

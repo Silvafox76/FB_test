@@ -583,7 +583,8 @@ def test_no_notice_carries_a_cpv_code_or_a_stated_value(details, rows):
         mapped = map_notice({"listing": listing[notice_id], "detail": detail}).notice
 
         assert mapped.cpv_codes == []
-        assert mapped.estimated_value_usd is None
+        assert mapped.estimated_value is None
+        assert mapped.value_currency is None
 
 
 def test_the_title_is_the_exercise_where_the_notice_names_one(details, rows):

@@ -154,7 +154,8 @@ def map_notice(raw: dict) -> MappedNotice:
         language_confidence=confidence,
         cpv_codes=cpv_codes(metadata, external_id=external_id),
         # 24 of 35 state an amount and all of them are in EUR; see point 5.
-        estimated_value_usd=None,
+        # 24 of the 35 state an amount, but as a programme budget line rather than a
+        # contract value; see the module docstring. Nothing is carried.
         body=body,
         status="detected",
     )

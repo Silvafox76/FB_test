@@ -299,7 +299,8 @@ def test_every_recorded_notice_maps(payloads):
         assert notice.language_confidence == 1.0
         assert notice.admin_level in {"national", "regional", "local"}
         assert notice.url.startswith(f"https://www.simap.ch/{notice.language}/project-detail/")
-        assert notice.estimated_value_usd is None
+        assert notice.estimated_value is None
+        assert notice.value_currency is None
         assert notice.status == "detected"
 
 

@@ -19,7 +19,6 @@ def valid_score(**overrides) -> dict:
         "matched_functions": [{"function_id": "treasury_accounting", "evidence": "IFMIS rollout"}],
         "system_names": ["IFMIS", "GIFMIS"],
         "procurement_type": "system",
-        "estimated_value_usd": 4_200_000,
         "eligibility_flags": ["local_registration"],
         "deadline_at": "2026-11-30",
         "summary_en": "Ghana's Ministry of Finance seeks a supplier for a national IFMIS replacement.",

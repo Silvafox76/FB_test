@@ -272,7 +272,8 @@ def test_no_project_carries_a_cpv_code_or_a_procurement_value(rows):
         mapped = map_notice(raw).notice
 
         assert mapped.cpv_codes == []
-        assert mapped.estimated_value_usd is None
+        assert mapped.estimated_value is None
+        assert mapped.value_currency is None
 
 
 # --- the dates, which is where documentation memory would have gone wrong ------
@@ -357,7 +358,7 @@ def test_the_body_carries_the_banks_own_prose(rows):
 
 
 def test_the_body_states_no_financing_figure(rows):
-    """The same reason estimated_value_usd is None: it is the loan, not the contract."""
+    """The same reason estimated_value is None: it is the loan, not the contract."""
     for raw in rows:
         body = map_notice(raw).notice.body
         for field in ("totalamt", "curr_total_commitment", "lendprojectcost"):

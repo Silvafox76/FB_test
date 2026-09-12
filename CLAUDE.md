@@ -61,6 +61,7 @@ monitor/
   filter/        cpv.py, lexicon.py
   score/         prompt.py, client.py, schema.py, caps.py
   dedupe/        cluster.py
+  fx/            config.py, nbu.py (the one rate publisher), store.py, convert.py
   stage/         stager.py, record.py (the record builder, appendix E)
   health/        source_health.py, metrics.py
   db.py          connection factory; role chosen by env var, never by code path
@@ -71,7 +72,7 @@ review/
   export.py      the only way out: CSV plus manifest, one way, no import path
   templates/     queue.html, candidate.html, decided.html, sources.html, audit.html, export.html
 sources/         one YAML per source
-config/          function_map.yaml, lexicon_en.yaml, lexicon_fr.yaml, thresholds.yaml, record_defaults.yaml
+config/          function_map.yaml, lexicon_en.yaml, lexicon_fr.yaml, thresholds.yaml, record_defaults.yaml, fx.yaml
 migrations/      001_schema.sql, 002_roles.sql, ...
 tests/           unit/, contract/ (fixtures/), golden/ (golden.csv), roles/, review/
 .claude/agents/  the seven subagent files
@@ -112,6 +113,7 @@ The main session owns everything else: Terraform, migrations and the roles, norm
 make up            # docker compose up -d postgres; apply migrations
 make test          # ruff check . && pytest -q
 make fetch S=ted   # run one connector once
+make fx            # fetch and store the day's exchange rates from the one rate publisher
 make run           # fetch all, filter, score, dedupe, stage (one full pass)
 make status        # source health, today's calls and cost, queue depth, export backlog
 make metrics       # the week's numbers, stored as the row the review app's metrics page reads
@@ -136,5 +138,6 @@ A live CRM record (Ghana GIFMIS Modernisation and EU PFM Reform, Ministry of Fin
 
 - Every BD-only field (pricing structure, warranty, number of users, legal support, bid bond, evaluation weighting) is set to the same placeholder the CRM already shows for an unfilled field: `TBD`, `Unknown`, a bare dash or `0`. Never a database `NULL` that renders as blank with no explanation, and never a plausible-looking invented value. An imported Monitor record should read like an early-stage record a person started, not a machine's guess dressed up as fact. It should just arrive a day after publication instead of whenever someone notices it.
 - **FreeBalance Products Required is a set, not a string.** It comes from the component map workbook's New Marketecture sheet: 20 products across 578 mapping rows for 559 components, so some functions map to more than one product. Product Gaps is populated from the same sheet's status column, naming any matched product whose status is not Available. Pillar 8 has no product mapping in the workbook; write an empty set and say so.
+- **A value is carried in the currency published, and the USD figure beside it says how it was derived.** `notices.estimated_value` and `value_currency` hold the amount exactly as the source stated it; `candidates.estimated_value_usd` is derived at staging and stored with `value_rate` and `value_rate_date`, so `estimated_value / value_rate` returns the figure on the record. One rate publisher, named in `config/fx.yaml`, plus the statutory CFA pegs. A currency no rate covers gets no USD figure and keeps its own amount rather than rendering blank. The scorer is NOT asked for a value and its schema has no field for one: it invented all eight it ever reported, none of which appeared in the notice text it was given.
 - **Account resolution happens at import, not at approval.** The record builder proposes the buyer name as text and nothing more. The pipeline never creates, guesses or looks up an Account link, and it has no CRM scope with which to try.
 - **There is no automated duplicate check and there will not be one in this pilot.** The candidate page's decision panel carries a standing reminder to check Zoho by hand for an existing Opportunity on the buyer. This is proven necessary, not theoretical: the Ghana tender the Monitor would surface already has a live Opportunity from December 2025. Under D31 the reviewer is the only duplicate control, every duplicate that reaches an export batch is logged as a finding, and the count is a week 14 gate number that decides whether a read-only CRM search is the first integration taken afterwards.

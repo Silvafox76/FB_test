@@ -26,6 +26,10 @@ import structlog
 import yaml
 
 from monitor.dedupe.cluster import Candidate, Incoming, find_match
+from monitor.fx.config import FxConfig
+from monitor.fx.config import load as load_fx
+from monitor.fx.convert import Converted, RateTable, convert
+from monitor.fx.store import latest
 from monitor.registry.load import CONFIG_DIR
 
 log = structlog.get_logger(__name__)
@@ -118,15 +122,15 @@ SELECT_SCORED = """
     with current_score as (
         select distinct on (s.notice_id)
                s.notice_id, s.relevance, s.title_en, s.summary_en, s.matched_functions,
-               s.system_names, s.procurement_type, s.estimated_value_usd,
+               s.system_names, s.procurement_type,
                s.eligibility_flags, s.deadline_at
         from scores s
         order by s.notice_id, s.created_at desc, s.id
     )
     select n.id, n.source_id, n.content_hash, n.country, n.admin_level, n.language, n.buyer,
            s.relevance, s.title_en, s.summary_en, s.matched_functions, s.system_names,
-           s.procurement_type, s.estimated_value_usd, s.eligibility_flags, s.deadline_at,
-           n.deadline_at
+           s.procurement_type, n.estimated_value, n.value_currency, s.eligibility_flags,
+           s.deadline_at, n.deadline_at
     from notices n
     join current_score s on s.notice_id = n.id
     where n.status = 'scored'
@@ -176,13 +180,26 @@ def run(conn: psycopg.Connection) -> StageCounts:
     rows = conn.execute(SELECT_SCORED).fetchall()
     candidates = load_candidates(conn)
 
+    # One rate table for the whole run, read once. Every candidate created by this
+    # pass is stamped with the same rate and the same rate date, so two candidates
+    # staged together can be compared without asking which minute each was written.
+    # `latest` raises when there are no rates or the newest set is past the
+    # tolerance in config/fx.yaml, which stops the run rather than quietly writing
+    # a batch of records carrying last month's arithmetic (rule 4).
+    #
+    # The arithmetic itself is in monitor/fx/convert.py. The stager decides WHICH
+    # rate table and WHICH amount; it does not know how a conversion works (rule 5).
+    fx = load_fx()
+    rates = latest(conn, fx)
+
     created = joined = 0
 
     for row in rows:
         notice_id, source_id, content_hash, country = row[0], row[1], row[2], row[3]
         relevance, title_en = row[7], row[8]
         system_names = tuple(row[11] or ())
-        deadline = row[15] or row[16]
+        deadline = row[16] or row[17]
+        converted = _converted(row[13], row[14], rates, fx)
 
         incoming = Incoming(
             notice_id=str(notice_id),
@@ -197,7 +214,7 @@ def run(conn: psycopg.Connection) -> StageCounts:
         with conn.transaction():
             if match is None:
                 candidate_id = next_candidate_id(conn)
-                _insert_candidate(conn, candidate_id, row, deadline, relevance)
+                _insert_candidate(conn, candidate_id, row, deadline, relevance, converted)
                 _link(conn, candidate_id, notice_id, "content_hash", 100)
                 write_event(conn, candidate_id, "scored", "", f"relevance {relevance}, from {source_id}")
                 created += 1
@@ -245,14 +262,32 @@ def run(conn: psycopg.Connection) -> StageCounts:
     return counts
 
 
-def _insert_candidate(conn: psycopg.Connection, candidate_id: str, row, deadline, relevance: int) -> None:
+def _converted(amount, currency, rates: RateTable, fx: FxConfig) -> Converted | None:
+    """The published amount in the target currency, or None when nothing is stated.
+
+    Two different Nones meet here and they mean different things. No amount at all
+    is "the notice states no value". An amount in a currency no rate covers - NGN,
+    GHS, GMD, SLE, MRU today - also yields None for the USD column, but the
+    candidate still carries the published figure and its currency, so the record
+    shows what the tender is worth in the money the buyer named rather than an
+    unexplained blank.
+    """
+    if amount is None or currency is None:
+        return None
+    return convert(amount, currency, rates, fx)
+
+
+def _insert_candidate(
+    conn: psycopg.Connection, candidate_id: str, row, deadline, relevance: int, converted: Converted | None
+) -> None:
     conn.execute(
         """
         insert into candidates (id, primary_notice_id, score, status, region, language, title_en,
                                 buyer, country, admin_level, summary_en, matched_functions,
-                                system_names, procurement_type, estimated_value_usd,
+                                system_names, procurement_type, estimated_value, value_currency,
+                                estimated_value_usd, value_rate, value_rate_date,
                                 eligibility_flags, deadline_at)
-        values (%s, %s, %s, 'scored', %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s)
+        values (%s, %s, %s, 'scored', %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         (
             candidate_id,
@@ -269,7 +304,11 @@ def _insert_candidate(conn: psycopg.Connection, candidate_id: str, row, deadline
             list(row[11] or []),
             row[12],
             row[13],
-            list(row[14] or []),
+            row[14],
+            converted.amount if converted else None,
+            converted.rate if converted else None,
+            converted.rate_date if converted else None,
+            list(row[15] or []),
             deadline,
         ),
     )
