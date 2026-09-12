@@ -25,8 +25,19 @@
 # That sentence is in substantially every West African tender notice, so the phrase would
 # have passed the whole francophone West African corpus on boilerplate the moment one of
 # those sources went live. It matches 0 notices in the corpus we hold today, so removing it
-# costs nothing now and prevents a flood later. `compte unique du trésor` (TSA) and
-# `gestion de trésorerie` replace it and carry the sense the function means.
+# costs nothing now and prevents a flood later. `comptabilité publique` replaces it and
+# carries the sense the function means. It is deliberately ONE phrase, not two, and it is
+# first in the list, because `monitor/score/prompt.py:_functions_block()` shows the model
+# only the first six French phrases per function: a second replacement here pushed `SIGIF`
+# out of that window, and SIGIF is one of the system names CLAUDE.md calls out as a strong
+# signal. The deterministic filter in `monitor/filter/lexicon.py` reads the whole list, so
+# list ORDER silently decides what the scorer sees and what the gate matches are not the
+# same set. That asymmetry is pre-existing and is not fixed here; it is written down so the
+# next person adding a phrase to a long function checks the sixth entry before committing.
+# `compte unique du trésor` was NOT used: it already exists under `bank_cash_management`,
+# where TSA belongs, and duplicating it across two functions with different pillars and type
+# weights would tell the model one phrase signals both, which feeds `matched_functions` into
+# appendix E's Products Required and Product Gaps.
 #
 # `recrutement` matched consultant hiring for air-quality monitoring, fibre-optic links,
 # entrepreneurship training for 50 young people, environmental impact notices and a
@@ -39,6 +50,16 @@
 # staging threshold moved. The one genuine PFM notice `recrutement` had been matching -
 # "Recrutement d'un cabinet de conseil pour la Revue de la Qualité des Actifs (AQR)",
 # relevance 25 - still passes, on `gouvernance`.
+#
+# What this leaves `civil_service_movement` is two phrases, `mouvement du personnel` and
+# `nomination`, and both were measured too: each matches 0 of the 710 notices the fr lexicon
+# reads, and 0 across the 284 Burkina notices. So the function matches nothing today. That is
+# a deliberate choice of inert over noisy - `recrutement` was its only phrase that fired and
+# every firing was a false positive - but it is a real gap, not a solved problem, and the
+# honest next move is a filter_cases.yaml case from a genuine civil-service-movement notice
+# rather than another guessed phrase. `nomination` in particular is generic enough (ministerial,
+# judicial, board appointments) to be the next `trésor` the moment a source starts publishing
+# appointment notices; it is kept only because it currently matches nothing to prove it wrong.
 language: fr
 functions:
   policy_management:
@@ -91,8 +112,7 @@ functions:
   - contrôle de conformité
   - audit de conformité
   treasury_accounting:
-  - compte unique du trésor
-  - gestion de trésorerie
+  - comptabilité publique
   - grand livre
   - système intégré de gestion des finances publiques
   - IFMAS
