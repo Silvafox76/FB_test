@@ -167,14 +167,28 @@ list_url: https://opecfund.org/work-with-us/project-procurement/current-opportun
 # (overburdening, working around access controls), not about what the fetched
 # data may later become.
 tos_status: reviewed_restricted
-# The two notice types that never carry a closing date because there is
-# nothing yet, or nothing still, to bid on: a General Procurement Notice
-# announces a project's future procurement programme before a specific tender
-# exists, and a Contract Award Notice announces who already won. Measured on
-# 2026-09-12: 9 GPNs and 1 CAN of 48 rows, all ten stating Closing Date "N/A",
-# and both strings are exact and unambiguous across the whole table (unlike the
-# REOI/SPN type text, which the Fund itself spells three and two different ways
-# respectively - see monitor/connectors/opec_fund.py). monitor/connectors/
+# The two notice types that are not something a supplier bids against: a
+# General Procurement Notice announces a project's future procurement
+# programme before a specific tender exists, and a Contract Award Notice
+# announces who already won. Measured on 2026-09-12: 9 GPNs and 1 CAN of 48
+# rows. Both strings are exact and unambiguous across the whole table (unlike
+# the REOI/SPN type text, which the Fund itself spells three and two different
+# ways respectively - see monitor/connectors/opec_fund.py).
+#
+# CORRECTION AGAINST THE ORIGINAL PLAN, RECORDED RATHER THAN SMOOTHED OVER: the
+# plan going into this build expected every GPN/CAN row to also carry Closing
+# Date "N/A", i.e. that the type and the missing deadline would be the same
+# fact twice. Measured, they are not: 8 of the 10 excluded rows read "N/A",
+# "Not Applicable", an empty cell or "N/A (Project not yet approved)", but two
+# GPNs carry a real future or past date in that column regardless - "Highway to
+# Masaya-Sabana Grande Interurban Section Project" states "September 29, 2026"
+# and "Regional Project for the Development of Infrastructure and Value
+# Chains..." states "August 15, 2026". Both are still excluded, correctly,
+# because the exclusion is decided on notice_type (a GPN is a programme
+# announcement, not a solicitation, regardless of what its Closing Date cell
+# happens to hold) and not on whether that cell reads "N/A" - the type is the
+# real signal and the closing-date correlation this plan assumed is only
+# 8-of-10, not 10-of-10. monitor/connectors/
 # opec_fund.py applies this list client-side, the same shape as
 # sources/ebrd.yaml's own exclude_notice_types, because this board has no query
 # parameter of any kind to narrow with (see ACQUISITION SCOPE in that file).

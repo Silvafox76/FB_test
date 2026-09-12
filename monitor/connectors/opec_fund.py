@@ -51,20 +51,32 @@ on this domain.
 
 **TRAP THREE: the table retains rows with nothing to bid on, and the
 vocabulary that says so is in the registry, not here (rule 6).** Two whole
-notice types never carry a closing date at all: `General Procurement Notice
-(GPN)` announces a project's future procurement programme before any specific
-tender is issued (the World Bank and EBRD publish the same category for the
-same reason — see `monitor/connectors/ebrd.py`'s own docstring), and `Contract
-Award Notice (CAN)` announces who already won. Measured on 2026-09-12: 9 GPNs
-and 1 CAN out of 48 rows, all ten with `Closing Date` reading `N/A`, and both
-strings are exact and unambiguous across the whole table (no capitalisation or
-punctuation variant of either, unlike the REOI/SPN type strings below).
-`sources/opec_fund.yaml`'s `exclude_notice_types` names both; this module
-applies that list the way `monitor/connectors/ebrd.py` applies its own —
-client-side, because nothing here is a query parameter (see ACQUISITION SCOPE
-below) — and raises if a configured name ever stops matching anything, the
-same guard EBRD's `parse_listing` makes for the same reason: a typo in the
-registry must not silently keep everything.
+notice types are not something a supplier bids against: `General Procurement
+Notice (GPN)` announces a project's future procurement programme before any
+specific tender is issued (the World Bank and EBRD publish the same category
+for the same reason — see `monitor/connectors/ebrd.py`'s own docstring), and
+`Contract Award Notice (CAN)` announces who already won. Measured on
+2026-09-12: 9 GPNs and 1 CAN out of 48 rows, and both strings are exact and
+unambiguous across the whole table (no capitalisation or punctuation variant
+of either, unlike the REOI/SPN type strings below). `sources/opec_fund.yaml`'s
+`exclude_notice_types` names both; this module applies that list the way
+`monitor/connectors/ebrd.py` applies its own — client-side, because nothing
+here is a query parameter (see ACQUISITION SCOPE below) — and raises if a
+configured name ever stops matching anything, the same guard EBRD's
+`parse_listing` makes for the same reason: a typo in the registry must not
+silently keep everything.
+
+**The plan going into this build assumed the type and an empty Closing Date
+would be the same fact twice, and measured, they are not — a correction worth
+stating plainly rather than smoothing over.** 8 of the 10 excluded rows do
+read `N/A`, `Not Applicable`, an empty cell or `N/A (Project not yet
+approved)`, but 2 GPNs carry a real date in that column regardless
+("Highway to Masaya-Sabana Grande Interurban Section Project" states
+"September 29, 2026"; a regional infrastructure GPN states "August 15,
+2026"). Both are excluded anyway, correctly: the decision below is made on
+`notice_type`, not on whether `closing_date` happens to read "N/A", because a
+GPN is a programme announcement regardless of what stray value its Closing
+Date cell carries. `in_scope` never inspects `closing_date` for this reason.
 
 That is not the only kind of non-biddable row this table carries, and the
 other kind is *not* filtered here, on purpose. Of the 48 rows, only 9 have a
@@ -76,8 +88,9 @@ original string by `monitor/normalise/dates.py`'s rules, and whether an expired
 deadline still stages a candidate is a filter-stage or stager-stage question,
 never one this module answers by dropping the row before it is stored. This is
 recorded here because it looks, at a glance, like the same problem
-`exclude_notice_types` solves, and it is not: a GPN or CAN has no deadline to
-have missed, while an expired REOI or SPN has one and simply passed it.
+`exclude_notice_types` solves, and it is not: a GPN or CAN is excluded on its
+type alone, while an expired REOI or SPN has a real deadline that simply
+passed and is left for a later stage to weigh.
 
 **ACQUISITION SCOPE: there is nothing to ask for.** Unlike `monitor/
 connectors/ted.py`'s expert query or `monitor/connectors/doe.py`'s API
