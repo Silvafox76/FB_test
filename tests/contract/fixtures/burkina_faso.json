@@ -1,0 +1,26 @@
+{
+  "recorded_on": "2026-09-12",
+  "listing_url": "https://dgcmef.gov.bf/index.php/fr/revue-de-march-s-pour-tous",
+  "listing_file": "burkina_faso.html",
+  "listing_note": "The exact bytes returned by GET https://dgcmef.gov.bf/index.php/fr/revue-de-march-s-pour-tous on 2026-09-12, no modification. Page 0 (the default, newest-first) of a 73-page Drupal view: 15 rows, Quotidien n°4486 (2026-09-11) down to n°4471 (2026-09-21 -> 2026-08-21), matching sources/burkina_faso.yaml's own sample. The same 15 rows repeat lower on the page in a second, unpaginated 'Informations pour tous' block (id block-views-block-revue-de-marches-pour-tous-block-1-2); the connector reads only #block-gavias-monte-content, the first and paginated rendering, and the parser's own container check is scoped to that id so the duplicate block cannot be double-counted.",
+  "listing_sha256": "4cf91968d7463fbd1c53e5630fb8328f5bd9f28bd4af14541e368ddbe45eb0eb",
+  "sample_pdf": {
+    "file": "burkina_faso_sample.pdf",
+    "issue_title": "Quotidien n°4478 - Mardi 01 septembre 2026",
+    "source_href": "http://dgcmef.gov.bf/sites/default/files/2026-09/Quotidien%20N%C2%B04478.pdf",
+    "fetched_on": "2026-09-12",
+    "note": "The issue at source_href is NOT one of the 5 issues the connector's own 5-day lookback would select from listing_file on recorded_on (those are n°4482 to n°4486); it was picked separately, as the smallest listed file (1.68 Mo), to keep this fixture small while still being a real, live-fetched issue. It is used only to prove the connector's payload (base64 PDF bytes) round-trips through monitor.normalise.ocr.extract as real French text, not to exercise the in-window selection logic, which is tested against listing_file alone with a stub PDF body.",
+    "full_issue_bytes": 1758977,
+    "full_issue_pages": 49,
+    "full_issue_sha256": "881e554493dd3e5a3bf6ca97e75d2177fe1ce5e5a160b6406416b4878f006b7d",
+    "full_issue_text_layer_chars": 297512,
+    "full_issue_fonts_embedded": true,
+    "full_issue_fonts_sample": ["TimesNewRomanPSMT", "Arial-BoldMT", "ArialNarrow-BoldItalic", "Arial-Black", "SymbolMT"],
+    "truncation_note": "The full issue (1,758,977 bytes, 49 pages) was not committed. This fixture is pages 1-4 of it, produced with `qpdf --pages n4478_full.pdf 1-4 -- --remove-unreferenced-resources=yes n4478_full.pdf burkina_faso_sample.pdf` on the file fetched from source_href on 2026-09-12. `--remove-unreferenced-resources` drops the glyphs and objects only the excluded pages used; the four kept pages still carry the same embedded TrueType subsets pdffonts reported on the full file, so the truncated fixture is still evidence of a born-digital PDF, not a synthesised one. A plain pdfseparate+pdfunite truncation was tried first and produced a 1,720,607-byte file (barely smaller than the original, because the whole document's font subset is embedded once and copying pages does not re-subset it) with poppler xref-reconstruction warnings; qpdf's resource-stripping is what actually shrinks it and its output has no such warnings.",
+    "truncated_pages": 4,
+    "truncated_bytes": 704363,
+    "truncated_sha256": "13621a72cae861bcab5a960019ad2533cd2ac674a00060b01fe5201f2318ca83",
+    "truncated_text_layer_chars": 18503,
+    "truncated_text_layer_chars_note": "18,503 characters over 4 of 49 pages, comfortably above config/thresholds.yaml's pdf_text_layer_min_chars (2000), which is the number monitor.normalise.ocr.extract compares against. Not comparable to sources/burkina_faso.yaml's per-issue dossier-reference counts (14-105): those are whole issues of 32-150 pages, and this fixture is 4 pages of one 49-page issue."
+  }
+}

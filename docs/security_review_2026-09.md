@@ -738,7 +738,8 @@ Ryan Dear, due 2026-09-19.
 
 ### 6.2 SR-10 — no CSRF or origin control on the decision endpoints
 
-**Severity: Medium.** **Status: deferred — owner Ryan Dear, due 2026-09-26, before live.**
+**Severity: Medium.** **Status: closed — 2026-09-12, review-app-builder lane. Originally
+deferred to owner Ryan Dear, due 2026-09-26, before live; closed three weeks early.**
 
 The four POST handlers accept a form and act on it. There is no CSRF token, no `Origin` or
 `Referer` check, no `TrustedHostMiddleware`, and no session or cookie of any kind:
@@ -761,10 +762,44 @@ forged approval from a real one, because the control that distinguishes them is 
 be a human reading the page.
 
 This is a narrow attack and it needs the reviewer to browse somewhere hostile during a
-review session, which is why it is Medium and not High. It is also cheap to close: reject
-any POST whose `Origin` header is neither absent nor `http://127.0.0.1:8080`, in one piece
-of middleware. That is a change to `review/`, the review-app-builder's lane. Owner Ryan
-Dear, due 2026-09-26.
+review session, which is why it is Medium and not High.
+
+**Closed.** `review/app.py` now registers `refuse_cross_origin_posts`, one
+`@app.middleware("http")` function ahead of every route, which refuses any POST whose
+`Origin` header is present and does not equal the app's own origin:
+
+```python
+if request.method == "POST":
+    origin = request.headers.get("origin")
+    expected = allowed_origin()
+    if origin is not None and origin != expected:
+        log.warning("cross_origin_post_refused", origin=origin, expected=expected, path=request.url.path)
+        return PlainTextResponse(..., status_code=403)
+```
+
+One control rather than `Origin`-with-`Referer`-fallback (rule 1): a browser attaches
+`Origin` to every cross-origin POST by the Fetch standard's own requirement, so a request
+with no `Origin` at all is a same-origin form post from an older browser, or a non-browser
+client such as the operator's own `curl` — not the attack this control exists to stop — and
+is deliberately allowed through. The allowed origin is config, not a literal (rule 6): it is
+read from `MONITOR_REVIEW_ORIGIN`, documented default `http://127.0.0.1:8080`, the same
+idiom `review/export.py` already uses for `MONITOR_EXPORT_DIR`, so a deployment reached
+through an SSM tunnel on a different local port is not locked out. It applies to every POST
+— `/export` and `/export/re-export` included, not only the two decision endpoints, since an
+export is a file leaving the system. A refusal is a 403 naming the offending origin and the
+one it was checked against, plus a `structlog` warning, so the rejection is visible in the
+log rather than only to the browser that triggered it. No new dependency, no session, no
+cookie, no inbound path, nothing notified — rules 15 to 18 hold.
+
+`tests/review/test_csrf.py` (11 tests): a same-origin POST to each of the four handlers
+still succeeds; a POST carrying a hostile `Origin` is refused with 403 and, checked against
+the database rather than the status code alone, writes nothing — `candidates.status` stays
+`pending_review`, `approved_records` gains no row, and a hostile re-export leaves the
+existing CSV's bytes unchanged; a POST with no `Origin` at all still succeeds; and the
+allowed origin follows `MONITOR_REVIEW_ORIGIN` when it is set, so a non-default port is not
+locked out. `uv run pytest tests/review/ -q`: 77 passed. `tests/roles/test_roles.py`: 10
+passed, unaffected — this change touches no privilege and no migration.
+`uv run ruff check review/ tests/review/`: clean.
 
 ---
 
@@ -832,7 +867,7 @@ control is "declared", and no document should say "on".
 | SR-07 | Three undeclared binary wheels committed, outside the hash-pinned lock | Low | Deferred | Ryan Dear | 2026-09-19 |
 | SR-08 | No container image scanning | Low | Deferred | Ryan Dear | 2026-10-10 |
 | SR-09 | Pipeline and browser containers can reach the unauthenticated review app on the compose network | Medium | Deferred | Ryan Dear | 2026-09-19 |
-| SR-10 | No CSRF or Origin control on the four decision/export POST endpoints | Medium | Deferred | Ryan Dear | 2026-09-26 |
+| SR-10 | No CSRF or Origin control on the four decision/export POST endpoints | Medium | **Closed** — 2026-09-12, `refuse_cross_origin_posts` middleware in `review/app.py`, `tests/review/test_csrf.py` (§6.2) | — | — |
 | SR-11 | Session Manager logging declared but unverified | Medium (unverified) | Deferred | Ryan Dear | first `terraform apply` |
 
 **Closed with no finding:**
@@ -872,8 +907,9 @@ only from inside the host, and shadow mode releases no export batch to BD in any
 1. **SR-02, SR-04, SR-07 and SR-09 close before shadow mode ends (2026-09-19).** SR-04 and
    SR-09 are the two that would matter if a connector were ever compromised, and shadow is
    the period in which the connector surface widens.
-2. **SR-03 and SR-10 close before live (2026-09-26).** Live is the first time an approval
-   has a consequence outside this system.
+2. **SR-03 closes before live (2026-09-26).** Live is the first time an approval has a
+   consequence outside this system. SR-10, originally on this line, closed 2026-09-12 (§6.2)
+   — the CSRF/Origin gap on the four POST endpoints is fixed and tested ahead of its date.
 3. **SR-06 and SR-11 close at the first `terraform apply`, and live does not proceed
    without them.** Until an apply happens, "IAM reviewed" and "Session Manager logging on"
    are claims about a text file. Whoever runs that apply re-runs sections 4 and 7 against

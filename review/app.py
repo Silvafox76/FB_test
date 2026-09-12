@@ -29,6 +29,7 @@ to be: one reviewer, a page at a time, a few requests a minute.
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -36,7 +37,7 @@ from typing import Annotated
 import psycopg
 import structlog
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -63,6 +64,66 @@ templates = Jinja2Templates(directory=str(HERE / "templates"))
 
 app = FastAPI(title="PFM Opportunity Monitor", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
+
+REVIEW_ORIGIN_ENV = "MONITOR_REVIEW_ORIGIN"
+DEFAULT_REVIEW_ORIGIN = "http://127.0.0.1:8080"
+
+
+def allowed_origin() -> str:
+    """The app's own origin, for `refuse_cross_origin_posts` below (rule 6).
+
+    Read from the environment the same way `review/export.py` reads `MONITOR_EXPORT_DIR`:
+    a documented default for the address this app binds today, overridable because a
+    deployed host is reached through an SSM port-forwarding tunnel where the local port
+    can differ from 8080. Read fresh on every request rather than cached at import time,
+    so a test — or an operator's tunnel — can change it without restarting the process.
+    """
+    return os.environ.get(REVIEW_ORIGIN_ENV) or DEFAULT_REVIEW_ORIGIN
+
+
+@app.middleware("http")
+async def refuse_cross_origin_posts(request: Request, call_next):
+    """Closes SR-10. One control: refuse a POST whose `Origin` is neither absent nor ours.
+
+    This app has no CSRF token, no session and no cookie (rules 15-18 rule out the session),
+    so nothing distinguishes a form the reviewer is looking at from a form a hostile page
+    the reviewer's browser also has open submits to the same loopback address. `Origin` is
+    the one signal a browser attaches to a cross-origin POST that the browser itself will
+    not let a page forge, so checking it here — once, for every POST, before any handler
+    runs — is the whole fix. Rule 1 is why this is `Origin` alone and not `Origin` falling
+    back to `Referer`: a second selector for the same decision is a second thing to keep in
+    sync and a second thing an attacker only needs one gap in.
+
+    **A missing `Origin` is allowed, deliberately.** The header is absent on a same-origin
+    form POST from an older browser and on a request from a non-browser client such as the
+    operator's own `curl` or a health check — both indistinguishable from each other and
+    both harmless. It is not absent on the request this control exists to stop: the Fetch
+    standard requires a browser to attach `Origin` to every cross-origin POST, precisely
+    because that is the situation a server cannot otherwise see, and a browser will not omit
+    it at a hostile page's request. The threat model here is a browser being steered by a
+    page it loaded — not a script that speaks HTTP directly, which is a different path
+    (SR-09) with a different remedy (network segmentation, not this middleware). So treating
+    "no `Origin`" as "allow" does not open the door this control closes; it declines to
+    guard a door this control was never meant to.
+
+    Applies to every POST regardless of path — `/export` and `/export/re-export` produce a
+    file leaving the system and are not exempt just because they are not a decision endpoint.
+    A rejection is loud on both sides: 403 with a message naming the origin and what it was
+    checked against, and a `structlog` warning, because a forged-origin POST is a security
+    event whether or not the browser that sent it ever reads the response.
+    """
+    if request.method == "POST":
+        origin = request.headers.get("origin")
+        expected = allowed_origin()
+        if origin is not None and origin != expected:
+            log.warning("cross_origin_post_refused", origin=origin, expected=expected, path=request.url.path)
+            return PlainTextResponse(
+                f"refused: Origin {origin!r} does not match this app's own origin {expected!r}. "
+                "This app has no CSRF token; a cross-origin POST is refused instead of trusted.",
+                status_code=403,
+            )
+
+    return await call_next(request)
 
 
 def function_names() -> dict[str, str]:

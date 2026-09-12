@@ -1,0 +1,2311 @@
+{
+  "compiled_releases": {
+    "6a9f604e84de2e3037762345": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T15:56:38Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1691",
+            "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+          },
+          "date": "2026-09-08T01:04:59Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-256050",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "CAREY AND MCDONALD STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1691",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 10000,
+                "currency": "USD"
+              },
+              "description": "Motorbikes",
+              "projectID": "IFB.NO.MPT/NADPAS/RFQ/001/26"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-07T14:30:00Z"
+            },
+            "description": "National Digital and Postal Address System Motorbikes",
+            "documents": [
+              {
+                "dateModified": "2026-09-01T14:07:28Z",
+                "datePublished": "2026-09-07T15:56:35Z",
+                "description": "National Digital and Postal Address System Motorbikes",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "256138",
+                "language": "EN",
+                "title": "National Digital and Postal Address System Motorbikes",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=256138&resourceId=256050"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Valid Tax Clearance\n   *Criterion[Type = file]: Valid Business Registration  Certificate\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-04T14:00:00Z",
+              "startDate": "2026-09-07T15:56:28Z"
+            },
+            "hasEnquiries": false,
+            "id": "256050",
+            "items": [
+              {
+                "classification": {
+                  "description": "Sale, maintenance and repair of motorcycles and related parts and accessories",
+                  "id": "G4540",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Sale, maintenance and repair of motorcycles and related parts and accessories",
+                "id": "G4540"
+              },
+              {
+                "classification": {
+                  "description": "Sale of motor vehicles",
+                  "id": "G4510",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Sale of motor vehicles",
+                "id": "G4510"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1691",
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-07T14:00:00Z",
+              "startDate": "2026-09-07T15:56:28Z"
+            },
+            "title": "National Digital and Postal Address System Motorbikes",
+            "value": {
+              "amount": 10000,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-256050/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f605584de2e3037762346": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T11:24:14Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1680",
+            "name": "MINISTRY OF INTERNAL AFFAIRS"
+          },
+          "date": "2026-09-08T01:04:54Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-247578",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "EXECUTIVE MANSION GROUNDS, CAPITOL HILL"
+              },
+              "contactPoint": {
+                "email": "",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1680",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF INTERNAL AFFAIRS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF INTERNAL AFFAIRS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 2750,
+                "currency": "USD"
+              },
+              "description": "Printing Binding and Publication Special Project GRPB",
+              "projectID": "IFB.NO MLG/SPGRPB/RFQ/028/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T04:30:00Z"
+            },
+            "description": "Printing Binding and Publication Special Project GRPB",
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Other Elegibility Requirements\n   *Criterion[Type = file]: Valid PPCC Vendor Registration Certificate\n   *Criterion[Type = file]: Valid Business Registration Certificate\n   *Criterion[Type = file]: Ability to pre-finance and delivered on time\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-10T04:00:00Z",
+              "startDate": "2026-09-07T11:24:06Z"
+            },
+            "hasEnquiries": false,
+            "id": "247578",
+            "items": [
+              {
+                "classification": {
+                  "description": "Printing",
+                  "id": "C1811",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Printing",
+                "id": "C1811"
+              }
+            ],
+            "mainProcurementCategory": "services",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1680",
+              "name": "MINISTRY OF INTERNAL AFFAIRS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-11T04:00:00Z",
+              "startDate": "2026-09-07T11:24:06Z"
+            },
+            "title": "Printing Binding and Publication Special Project GRPB",
+            "value": {
+              "amount": 2750,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-247578/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f605c84de2e3037762347": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T11:16:05Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1680",
+            "name": "MINISTRY OF INTERNAL AFFAIRS"
+          },
+          "date": "2026-09-08T01:05:03Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-247832",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "EXECUTIVE MANSION GROUNDS, CAPITOL HILL"
+              },
+              "contactPoint": {
+                "email": "",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1680",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF INTERNAL AFFAIRS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF INTERNAL AFFAIRS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 500,
+                "currency": "USD"
+              },
+              "description": "Printing Binding and Publication Special Project NCSSO",
+              "projectID": "IFB.NO MLG/SPNCCSO/RFQ/029/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T04:30:00Z"
+            },
+            "description": "Printing Binding and Publication Special Project NCSSO",
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Other Elegibility Requirements\n   *Criterion[Type = file]: Valid PPCC Vendor Registration Certificate\n   *Criterion[Type = file]: Valid Business Registration Certificate\n   *Criterion[Type = file]: Ability to pre-finance and delivered on time\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-10T04:00:00Z",
+              "startDate": "2026-09-07T11:15:57Z"
+            },
+            "hasEnquiries": false,
+            "id": "247832",
+            "items": [
+              {
+                "classification": {
+                  "description": "Printing",
+                  "id": "C1811",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Printing",
+                "id": "C1811"
+              }
+            ],
+            "mainProcurementCategory": "services",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1680",
+              "name": "MINISTRY OF INTERNAL AFFAIRS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-11T04:00:00Z",
+              "startDate": "2026-09-07T11:15:57Z"
+            },
+            "title": "Printing Binding and Publication Special Project NCSSO",
+            "value": {
+              "amount": 500,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-247832/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f619d84de2e3037762348": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T11:14:38Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1680",
+            "name": "MINISTRY OF INTERNAL AFFAIRS"
+          },
+          "date": "2026-09-08T01:12:32Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-256831",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "EXECUTIVE MANSION GROUNDS, CAPITOL HILL"
+              },
+              "contactPoint": {
+                "email": "",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1680",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF INTERNAL AFFAIRS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF INTERNAL AFFAIRS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 1730,
+                "currency": "USD"
+              },
+              "description": "Computer Supplies and ICT Services NCCSO",
+              "projectID": "IFB.NO MLG/SPNCCSO/RFQ/027/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-18T02:30:00Z"
+            },
+            "description": "Computer Supplies and ICT Services NCCSO",
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Other Elegibility Requirements\n   *Criterion[Type = file]: Valid PPCC Vendor Registration Certificate\n   *Criterion[Type = file]: Valid Business Registration Certificate\n   *Criterion[Type = file]: Ability to pre-finance and delivered on time\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-14T01:00:00Z",
+              "startDate": "2026-09-07T11:14:29Z"
+            },
+            "hasEnquiries": false,
+            "id": "256831",
+            "items": [
+              {
+                "classification": {
+                  "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                  "id": "G4741",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                "id": "G4741"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1680",
+              "name": "MINISTRY OF INTERNAL AFFAIRS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-15T02:00:00Z",
+              "startDate": "2026-09-07T11:14:29Z"
+            },
+            "title": "Computer Supplies and ICT Services NCCSO",
+            "value": {
+              "amount": 1730,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-256831/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f61a884de2e3037762349": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T08:59:48Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1671",
+            "name": "GENERAL AUDITING COMMISSION"
+          },
+          "date": "2026-09-08T01:12:36Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-258461",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "OLD EXECUTIVE MANSION, ASHMUN STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1671",
+              "identifier": {
+                "id": "",
+                "legalName": "GENERAL AUDITING COMMISSION",
+                "scheme": "X-E-GP"
+              },
+              "name": "GENERAL AUDITING COMMISSION",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 15000,
+                "currency": "USD"
+              },
+              "description": "Electronic Appliances",
+              "projectID": "GAC/GOL/EGP/NCB/006/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-10-05T10:30:00Z"
+            },
+            "description": "Procurement of Electronic Appliances",
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Preliminary Requirements\n   *Criterion[Type = file]: Valid Business Registration\n   *Criterion[Type = file]: Valid PPCC Certificate\n   *Criterion[Type = file]: Valid Tax Clarence\n",
+            "enquiryPeriod": {
+              "endDate": "2026-10-02T16:00:00Z",
+              "startDate": "2026-09-07T08:59:43Z"
+            },
+            "hasEnquiries": false,
+            "id": "258461",
+            "items": [
+              {
+                "classification": {
+                  "description": "Wholesale of electronic and telecommunications equipment and parts",
+                  "id": "G4652",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Wholesale of electronic and telecommunications equipment and parts",
+                "id": "G4652"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "open",
+            "procurementMethodDetails": "National Open Competitive Bidding (NOB)",
+            "procuringEntity": {
+              "id": "1671",
+              "name": "GENERAL AUDITING COMMISSION"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-10-05T10:00:00Z",
+              "startDate": "2026-09-07T08:59:43Z"
+            },
+            "title": "Procurement of Electronic Appliances",
+            "value": {
+              "amount": 15000,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-258461/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f61a984de2e303776234a": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T09:00:24Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1671",
+            "name": "GENERAL AUDITING COMMISSION"
+          },
+          "date": "2026-09-08T01:12:36Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-258416",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "OLD EXECUTIVE MANSION, ASHMUN STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1671",
+              "identifier": {
+                "id": "",
+                "legalName": "GENERAL AUDITING COMMISSION",
+                "scheme": "X-E-GP"
+              },
+              "name": "GENERAL AUDITING COMMISSION",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 8000,
+                "currency": "USD"
+              },
+              "description": "Computer Supplies",
+              "projectID": "GAC/GOL/EGP/RFQ/002/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T10:30:00Z"
+            },
+            "description": "Procurement of Computer Supplies such as Internal Hard Drives, External Hard Drives, memory sticks, and other computer items.",
+            "documents": [
+              {
+                "dateModified": "2026-09-04T15:08:13Z",
+                "datePublished": "2026-09-07T09:00:21Z",
+                "description": "Procurement of Computer Supplies such as Internal and External Hard Drives, Memory Sticks, etc.",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "258973",
+                "language": "EN",
+                "title": "Computer Supplies",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=258973&resourceId=258416"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : OTHER ELIGIBILITY CRITERIA\n   *Criterion[Type = file]: VALID TAX CLEARANCE\n   *Criterion[Type = file]: VALID BUSINESS REGISTRATION CERTIFICATE\n   *Criterion[Type = file]: VALID PPCC FORM\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-11T10:00:00Z",
+              "startDate": "2026-09-07T09:00:15Z"
+            },
+            "hasEnquiries": false,
+            "id": "258416",
+            "items": [
+              {
+                "classification": {
+                  "description": "Wholesale of computers, computer peripheral equipment and software",
+                  "id": "G4651",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Wholesale of computers, computer peripheral equipment and software",
+                "id": "G4651"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1671",
+              "name": "GENERAL AUDITING COMMISSION"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-14T10:00:00Z",
+              "startDate": "2026-09-07T09:00:15Z"
+            },
+            "title": "Computer Supplies",
+            "value": {
+              "amount": 8000,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-258416/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f61aa84de2e303776234b": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T15:22:07Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1691",
+            "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+          },
+          "date": "2026-09-08T01:12:38Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-259651",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "CAREY AND MCDONALD STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1691",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 25000,
+                "currency": "USD"
+              },
+              "description": "ICT Infrastructure",
+              "projectID": "IFB NO. MPT/NCB/003/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T14:30:00Z"
+            },
+            "description": "ICT Infrastructure Core Budget",
+            "documents": [
+              {
+                "dateModified": "2026-09-07T12:44:30Z",
+                "datePublished": "2026-09-07T15:22:04Z",
+                "description": "ICT Infrastructure Core Budget",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "259719",
+                "language": "EN",
+                "title": "ICT Infrastructure Core Budget",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=259719&resourceId=259651"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Valid Tax Clearance\n   *Criterion[Type = file]: Valid Business Registration  Certificate\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-12T14:00:00Z",
+              "startDate": "2026-09-07T15:22:02Z"
+            },
+            "hasEnquiries": false,
+            "id": "259651",
+            "items": [
+              {
+                "classification": {
+                  "description": "Wireless telecommunications activities",
+                  "id": "J6120",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Wireless telecommunications activities",
+                "id": "J6120"
+              },
+              {
+                "classification": {
+                  "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                  "id": "G4741",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                "id": "G4741"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "open",
+            "procurementMethodDetails": "National Open Competitive Bidding (NOB)",
+            "procuringEntity": {
+              "id": "1691",
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-14T14:00:00Z",
+              "startDate": "2026-09-07T15:22:02Z"
+            },
+            "title": "ICT Infrastructure Core Budget",
+            "value": {
+              "amount": 25000,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-259651/COMPILED",
+      "version": "1.1"
+    },
+    "6a9f61ae84de2e303776234c": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-07T15:22:42Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1691",
+            "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+          },
+          "date": "2026-09-08T01:12:37Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-259571",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "CAREY AND MCDONALD STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1691",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 25000,
+                "currency": "USD"
+              },
+              "description": "Computer Supply and ICT Service",
+              "projectID": "IFB NO. MPT/NCB/004/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T16:30:00Z"
+            },
+            "description": "Core Budget Computer Supply and ICT Service",
+            "documents": [
+              {
+                "dateModified": "2026-09-07T12:07:31Z",
+                "datePublished": "2026-09-07T15:22:38Z",
+                "description": " Computer Supply and ICT Service",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "259631",
+                "language": "EN",
+                "title": " Computer Supply and ICT Service",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=259631&resourceId=259571"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Valid Tax Clearance\n   *Criterion[Type = file]: Valid Business Registration  Certificate\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-12T16:00:00Z",
+              "startDate": "2026-09-07T15:22:36Z"
+            },
+            "hasEnquiries": false,
+            "id": "259571",
+            "items": [
+              {
+                "classification": {
+                  "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                  "id": "G4741",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                "id": "G4741"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "open",
+            "procurementMethodDetails": "National Open Competitive Bidding (NOB)",
+            "procuringEntity": {
+              "id": "1691",
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-14T16:00:00Z",
+              "startDate": "2026-09-07T15:22:36Z"
+            },
+            "title": "Computer Supply and ICT Service",
+            "value": {
+              "amount": 25000,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-259571/COMPILED",
+      "version": "1.1"
+    },
+    "6aa0b0ae3ef2ea74b64e078d": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-08T15:34:37Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1703",
+            "name": "LIBERIA ANTI-CORRUPTION COMMISSION"
+          },
+          "date": "2026-09-09T01:02:27Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-260213",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "TUPEE TAYLOR CURVE, GODGIFT COMMUNITY, OLD ROAD"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1703",
+              "identifier": {
+                "id": "",
+                "legalName": "LIBERIA ANTI-CORRUPTION COMMISSION",
+                "scheme": "X-E-GP"
+              },
+              "name": "LIBERIA ANTI-CORRUPTION COMMISSION",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 11480,
+                "currency": "USD"
+              },
+              "description": "Vehicle Maintenance and Repairs",
+              "projectID": "IFB N0.LACC/SBA/RB/001/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-29T10:30:00Z"
+            },
+            "description": "FY2026 Vehicle Maintenance and Repairs",
+            "documents": [
+              {
+                "dateModified": "2026-09-08T15:09:53Z",
+                "datePublished": "2026-09-08T15:34:24Z",
+                "description": "FY2026 Vehicle Maintenance and Repairs (Relaunched) ",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "260391",
+                "language": "EN",
+                "title": "FY2026 Vehicle Maintenance and Repairs (Relaunched) ",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=260391&resourceId=260213"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Tax Clearance Certificate\n   *Criterion[Type = text]: Please provide your Tax Clearance Certificate Number\n   *Criterion[Type = list]: Please provide the place of your company registration\nSection : Other eligibility criteria\n   *Criterion[Type = file]: Upload Valid Business Registration\n   *Criterion[Type = file]: Upload valid PPCC certificate\n   *Criterion[Type = file]: Upload letter of commitment to pre-finance\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-22T16:00:00Z",
+              "startDate": "2026-09-08T15:34:17Z"
+            },
+            "hasEnquiries": false,
+            "id": "260213",
+            "items": [
+              {
+                "classification": {
+                  "description": "Maintenance and repair of motor vehicles",
+                  "id": "G4520",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Maintenance and repair of motor vehicles",
+                "id": "G4520"
+              }
+            ],
+            "mainProcurementCategory": "services",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Restricted Bidding (RB)",
+            "procuringEntity": {
+              "id": "1703",
+              "name": "LIBERIA ANTI-CORRUPTION COMMISSION"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-29T10:00:00Z",
+              "startDate": "2026-09-08T15:34:17Z"
+            },
+            "title": "FY2026 Vehicle Maintenance and Repairs",
+            "value": {
+              "amount": 11480,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-260213/COMPILED",
+      "version": "1.1"
+    },
+    "6aa0b0ae3ef2ea74b64e078e": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-08T20:54:25Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1698",
+            "name": "LIBERIA ELECTRICITY CORPORATION"
+          },
+          "date": "2026-09-09T01:02:28Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-260112",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "WEST POINT, WATERSIDE, LEC COMPOUND "
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1698",
+              "identifier": {
+                "id": "",
+                "legalName": "LIBERIA ELECTRICITY CORPORATION",
+                "scheme": "X-E-GP"
+              },
+              "name": "LIBERIA ELECTRICITY CORPORATION",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 484000,
+                "currency": "USD"
+              },
+              "description": "Construction of Two District Offices for the Liberia Electricity Corporation",
+              "projectID": "IFB No: LEC/NCB/CDO/029/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-10-06T10:30:00Z"
+            },
+            "description": "Construction of Two District Offices for the Liberia Electricity Corporation",
+            "documents": [
+              {
+                "dateModified": "2026-09-08T13:34:56Z",
+                "datePublished": "2026-09-08T13:38:21Z",
+                "description": "Bid Notice for Works : Construction of Two District Offices for the Liberia Electricity Corporation",
+                "documentType": "notice",
+                "format": "text/html",
+                "id": "260171",
+                "language": "en",
+                "title": "Bid Notice for Works",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadNotice.do?documentId=260174&lang=en&noticeType=802&resourceId=260112"
+              },
+              {
+                "dateModified": "2026-09-08T13:29:18Z",
+                "datePublished": "2026-09-08T13:38:25Z",
+                "description": "District Offices Construction in Montserrado and Margibi Counties ",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "260165",
+                "language": "EN",
+                "title": "Construction of Two District Offices for the Liberia Electricity Corporation",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=260165&resourceId=260112"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Tax Clearance Certificate\n   *Criterion[Type = text]: Please provide your Tax Clearance Certificate Number\n   *Criterion[Type = list]: Please provide the place of your company registration\nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Current Business Registration Certificate\n   *Criterion[Type = file]: Valid PPCC Certificate of Registration\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-22T17:00:00Z",
+              "startDate": "2026-09-08T13:38:22Z"
+            },
+            "hasEnquiries": false,
+            "id": "260112",
+            "items": [
+              {
+                "classification": {
+                  "description": "Construction of buildings",
+                  "id": "F4100",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Construction of buildings",
+                "id": "F4100"
+              }
+            ],
+            "mainProcurementCategory": "works",
+            "numberOfTenderers": 0,
+            "procurementMethod": "open",
+            "procurementMethodDetails": "National Open Competitive Bidding (NOB)",
+            "procuringEntity": {
+              "id": "1698",
+              "name": "LIBERIA ELECTRICITY CORPORATION"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-10-06T10:00:00Z",
+              "startDate": "2026-09-08T13:38:22Z"
+            },
+            "title": "Construction of Two District Offices for the Liberia Electricity Corporation",
+            "value": {
+              "amount": 0,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-260112/COMPILED",
+      "version": "1.1"
+    },
+    "6aa0b0b03ef2ea74b64e078f": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-08T15:35:55Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1703",
+            "name": "LIBERIA ANTI-CORRUPTION COMMISSION"
+          },
+          "date": "2026-09-09T01:02:28Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-260275",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "TUPEE TAYLOR CURVE, GODGIFT COMMUNITY, OLD ROAD"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1703",
+              "identifier": {
+                "id": "",
+                "legalName": "LIBERIA ANTI-CORRUPTION COMMISSION",
+                "scheme": "X-E-GP"
+              },
+              "name": "LIBERIA ANTI-CORRUPTION COMMISSION",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 41150,
+                "currency": "USD"
+              },
+              "description": "Vehicle Purchase lot  2",
+              "projectID": "IFB N0. LACC/RB/008/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-22T10:30:00Z"
+            },
+            "description": "FY2026 Procurement of Transport Equipment (Relaunched)",
+            "documents": [
+              {
+                "dateModified": "2026-09-08T14:55:31Z",
+                "datePublished": "2026-09-08T15:35:51Z",
+                "description": "FY2026 Procurement of Transport Equipment",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "260341",
+                "language": "EN",
+                "title": "FY2026 Procurement of Transport Equipment",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=260341&resourceId=260275"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Tax Clearance Certificate\n   *Criterion[Type = text]: Please provide your Tax Clearance Certificate Number\n   *Criterion[Type = list]: Please provide the place of your company registration\nSection : Other eligibility criteria\n   *Criterion[Type = file]: Upload valid PPCC certificate\n   *Criterion[Type = file]: Valid Business Registration\n   *Criterion[Type = file]: Upload letter of commitment to pre-finance\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-17T16:00:00Z",
+              "startDate": "2026-09-08T15:35:43Z"
+            },
+            "hasEnquiries": false,
+            "id": "260275",
+            "items": [
+              {
+                "classification": {
+                  "description": "Sale of motor vehicles",
+                  "id": "G4510",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Sale of motor vehicles",
+                "id": "G4510"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Restricted Bidding (RB)",
+            "procuringEntity": {
+              "id": "1703",
+              "name": "LIBERIA ANTI-CORRUPTION COMMISSION"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-22T10:00:00Z",
+              "startDate": "2026-09-08T15:35:43Z"
+            },
+            "title": "FY2026 Procurement of Transport Equipment (Relaunched)",
+            "value": {
+              "amount": 0,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-260275/COMPILED",
+      "version": "1.1"
+    },
+    "6aa354a13ef2ea74b64e0a1d": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-10T14:54:46Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1691",
+            "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+          },
+          "date": "2026-09-11T01:04:34Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-261518",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "CAREY AND MCDONALD STREET"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1691",
+              "identifier": {
+                "id": "",
+                "legalName": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+                "scheme": "X-E-GP"
+              },
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 7500,
+                "currency": "USD"
+              },
+              "description": "Vehicle Spare Parts",
+              "projectID": "IFB NO. MPT/RFQ/001/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-14T14:30:00Z"
+            },
+            "description": "Vehicle Spare Parts Core Budget",
+            "documents": [
+              {
+                "dateModified": "2026-09-10T14:50:08Z",
+                "datePublished": "2026-09-10T14:54:43Z",
+                "description": "Vehicle Spare Parts Core Budget",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "261657",
+                "language": "EN",
+                "title": "Vehicle Spare Parts Core Budget",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=261657&resourceId=261518"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Valid Tax Clearance\n   *Criterion[Type = file]: Valid Business Registration  Certificate\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-13T14:00:00Z",
+              "startDate": "2026-09-10T14:54:38Z"
+            },
+            "hasEnquiries": false,
+            "id": "261518",
+            "items": [
+              {
+                "classification": {
+                  "description": "Sale of motor vehicle parts and accessories",
+                  "id": "G4530",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Sale of motor vehicle parts and accessories",
+                "id": "G4530"
+              },
+              {
+                "classification": {
+                  "description": "Sale of motor vehicles",
+                  "id": "G4510",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Sale of motor vehicles",
+                "id": "G4510"
+              },
+              {
+                "classification": {
+                  "description": "Wholesale of other machinery and equipment",
+                  "id": "G4659",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Wholesale of other machinery and equipment",
+                "id": "G4659"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Request for Quotations (QT)",
+            "procuringEntity": {
+              "id": "1691",
+              "name": "MINISTRY OF POSTS AND TELECOMMUNICATIONS"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-14T14:00:00Z",
+              "startDate": "2026-09-10T14:54:38Z"
+            },
+            "title": "Vehicle Spare Parts Core Budget",
+            "value": {
+              "amount": 7500,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-261518/COMPILED",
+      "version": "1.1"
+    },
+    "6aa4a7753ef2ea74b64e0d15": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-11T16:29:09Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1749",
+            "name": "LIBERIA DRUG ENFORCEMENT AGENCY"
+          },
+          "date": "2026-09-12T01:12:09Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-262028",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "MONROVIA",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "21ST STREET, FIAMAH, SINKOR"
+              },
+              "contactPoint": {
+                "email": "redacted@example.invalid",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1749",
+              "identifier": {
+                "id": "",
+                "legalName": "LIBERIA DRUG ENFORCEMENT AGENCY",
+                "scheme": "X-E-GP"
+              },
+              "name": "LIBERIA DRUG ENFORCEMENT AGENCY",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 10625,
+                "currency": "USD"
+              },
+              "description": "Vehicle Insurance",
+              "projectID": "IFB NO.LDEA/SBA/NCB/007/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-09-25T16:30:00Z"
+            },
+            "description": "Vehicle Insurance",
+            "documents": [
+              {
+                "dateModified": "2026-09-11T16:12:21Z",
+                "datePublished": "2026-09-11T16:29:06Z",
+                "description": "Procurement process for Vehicle Insurance ",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "262210",
+                "language": "EN",
+                "title": "Vehicle Insurance ",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=262210&resourceId=262028"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney / Declaration of Ownership\n   *Criterion[Type = list]: Do you have Power of Attorney / Declaration of Ownership to submit this bid?\n   *Criterion[Type = file]: Upload Power of Attorney / Declaration of Ownership. \nSection : Bid Declaration Security Section\n   *Criterion[Type = file]: Attachment\nSection : Tax Clearance Certificate\n   *Criterion[Type = text]: Please provide your Tax Clearance Certificate Number\n   *Criterion[Type = list]: Please provide the place of your company registration\nSection : Other Eligibility Requirements\n   *Criterion[Type = file]: Valid Business Registration Certificate\n   *Criterion[Type = file]: PPCC Database Registration\n   *Criterion[Type = file]: Past performance records (stating names of at least five clients and their contacts numbers)\n   *Criterion[Type = file]: Ability to Pre-finance\n",
+            "enquiryPeriod": {
+              "endDate": "2026-09-21T00:00:00Z",
+              "startDate": "2026-09-11T16:29:01Z"
+            },
+            "hasEnquiries": false,
+            "id": "262028",
+            "items": [
+              {
+                "classification": {
+                  "description": "Non-life insurance",
+                  "id": "K6512",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Non-life insurance",
+                "id": "K6512"
+              }
+            ],
+            "mainProcurementCategory": "services",
+            "numberOfTenderers": 0,
+            "procurementMethod": "limited",
+            "procurementMethodDetails": "Restricted Bidding (RB)",
+            "procuringEntity": {
+              "id": "1749",
+              "name": "LIBERIA DRUG ENFORCEMENT AGENCY"
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-09-25T16:00:00Z",
+              "startDate": "2026-09-11T16:29:01Z"
+            },
+            "title": "Vehicle Insurance",
+            "value": {
+              "amount": 10625,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-262028/COMPILED",
+      "version": "1.1"
+    },
+    "6aa4a7763ef2ea74b64e0d16": {
+      "license": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publicationPolicy": "https://liberia-test.eurodyn.com/epps/viewInfo.do?section=statistics&selectedItem=viewInfo.do?section=statistics",
+      "publishedDate": "2026-09-11T11:46:08Z",
+      "publisher": {
+        "name": "Liberia: PPCC",
+        "scheme": "",
+        "uid": "",
+        "uri": "https://liberia-test.eurodyn.com"
+      },
+      "releases": [
+        {
+          "buyer": {
+            "id": "1005",
+            "name": "LIBERIA REVENUE AUTHORITY "
+          },
+          "date": "2026-09-12T01:12:10Z",
+          "id": "compiled",
+          "initiationType": "tender",
+          "language": "en",
+          "ocid": "ocds-dwjm7l-261867",
+          "parties": [
+            {
+              "address": {
+                "countryName": "Liberia",
+                "locality": "PAYNESVILLE",
+                "postalCode": "00000",
+                "region": "LR",
+                "streetAddress": "ELWA JUNCTION"
+              },
+              "contactPoint": {
+                "email": "",
+                "faxNumber": "",
+                "telephone": "000-000-0000"
+              },
+              "id": "1005",
+              "identifier": {
+                "legalName": "LIBERIA REVENUE AUTHORITY ",
+                "scheme": "X-E-GP"
+              },
+              "name": "LIBERIA REVENUE AUTHORITY ",
+              "roles": [
+                "buyer",
+                "procuringEntity"
+              ]
+            }
+          ],
+          "planning": {
+            "budget": {
+              "amount": {
+                "amount": 49150,
+                "currency": "USD"
+              },
+              "description": "Procurement of Printers, Scanners, Projectors, etc.",
+              "projectID": "IFB No. LRA/NCB/010/2026"
+            }
+          },
+          "tag": [
+            "compiled"
+          ],
+          "tender": {
+            "awardCriteria": "",
+            "awardPeriod": {
+              "startDate": "2026-10-09T14:30:00Z"
+            },
+            "description": "Procurement of Printers, Scanners, Projectors, etc.",
+            "documents": [
+              {
+                "dateModified": "2026-09-11T07:36:24Z",
+                "datePublished": "2026-09-11T11:46:04Z",
+                "description": "Attached is the detailed invitation for bid",
+                "documentType": "biddingDocuments",
+                "format": "text/html",
+                "id": "261923",
+                "language": "EN",
+                "title": "Invitation for Bid",
+                "url": "https://eprocurement.ppcc.gov.lr/epps/cft/downloadContractDocument.do?documentId=261923&resourceId=261867"
+              }
+            ],
+            "eligibilityCriteria": "Section : Power of Attorney\n   *Criterion[Type = list]: Do you confirm that you have Power of Attorney to submit this bid?\n   *Criterion[Type = file]: Please provide a copy of the signed Power of Attorney\nSection : Bid Security Section\n   *Criterion[Type = numeric]: Amount\n   Criterion[Type = file]: Attachment\nSection : Tax Clearance Certificate\n   *Criterion[Type = text]: Please provide your Tax Clearance Certificate Number\n   *Criterion[Type = list]: Please provide the place of your company registration\nSection : Other Eligibility Requirement\n   *Criterion[Type = file]: Provide your Business Registration Certificate with activity code G4741\n",
+            "enquiryPeriod": {
+              "endDate": "2026-10-02T00:00:00Z",
+              "startDate": "2026-09-11T11:46:02Z"
+            },
+            "hasEnquiries": false,
+            "id": "261867",
+            "items": [
+              {
+                "classification": {
+                  "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                  "id": "G4741",
+                  "scheme": "ISIC",
+                  "uri": "https://unstats.un.org/unsd/publication/seriesm/seriesm_4rev4e.pdf"
+                },
+                "description": "Retail sale of computers, peripheral units, software and telecommunications equipment in specialized stores",
+                "id": "G4741"
+              }
+            ],
+            "mainProcurementCategory": "goods",
+            "numberOfTenderers": 0,
+            "procurementMethod": "open",
+            "procurementMethodDetails": "National Open Competitive Bidding (NOB)",
+            "procuringEntity": {
+              "id": "1005",
+              "name": "LIBERIA REVENUE AUTHORITY "
+            },
+            "status": "active",
+            "submissionMethod": [
+              "electronicSubmission"
+            ],
+            "tenderPeriod": {
+              "endDate": "2026-10-09T14:00:00Z",
+              "startDate": "2026-09-11T11:46:02Z"
+            },
+            "title": "Procurement of Office Equipment",
+            "value": {
+              "amount": 0,
+              "currency": "USD"
+            }
+          }
+        }
+      ],
+      "uri": "https://eprocurement.ppcc.gov.lr/ocds/services/release/mergereleases/ocds-dwjm7l-261867/COMPILED",
+      "version": "1.1"
+    }
+  },
+  "search_response": {
+    "items": [
+      {
+        "compiledRelease": null,
+        "creationDate": 1789144149000,
+        "id": "6aa4a7753ef2ea74b64e0d15",
+        "ocid": "ocds-dwjm7l-262028",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1789127168000,
+        "id": "6aa4a7763ef2ea74b64e0d16",
+        "ocid": "ocds-dwjm7l-261867",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1789052086000,
+        "id": "6aa354a13ef2ea74b64e0a1d",
+        "ocid": "ocds-dwjm7l-261518",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788881755000,
+        "id": "6aa0b0b03ef2ea74b64e078f",
+        "ocid": "ocds-dwjm7l-260275",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788881668000,
+        "id": "6aa0b0ae3ef2ea74b64e078d",
+        "ocid": "ocds-dwjm7l-260213",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788874708000,
+        "id": "6aa0b0ae3ef2ea74b64e078e",
+        "ocid": "ocds-dwjm7l-260112",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788796598000,
+        "id": "6a9f604e84de2e3037762345",
+        "ocid": "ocds-dwjm7l-256050",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788794562000,
+        "id": "6a9f61ae84de2e303776234c",
+        "ocid": "ocds-dwjm7l-259571",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788794527000,
+        "id": "6a9f61aa84de2e303776234b",
+        "ocid": "ocds-dwjm7l-259651",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788780254000,
+        "id": "6a9f605584de2e3037762346",
+        "ocid": "ocds-dwjm7l-247578",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788779765000,
+        "id": "6a9f605c84de2e3037762347",
+        "ocid": "ocds-dwjm7l-247832",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788779678000,
+        "id": "6a9f619d84de2e3037762348",
+        "ocid": "ocds-dwjm7l-256831",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788771624000,
+        "id": "6a9f61a984de2e303776234a",
+        "ocid": "ocds-dwjm7l-258416",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788771588000,
+        "id": "6a9f61a884de2e3037762349",
+        "ocid": "ocds-dwjm7l-258461",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788532961000,
+        "id": "6a9b6cce3ef2ea74b64dff79",
+        "ocid": "ocds-dwjm7l-255053",
+        "processDate": 1789175369458,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788448211000,
+        "id": "6a9a1b643ef2ea74b64dfbeb",
+        "ocid": "ocds-dwjm7l-257787",
+        "processDate": 1788829765831,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788270612000,
+        "id": "6a97775284de2e3037761312",
+        "ocid": "ocds-dwjm7l-255983",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788265776000,
+        "id": "6a97775384de2e3037761313",
+        "ocid": "ocds-dwjm7l-255889",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788263543000,
+        "id": "6a97775484de2e3037761314",
+        "ocid": "ocds-dwjm7l-255744",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788195293000,
+        "id": "6a96273e3ef2ea74b64def33",
+        "ocid": "ocds-dwjm7l-253017",
+        "processDate": 1788570000120,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788171033000,
+        "id": "6a9627493ef2ea74b64def35",
+        "ocid": "ocds-dwjm7l-254472",
+        "processDate": 1788829200097,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788169726000,
+        "id": "6a9627463ef2ea74b64def34",
+        "ocid": "ocds-dwjm7l-254418",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1788082783000,
+        "id": "6a94d3182b944e1bfc5ae0a7",
+        "ocid": "ocds-dwjm7l-253128",
+        "processDate": 1788224956859,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787916436000,
+        "id": "6a9231350138ae4b8474fe03",
+        "ocid": "ocds-dwjm7l-253598",
+        "processDate": 1788570000119,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787914215000,
+        "id": "6a9231350138ae4b8474fe02",
+        "ocid": "ocds-dwjm7l-248555",
+        "processDate": 1789174800076,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787854940000,
+        "id": "6a90dfbe0138ae4b8474fb60",
+        "ocid": "ocds-dwjm7l-249702",
+        "processDate": 1788224400185,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787846119000,
+        "id": "6a90dfbc0138ae4b8474fb5f",
+        "ocid": "ocds-dwjm7l-252083",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787846050000,
+        "id": "6a90dfc50138ae4b8474fb61",
+        "ocid": "ocds-dwjm7l-252299",
+        "processDate": 1787965200079,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787759943000,
+        "id": "6a8f8dfd0138ae4b8474f77f",
+        "ocid": "ocds-dwjm7l-250740",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787735906000,
+        "id": "6a8f8dfd0138ae4b8474f77e",
+        "ocid": "ocds-dwjm7l-251807",
+        "processDate": 1788397200132,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787732718000,
+        "id": "6a8f8dfc0138ae4b8474f77d",
+        "ocid": "ocds-dwjm7l-251724",
+        "processDate": 1788397200125,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787679418000,
+        "id": "6a8e40f30138ae4b8474f533",
+        "ocid": "ocds-dwjm7l-250139",
+        "processDate": 1788829200096,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787663050000,
+        "id": "6a8e40df0138ae4b8474f52e",
+        "ocid": "ocds-dwjm7l-247438",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787663021000,
+        "id": "6a8e40e60138ae4b8474f52f",
+        "ocid": "ocds-dwjm7l-247881",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787662985000,
+        "id": "6a8e40e70138ae4b8474f530",
+        "ocid": "ocds-dwjm7l-248138",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787662946000,
+        "id": "6a8e40ed0138ae4b8474f532",
+        "ocid": "ocds-dwjm7l-248809",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787662909000,
+        "id": "6a8e40ec0138ae4b8474f531",
+        "ocid": "ocds-dwjm7l-248869",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787662871000,
+        "id": "6a8e40f40138ae4b8474f534",
+        "ocid": "ocds-dwjm7l-248938",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787656076000,
+        "id": "6a8e3ed40138ae4b8474f52d",
+        "ocid": "ocds-dwjm7l-233693",
+        "processDate": 1788224400158,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787334996000,
+        "id": "6a88f9cb0138ae4b8474ea7a",
+        "ocid": "ocds-dwjm7l-248455",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787330252000,
+        "id": "6a88f8c00138ae4b8474ea76",
+        "ocid": "ocds-dwjm7l-244595",
+        "processDate": 1788224400179,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787330158000,
+        "id": "6a88f8bb0138ae4b8474ea73",
+        "ocid": "ocds-dwjm7l-244900",
+        "processDate": 1788224400177,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787329993000,
+        "id": "6a88f8b90138ae4b8474ea72",
+        "ocid": "ocds-dwjm7l-244802",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787329907000,
+        "id": "6a88f8bf0138ae4b8474ea75",
+        "ocid": "ocds-dwjm7l-244699",
+        "processDate": 1788224400156,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787329338000,
+        "id": "6a88f8be0138ae4b8474ea74",
+        "ocid": "ocds-dwjm7l-244340",
+        "processDate": 1788224400154,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787329023000,
+        "id": "6a88f9c80138ae4b8474ea79",
+        "ocid": "ocds-dwjm7l-247933",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787327413000,
+        "id": "6a88f8b60138ae4b8474ea71",
+        "ocid": "ocds-dwjm7l-242188",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787327391000,
+        "id": "6a88f9c40138ae4b8474ea78",
+        "ocid": "ocds-dwjm7l-246710",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787311485000,
+        "id": "6a88f8c20138ae4b8474ea77",
+        "ocid": "ocds-dwjm7l-245364",
+        "processDate": 1789088400074,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787261316000,
+        "id": "6a87a7340138ae4b8474e687",
+        "ocid": "ocds-dwjm7l-246010",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787261243000,
+        "id": "6a87a7350138ae4b8474e688",
+        "ocid": "ocds-dwjm7l-246927",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787247367000,
+        "id": "6a87a86b0138ae4b8474e68a",
+        "ocid": "ocds-dwjm7l-246999",
+        "processDate": 1787361452984,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787242377000,
+        "id": "6a87a7360138ae4b8474e689",
+        "ocid": "ocds-dwjm7l-246258",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787240400000,
+        "id": "6a87a7270138ae4b8474e686",
+        "ocid": "ocds-dwjm7l-237210",
+        "processDate": 1787707070411,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787237533000,
+        "id": "6a87a7240138ae4b8474e685",
+        "ocid": "ocds-dwjm7l-244010",
+        "processDate": 1787965200075,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787223756000,
+        "id": "6a87a7230138ae4b8474e684",
+        "ocid": "ocds-dwjm7l-243061",
+        "processDate": null,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787096307000,
+        "id": "6a85039a0138ae4b8474ddbf",
+        "ocid": "ocds-dwjm7l-244152",
+        "processDate": 1787878800098,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787073823000,
+        "id": "6a8503920138ae4b8474ddbc",
+        "ocid": "ocds-dwjm7l-243910",
+        "processDate": 1788224400151,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787071724000,
+        "id": "6a8503930138ae4b8474ddbe",
+        "ocid": "ocds-dwjm7l-243822",
+        "processDate": 1788224400158,
+        "status": "GENERATED",
+        "versionedRelease": null
+      },
+      {
+        "compiledRelease": null,
+        "creationDate": 1787069764000,
+        "id": "6a8503900138ae4b8474ddba",
+        "ocid": "ocds-dwjm7l-240852",
+        "processDate": 1787965200078,
+        "status": "GENERATED",
+        "versionedRelease": null
+      }
+    ],
+    "total": 1385
+  }
+}
