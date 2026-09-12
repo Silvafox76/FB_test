@@ -28,6 +28,27 @@ pytestmark = pytest.mark.roles
 APPROVED_RECORD_ID = "R999999"
 EXPORT_BATCH_ID = "B9999"
 
+# The top of the `C[0-9]{6}` range the schema allows, reserved for fixtures.
+#
+# `candidates.id` is constrained to six digits and the stager allocates them from
+# `candidate_id_seq`, which starts at 1 and had reached C000815 by 2026-09-12. A
+# fixture that drew its id uniformly from the whole range therefore collided with a
+# real staged candidate about once every 7,000 draws - ten draws per run, so roughly
+# one run in 700, which is what a full suite did once on that date: an ERROR in setup
+# on `test_review_can_approve_insert_and_export` that would not reproduce.
+#
+# The error was harmless (the insert fails before `yield`, so the teardown that would
+# have deleted the real row never runs) and it is still worth removing, for two
+# reasons. The odds grow with the table: at 50,000 candidates it is one run in two.
+# And this is the checkpoint file - the one test that has to be believed on every
+# commit for all 31 steps - so an error in it that has nothing to do with rule 11
+# teaches the reader to discount the next one.
+#
+# Drawing from 900000-999999 puts the fixture where the sequence will not arrive, the
+# same reservation `APPROVED_RECORD_ID` and `EXPORT_BATCH_ID` above already use.
+FIXTURE_ID_FLOOR = 900_000
+FIXTURE_ID_CEILING = 1_000_000
+
 
 def url(env_var: str) -> str:
     value = os.environ.get(env_var)
@@ -71,7 +92,8 @@ def candidate(owner, pipeline, review) -> str:
     marker = uuid.uuid4().hex[:8]
     source_id = f"test-{marker}"
     content_hash = f"sha256:{marker}"
-    candidate_id = f"C{int(marker, 16) % 1_000_000:06d}"
+    span = FIXTURE_ID_CEILING - FIXTURE_ID_FLOOR
+    candidate_id = f"C{FIXTURE_ID_FLOOR + int(marker, 16) % span:06d}"
 
     owner.execute(
         """
@@ -122,6 +144,27 @@ def candidate(owner, pipeline, review) -> str:
     owner.execute("delete from notices where content_hash = %s", (content_hash,))
     owner.execute("delete from notices_raw where content_hash = %s", (content_hash,))
     owner.execute("delete from sources where id = %s", (source_id,))
+
+
+# --- the fixture cannot reach a real candidate -------------------------------
+
+
+def test_the_fixture_id_is_outside_the_range_the_stager_allocates(owner, candidate):
+    """The teardown deletes by id, so an id the pipeline could also hold is a hazard.
+
+    Not a test of the system: a test that this file cannot damage the database it
+    runs against. `candidate` tears down with `delete from candidates where id = %s`,
+    which is correct for a row this file created and destructive for one the stager
+    created. Keeping the two id spaces disjoint is what makes that delete safe, so
+    the disjointness is asserted rather than assumed.
+    """
+    assert int(candidate[1:]) >= FIXTURE_ID_FLOOR
+
+    reached = owner.execute("select last_value from candidate_id_seq").fetchone()[0]
+    assert reached < FIXTURE_ID_FLOOR, (
+        f"candidate_id_seq has reached {reached}, inside the block reserved for fixtures; "
+        "widen the id format or move the reservation before this file deletes a real row"
+    )
 
 
 # --- the pipeline is refused -------------------------------------------------
