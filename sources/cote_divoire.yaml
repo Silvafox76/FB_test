@@ -1,0 +1,174 @@
+# Cote d'Ivoire's national public procurement notices, published by the DGMP
+# (Direction Generale des Marches Publics, Ministry of Finance and Budget) at
+# marchespublics.ci. All three candidate entry points named in the onboarding brief
+# were checked live on 2026-09-12 rather than assumed, and the one that is actually
+# the notice-publishing route is not the one that name suggests:
+#
+#   1. https://anrmp.ci -> HTTP 200 but a bare 301 to https://arcop.ci. ANRMP
+#      (Autorite Nationale de Regulation des Marches Publics) has been renamed ARCOP
+#      (Autorite de Regulation des Commandes Publiques), the same rename Senegal's
+#      ARMP and Burkina Faso's ARMP went through to their own "ARCOP" (see
+#      sources/senegal.yaml, sources/burkina_faso.yaml - this is a WAEMU-wide
+#      relabelling, not a Cote d'Ivoire-specific one). arcop.ci is a WordPress site
+#      (x-powered-by PHP/8.3.33, wp-json present): the regulator's institutional and
+#      news site (decisions, appeals, communiques), not a tender-notice listing. Its
+#      homepage is linked from DGMP's own site as "Decisions et avis de l'ANRMP",
+#      which is dispute-resolution output, a different stream from procurement
+#      notices. Not this source, and not investigated further as one (rule 1: this
+#      is a different body for a different purpose, not a second route to the same
+#      data).
+#   2. https://marchespublics.ci -> THIS SOURCE. A CodeIgniter site (ci_session
+#      cookie, default CI 404 template) titled "DGMP - Direction Generale des
+#      Marches Publics", served over valid HTTPS (Let's Encrypt, CN=marchespublics.ci,
+#      verified 2026-09-12, expires 2026-11-05) with HTTP/1.1 and no forced upgrade
+#      from plain HTTP (http://marchespublics.ci also answers 200 rather than
+#      redirecting to HTTPS - noted because the brief asked about HTTP-only/invalid
+#      TLS; HTTPS here is valid, HTTP is merely also-served, not the primary route
+#      used).
+#   3. https://sigomap.dmp.gouv.ci -> DOES NOT RESOLVE. CONNECT fails (proxy status
+#      log: "gateway answered 502 to CONNECT", and the same host fails to resolve
+#      over plain HTTP too - "Could not resolve host" - independent of the CONNECT
+#      path, so this is the host being gone, not the session's egress policy). The
+#      real successor host, found from DGMP's own site rather than guessed, is
+#      sigomap.gouv.ci (see SIGOMAP below) - dmp.gouv.ci itself resets the TLS
+#      connection outright and answers HTTP with a bare 503, a dead legacy host, the
+#      same shape sources/senegal.yaml found for www.marchespublics.sn.
+#
+# THE PUBLIC LISTING, WHICH IS SERVER-RENDERED HTML AND NEEDS NO BROWSER. DGMP's own
+# site carries a direct link, "Avis d'appels d'offres" -> marchespublics.ci/appel_offre,
+# separate from "Resultats des appels d'offres" (avis_attribution, awards) and "Plans
+# de passation" (plan_passation, procurement plans) - three distinct pages, not one
+# feed mixing notice types that would need excluding. Fetched plain (curl, no
+# JavaScript, no cookies beyond the session cookie CodeIgniter sets on every request):
+# one GET returns a 1.2 MB document containing a single table, `table#example`
+# (jQuery DataTables, paginated only in the browser), with 1,216 `<tbody>` rows
+# already present in the served HTML - the whole archive in one document, the same
+# shape as sources/ebrd.yaml's ECEPP listing and sources/boamp.yaml's directory
+# index, not a page a connector would need to walk. Columns, in order: Numero AO,
+# Type de marche, Objet, Autorite Contractante, Date de publication, Date limite.
+# BUILD_ORDER.md step 17 names Cote d'Ivoire as an expected BrowserConnector
+# alongside Ghana; that expectation does not hold here and this file records the
+# evidence rather than the assumption, the same correction sources/senegal.yaml
+# made against the same step's "PageConnector on structured listings" line.
+#
+# access is `public_listing` and connector is `FeedConnector`: httpx + selectolax
+# against one GET, no session, no JavaScript, no pagination to walk (house pattern:
+# monitor/connectors/ebrd.py). No per-row detail link or document exists anywhere in
+# the table - every `<td>` is plain text, and a commented-out `Numero journal` column
+# in the template (`<!-- <th>Numero journal</th> -->`, matching a disabled per-row
+# button referencing `$row->journal_actu`) confirms the historical Bulletin Officiel
+# des Marches Publics (BOMP) issue reference used to be shown here and no longer is.
+# The FAQ (marchespublics.ci/faqglossaire/faq) states BOMP is sold in print only, "a
+# 4 000 FCFA l'exemplaire" at DGMP's own office - not a URL, not this source's
+# concern, and not an online route at all. Whoever builds the connector has no
+# detail page or document to fetch per notice: `Objet` is the whole notice text
+# available here, and there is nothing behind a session to worry about downloading.
+#
+# SIGOMAP - THE ACTUAL CURRENT SYSTEM, AND WHY IT IS NOT THIS SOURCE. DGMP's own
+# homepage carries a live banner: "tous les avis d'appels d'offres seront accessibles
+# a l'adresse www.admin.sigomap.gouv.ci" (for contracting authorities) and "une
+# nouvelle application SIGOMAP est accessible... www.sigomap.gouv.ci" (for economic
+# operators), adding in bold: "Depuis le 1er novembre 2023, il est necessaire d'etre
+# inscrit sur la plateforme SIGOMAP pour participer aux operations de marches
+# publics." sigomap.gouv.ci is a Next.js app (x-pathname / Next-Router-State-Tree
+# response headers, `self.__next_f.push` RSC payload). Its raw HTML, fetched plain,
+# strips to zero characters of visible text outside `<script>` - confirmed
+# genuinely CSR, not merely modern-looking, the proof rule 4 of the onboarding brief
+# asks for. Its listing routes (found from the homepage's own embedded hrefs, not
+# guessed: marche/procedure/liste-procedure-ouv-etiers,
+# marche/procedure/liste-operation-pub-ppm-etiers, liste-offre-res-etiers,
+# liste-marche-etiers) all four independently render the *same* embedded fallback
+# text server-side when fetched without a browser session: "La page demandee
+# n'existe pas, ou vous n'etes pas autorise a acceder a la page demandee" - i.e. the
+# app's own server-side render already fails to authorize an anonymous request for
+# every "etiers" (third-party/operator workspace) route tried, consistent with the
+# banner's registration requirement applying to the whole workspace and not only to
+# bid submission. backend.sigomap.gouv.ci itself (the API the frontend calls, per its
+# CSP) answers a flat 403 "Request forbidden by administrative rules" to a direct,
+# unauthenticated GET. robots.txt on both sigomap.gouv.ci and admin.sigomap.gouv.ci
+# is "User-Agent: * / Allow: /" (nothing technically disallowed), but that is a
+# crawl policy, not an authorization bypass - reading past a 403/authorization wall
+# is not something rule 21 or the onboarding brief's hard rules permit working
+# around, and no attempt was made to. If the pilot wants SIGOMAP's more current feed
+# instead of the legacy public table below, a named person must complete the
+# SIGOMAP registration DGMP itself describes (email to sigomap@marchespublics.gouv.ci
+# per the same banner) - not done here (never register an account on FreeBalance's
+# behalf) - and legal must review whatever terms that registration carries (also not
+# opened here) before anyone builds against it.
+#
+# ROBOTS.TXT, marchespublics.ci, fetched 2026-09-12, verbatim: HTTP 404, body is
+# CodeIgniter's default "404 Page Not Found" template. No file exists, so nothing is
+# disallowed and no crawl-delay is stated (the same absence-means-permitted reading
+# sources/doe.yaml and sources/boamp.yaml record for their own 404 robots.txt).
+# arcop.ci's robots.txt (checked though arcop.ci is not this source) is a Yoast
+# block, "User-agent: * / Disallow:" (empty, permits everything) plus a sitemap line
+# - also no restriction, also moot.
+id: cote_divoire
+name: Direction Generale des Marches Publics (DGMP), avis d'appels d'offres
+country: CI
+admin_level: national
+language: fr
+stream: feed
+wave: 1
+access: public_listing
+connector: FeedConnector
+# 11:00 UTC daily = 11:00 Abidjan (Cote d'Ivoire is UTC+0 year-round, no DST), the
+# same slot sources/senegal.yaml uses for the same reason. Chosen to collide with
+# nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30,
+# fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place
+# 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, senegal 11:00. Since this source
+# and senegal.yaml share the slot, whoever schedules the real cron should stagger
+# them by a few minutes; recorded here as a flag rather than solved, since this file
+# does not own senegal.yaml's schedule.
+schedule: '0 11 * * *'
+# The whole archive in one document (see THE PUBLIC LISTING above). No query
+# parameters exist to ask for a window; the connector filters client-side, the same
+# design as sources/ebrd.yaml.
+list_url: https://marchespublics.ci/appel_offre
+# No CGU, "conditions d'utilisation" or "mentions legales" page was found on
+# marchespublics.ci: checked the homepage footer (no such link in the nav or
+# footer), the FAQ (faqglossaire/faq, searched in full for "robot", "automat",
+# "scrap", "reproduc", "droit d'auteur", "propriete intellectuelle", "reutilis",
+# "copyright" - one match, on paying for physical dossier reproduction costs,
+# nothing about site reuse) and the Reglementation page (the regulatory texts
+# governing the procurement process itself, not a website terms page - no match on
+# any of the same terms). Absent a clause to quote in either direction, this is
+# `pending` for legal review, the same position and the same reasoning
+# sources/senegal.yaml records for achatspublics.ci/arcop.sn.
+tos_status: pending
+# Awards and procurement plans are separate DGMP pages (avis_attribution,
+# plan_passation), not rows mixed into this listing, so there is no notice type to
+# exclude at the query - unlike sources/doe.yaml or sources/ebrd.yaml, nothing
+# post-decision is read here in the first place.
+enabled: false
+health:
+  # Measured against the live 1,216-row table on 2026-09-12, not guessed. 757 of the
+  # 1,216 rows (all of them the older "P/S/F nnn/year" reference format, none of
+  # them still open - every one of their Date limite values is already past) carry a
+  # placeholder Date de publication, "30-11--0001", and are not part of this
+  # estimate; the connector needs to skip rather than raise on that literal string
+  # (compare monitor/connectors/ebrd.py's NO_TIME_STATED handling of that portal's
+  # own placeholder clock). The remaining 459 rows carry real dates from 2026-01-07
+  # to 2026-08-14 and are what these bounds are measured from.
+  #
+  # Rolling-window counts over that 459-row, ~7.5-month span: a 7-day window is
+  # min 0 / median 2 / mean 13.6 / max 64, zero on 46% of days - too noisy to floor
+  # a health band on directly. A 30-day window is min 0 / median 16 / mean 48.9 /
+  # max 201, zero on 23% of days. Publication is genuinely bursty (batch-loaded, not
+  # a steady daily trickle: February 2026 alone carries 133 of the 459), and as of
+  # this measurement the table has gone quiet for 29 days (last valid Date de
+  # publication is 2026-08-14, "today" is 2026-09-12) - but that is not unprecedented
+  # on its own: the largest historical gap between distinct publication dates in the
+  # archive is 78 days, with a second gap of 33. So the current silence is inside the
+  # range this source has already shown, not proof by itself that DGMP has stopped
+  # feeding this legacy table in favour of SIGOMAP (see SIGOMAP above) - but it is
+  # exactly the kind of thing a person should re-check after a few weeks of real
+  # runs, the same open question sources/senegal.yaml leaves for its own accelerating
+  # counts. expected_min is floored at 1, never 0, so a silent run can never read as
+  # a healthy empty one (rule 4); expected_max is set with headroom above the
+  # measured 30-day peak of 201. Whoever builds the connector should pick its actual
+  # window (30 days matches sources/ebrd.yaml's reasoning for a low, lumpy rate) and
+  # revisit this band once real runs exist rather than treat it as final.
+  expected_items_per_run: [1, 220]
+  max_consecutive_failures: 3
+owner: ryan.dear
