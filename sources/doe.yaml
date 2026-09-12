@@ -1,0 +1,48 @@
+# Datenservice Öffentlicher Einkauf (Bekanntmachungsservice), Germany's federal
+# publication service for public procurement notices. One connector covers all 16
+# Länder: admin_level is carried per notice from the eForms-DE buyer-legal-type,
+# whose codes name the level of government directly (-bund federal, -land, -kommun
+# municipal), so Germany's sub-national coverage needs no source per Land
+# (BUILD_ORDER step 13).
+#
+# admin_level here is the default the normaliser falls back on for a notice that
+# declares no buyer legal type (452 of the 975 notices published on 2026-09-11),
+# not a statement that every German notice is federal. The contract test asserts
+# this value and monitor/normalise/doe.py's DEFAULT_ADMIN_LEVEL agree.
+id: doe
+name: Datenservice Öffentlicher Einkauf
+country: DE
+language: de
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+schedule: '0 5 * * *'          # 05:00 UTC daily, 07:00 Berlin
+api_url: https://oeffentlichevergabe.de/api/notice-exports
+# Open data. Every OCDS package the service exports declares
+# license: https://opendefinition.org/licenses/cc-zero/ and a publicationPolicy at
+# https://oeffentlichevergabe.de/ui/de/publicationPolicy. robots.txt is a 404, so
+# nothing is disallowed. No registration, no key, no CAPTCHA (verified 2026-09-12).
+tos_status: reviewed_ok
+# Form types that are a procurement already decided. Read off the day's listing
+# before any notice is fetched, the same acquisition-scope decision as TED's
+# exclude_notice_types and for the same reason: nothing is read and then thrown
+# away. Measured on 2026-09-11: these three are 314 of 975 notices, a 32% cut.
+# These are eForms *form* types (the listName on NoticeTypeCode), not the notice
+# subtypes TED excludes, because notice.csv's formType column is what the listing
+# publishes: result (an award), cont-modif (a contract modification) and
+# dir-awa-pre (a voluntary ex-ante transparency notice) are all post-decision.
+# Reversible in config, like TED's: an award names the winner, and Architecture
+# v0.4 counts competitor incumbency as something that changes a score.
+exclude_notice_types: [result, cont-modif, dir-awa-pre]
+enabled: false        # the orchestrator flips this after the first live fetch; this agent recorded the fixture only
+health:
+  # Two completed publication days per run. Measured selected notices per day:
+  # 143 (Wed 2026-09-09), 96 (Thu 09-10), 90 (Fri 09-11), 70 (Sat 09-05),
+  # 57 (Sun 09-06), so a run reads roughly 115 to 290. The upper bound is also the
+  # ceiling on detail requests, so raising it lets a run read more and lowering it
+  # truncates one; it is not only a health band.
+  expected_items_per_run: [20, 400]
+  max_consecutive_failures: 3
+owner: ryan.dear

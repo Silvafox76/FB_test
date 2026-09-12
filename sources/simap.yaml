@@ -1,0 +1,83 @@
+# simap.ch, the joint publication platform of the Confederation, the cantons and the
+# communes. country is CH and the geography weight is 0.6 (EU/EEA/UK/CH band,
+# config/thresholds.yaml).
+#
+# admin_level here is the platform's own level, not the buyer's. simap is a national
+# platform and the notices on it are not: measured 2026-09-12, the public office
+# directory holds 4,966 publishing bodies, 145 federal, 1,428 cantonal, 3,375
+# communal and 18 foreign. The buyer's level is read per notice from that directory
+# and written to notices.admin_level, the way TED's is read from the eForms buyer
+# legal type, so this field is the registry's label for the source and never the
+# value a notice is scored with.
+id: simap
+name: simap.ch Swiss public procurement publications
+country: CH
+# The platform publishes in German, French and Italian and the notice states its
+# own language in base.creationLanguage, which is what notices.language carries.
+# This is the platform's plurality: of 151 notices measured over 2026-08-01 to
+# 2026-09-12, about 115 were German-first and about 33 French-first.
+language: de
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+# 08:30 Europe/Zurich. The time is not a preference. The API terms (AGB «Nutzung des
+# API» clause 5) say simap data may be disclosed to third parties from 08:00 on the
+# day of publication, so a run that starts after 08:00 local never has to ask the
+# question. All times in the platform are Europe/Zurich by its own terms (AGB clause
+# 4.1), and the API returns deadlines with the correct Zurich offset already applied.
+schedule: '30 8 * * *'
+api_url: https://www.simap.ch/api/publications/v2/project/project-search
+# reviewed_restricted, and the restriction is on what happens to the data after the
+# fetch, not on the fetch. Read from the live terms on 2026-09-12, three documents on
+# https://www.simap.ch/de/about/legal:
+#   - AGB «Nutzung des API» clause 3: the API may be used without an account, exactly
+#     as the web interface may, and unauthenticated access covers publications and
+#     publication search. Clause 6 confirms it: "Ohne Authentifizierung: Zugriff auf
+#     Publikationen, Suche von Publikationen". Clause 7: currently free of charge.
+#   - Clause 4: publication data may be taken for commercial purposes and passed to
+#     third parties. This is the specific rule that displaces the general clause 9.1
+#     of the site AGB, which otherwise requires written consent for reproduction.
+#   - Clause 5 is the restriction and it binds the export and the review app, both
+#     outside this connector: the data may not be altered in content, must be visually
+#     distinct from any commentary, must carry the notice "Dies ist keine amtliche
+#     Veröffentlichung. Massgebend sind die auf der Plattform www.simap.ch
+#     veröffentlichten Daten.", must not be presented as an official publication,
+#     corrections must be published onward, and disclosure to third parties is from
+#     08:00 on the publication day.
+# A named person signs that clause 5 is satisfied before enabled becomes true. Nothing
+# in this file is that signature.
+tos_status: reviewed_restricted
+# simap offers an include list and no exclude list, so the connector asks for the
+# complement of this (monitor/connectors/simap.py, include_pub_types). Every value is
+# one the live newestPubTypes filter accepts, verified one at a time on 2026-09-12.
+# Why each is excluded:
+#   award_tender, award_competition, award_study_contract, direct_award  the tender is
+#     decided and the winner named. 37 of the 80 CPV-matching publications measured
+#     over three weeks. Reversible from here: Architecture v0.4 section 8 counts
+#     competitor incumbency as something that changes a score.
+#   participant_selection  announces which applicants were selected in a selective
+#     procedure, so it is a decision and not an opening. It also carries the selected
+#     bidders' names and addresses in a `vendors` block, which is third-party business
+#     record data that rule 19 keeps out of a model call.
+#   selective_offering_phase  the offer phase of a selective procedure, addressed only
+#     to the already-shortlisted. Nothing a new bidder can act on. Zero rows in six
+#     weeks, so this costs nothing either way.
+#   abandonment, revocation  the procurement was dropped or the award set aside.
+exclude_notice_types: [award_tender, award_competition, award_study_contract, direct_award,
+                       participant_selection, selective_offering_phase, abandonment, revocation]
+# false until a live fetch has run. The fixture and the contract test were built
+# without one, because a scoring and a translation run were live against the same
+# database; the orchestrator flips this after the first real fetch, and only after the
+# clause 5 sign-off above.
+enabled: false
+health:
+  # Measured over 2026-08-01 to 2026-09-12 with both query filters applied: 151
+  # projects in 43 days, about 3.6 a day. The run's window is three calendar days, and
+  # the busiest three-day stretch in that period held 20. No three-day window in the
+  # period held zero, so expected_min 1 makes a silent day a failure state (rule 4);
+  # the thin days are Sundays, which held 2 notices across the whole six weeks.
+  expected_items_per_run: [1, 40]
+  max_consecutive_failures: 3
+owner: ryan.dear

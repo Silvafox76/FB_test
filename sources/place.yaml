@@ -1,0 +1,135 @@
+# Plataforma de Contratacion del Sector Publico (PLACE), Spain's state procurement
+# publication platform. country is ES, geography weight 0.6 (the EU/EEA/UK/CH band
+# in config/thresholds.yaml).
+#
+# NOT BUILT, AND NOT BUILDABLE WHILE RULE 21 STANDS. There is no
+# monitor/connectors/place.py, no monitor/normalise/place.py and no
+# tests/contract/fixtures/place.json, because the host forbids every automated
+# request and rule 21 is "respect robots.txt". Nothing on this host was fetched
+# except robots.txt itself, which is the permission file and the only thing a
+# client may read before it knows what it is allowed to read.
+#
+# THE MEASUREMENT, taken 2026-09-12:
+#
+#   https://contrataciondelestado.es/robots.txt  ->  HTTP 200, 28 bytes, exactly
+#
+#       User-agent: *
+#       Disallow: /
+#
+#   One group, the wildcard agent, no Allow line, no agent-specific group, no
+#   Crawl-delay, no Sitemap. That is the whole file. It disallows every path on the
+#   host for every client, which includes the CODICE syndication and the notice
+#   pages, so there is no polite subset to read and no design that avoids it. This
+#   is not simap's shape, where robots.txt disallowed /{lang}/project-detail and the
+#   JSON API underneath was open (monitor/connectors/simap.py); here the disallow is
+#   the root.
+#
+#   Four things were checked before accepting that reading, because "blocked" is an
+#   expensive answer to be wrong about:
+#
+#     1. It is the origin's own static file, not a WAF or proxy interstitial.
+#        Last-Modified: Thu, 05 Feb 2026 12:14:12 GMT, so the policy has stood for
+#        seven months; ETag "1c-64a129c4abdc2" is Apache's size-mtime form and 0x1c
+#        is 28, the file's own byte count. A synthetic block page carries neither.
+#     2. It is not this environment's HTTPS proxy rewriting robots.txt. Two hosts
+#        whose robots.txt content is independently recorded in this repository were
+#        fetched through the same proxy in the same minute and both came back as
+#        documented: www.simap.ch returned its full per-language disallow list
+#        including /de/project-detail (sources/simap.yaml), and
+#        oeffentlichevergabe.de returned 404 (sources/doe.yaml). The proxy passes
+#        robots.txt through unaltered.
+#     3. It is not a www-versus-apex or scheme artifact. http://, https:// and
+#        https://www. all return the same 28 bytes from the same ETag.
+#     4. There is no sibling host with its own policy.
+#        sindicacion.contrataciondelestado.es, datosabiertos.contrataciondelestado.es
+#        and api.contrataciondelestado.es have no DNS record at all (NXDOMAIN; the
+#        proxy's 502 on each is DNS, not an allowlist). The apex resolves to
+#        193.148.34.9 and is the only host there is.
+#
+#   datos.gob.es, the national catalogue that lists PLACE's datasets, is not an
+#   alternative route: it answers this client's identified user agent with an
+#   Incapsula HTTP 403 on /robots.txt itself, so no permission can be established
+#   there either, and its distributions point back at this same disallowed host.
+#
+# WHAT A PERSON WOULD HAVE TO DO TO UNBLOCK IT. One of these, and it is a decision
+# for a named person and not a branch in the code (rule 1):
+#
+#   a. Obtain a written exception from the platform operator (Direccion General del
+#      Patrimonio del Estado, Subdireccion General de Coordinacion de la
+#      Contratacion Electronica) naming FreeBalance-OpportunityMonitor and the
+#      syndication paths, and record it here with the date and the person who holds
+#      it. Spain's reuse regime (Ley 37/2007, RD 1495/2011) may well permit reuse of
+#      the data, and that is a different question from whether an automated client
+#      may request it: a reuse licence does not amend robots.txt. simap is the
+#      precedent for the distinction - its terms allow commercial reuse and its
+#      robots.txt still shaped what the connector fetches.
+#   b. Use a route that carries its own access terms instead: PLACE has a licitantes
+#      registration, and a credentialled or registered feed with terms of use of its
+#      own would make access: registered and tos_status a question about those terms
+#      rather than about robots.txt. Whether such a route exists could not be
+#      established without fetching disallowed pages to find out.
+#   c. Decide the coverage is not worth it and close the gap from what is already
+#      wired. sources/ted.yaml covers ES today, so Spain's above-threshold notices
+#      are already read. What PLACE would add is the sub-threshold and regional
+#      layer, which is exactly the layer TED does not carry - so this is a real gap
+#      with a known shape, not a duplicate feed.
+#
+# None of a, b or c is this file's to take, and none of it is unblocked by anything
+# an agent can do. Reading the paths anyway would be routing around an access
+# control.
+id: place
+name: Plataforma de Contratacion del Sector Publico
+country: ES
+language: es
+# The registry's label for the platform, which is the state platform, and never the
+# value a notice would be scored with. The step 13 design point for this source is
+# the same as doe's: one connector for all 17 Comunidades Autonomas, with
+# admin_level read per notice from the contracting body's own level, so Spain needs
+# no source per region. PLACE aggregates the regional platforms alongside the state
+# ones, which is what makes that possible. Where in the published notice that level
+# is stated is NOT established here - it would have to be read off a recorded
+# fixture, the way monitor/normalise/doe.py reads the eForms-DE buyer-legal-type
+# segment, and there is no fixture.
+admin_level: national
+stream: feed
+wave: 1
+# The platform's published route is CODICE Atom syndication, which is `rss` in the
+# AccessType vocabulary. Labelled from the platform's own description and NOT from a
+# probe, because the feed may not be requested; it becomes `registered` if the
+# unblock arrives as route (b) above. The first permitted fetch settles it.
+access: rss
+connector: FeedConnector
+# Provisional and unmeasured. 09:00 UTC is 11:00 Madrid and collides with nothing
+# already in sources/ (doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, worldbank
+# 08:00, simap 08:30). PLACE's own publication-batch timing is unknown, because
+# knowing it means reading the feed across a day, so whoever unblocks this sets the
+# hour from the first days of real runs rather than trusting this line.
+schedule: '0 9 * * *'
+# The portal root, which is the only URL on this host that was verified to exist,
+# and it is here because Source requires a list_url or an api_url. The syndication
+# URL is deliberately absent rather than written from documentation memory: an
+# unverified endpoint in the registry is the thing a later session would trust.
+# Whoever obtains permission records the real one here from a response they held.
+list_url: https://contrataciondelestado.es/
+# Reviewed, and found restricted at the fetch itself, which is the harder kind: for
+# simap the restriction binds what happens to the data after the fetch, and here it
+# forbids the fetch. reviewed_restricted rather than pending because the review did
+# happen and produced an answer, and the answer is no.
+tos_status: reviewed_restricted
+# Not a step the orchestrator can flip after a live fetch, which is the difference
+# between this file and sources/doe.yaml and sources/simap.yaml. There is no
+# connector to run, and a fetch is forbidden until a named person records the
+# exception above. A commit that flips this without both a connector and that
+# exception is a rule 21 finding.
+enabled: false
+health:
+  # UNMEASURED. No request has ever been made to this source, so there is no daily
+  # volume to state and these two numbers are placeholders, not observations. The
+  # minimum is 1 rather than 0 so that a silent run can never read as a healthy one
+  # (rule 4), and the band must be replaced with a measured one from the first
+  # permitted runs before enabled becomes true - the upper bound is a paging and
+  # request ceiling in every connector in this repository, not only a health band,
+  # so a guessed value here would silently truncate or over-read a real run.
+  expected_items_per_run: [1, 400]
+  max_consecutive_failures: 3
+owner: ryan.dear
