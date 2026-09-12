@@ -58,7 +58,12 @@ per_source_daily_cap: 15
 # stage of `monitor run`. That is the module's own decision, not an oversight: `rescore()`'s
 # docstring says its `limit` "is not a convenience... a run is something a person sizes before
 # starting", because each row is a paid Sonnet call at roughly USD 0.022 for the first and a
-# third of that afterwards. Whether it should become automatic is decision 47.
+# third of that afterwards. Whether it should become automatic is decision 47, and decision
+# 48 sharpens it: the first hand-run on 2026-09-12 found the band empty for a SECOND and
+# structural reason. The escalation's window is the gap between scoring a notice and
+# clustering it into a candidate, and `run_full_pass()` opens and closes that window inside
+# one pass, so nothing can ever be in it afterwards. Reachable is not the same as usable,
+# and the only sequence that works today is `make score`, `make rescore`, `make stage`.
 #
 # Measured depth of the widened band: 25 notices against 4 at the old floor of 40, so the
 # widening costs about USD 0.5 to clear the current backlog and a few cents a pass after.
