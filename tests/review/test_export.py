@@ -203,6 +203,23 @@ def approved(owner, review):
     ]
     # A re-export's event names the batch, so it is not caught by the record ids above.
     owner.execute("delete from events where entity_type = 'export_batch' and entity_id = any(%s::text[])", (batch_ids,))
+    # Release EVERY record stamped with these batches, not only this fixture's.
+    #
+    # `export` takes every approved record with a null `exported_at`, which is what the
+    # real export does and is correct. So a batch produced here can carry rows this
+    # fixture never created - another test's, or a row left behind by an earlier run
+    # that died before its own teardown. Those rows still reference the batch, and
+    # `approved_records_export_batch_fk` then refuses the delete below, which surfaces
+    # as an error in THIS test's teardown and is blamed on this test.
+    #
+    # The batch is ours to remove, so everything pointing at it has to be released
+    # first. Clearing the stamp rather than deleting the row: a record this fixture did
+    # not create is not this fixture's to delete, and putting it back in the backlog is
+    # exactly where it was before the export ran.
+    owner.execute(
+        "update approved_records set export_batch = null, exported_at = null where export_batch = any(%s::text[])",
+        (batch_ids,),
+    )
     owner.execute("delete from export_batches where operator = %s", (operator,))
     owner.execute("delete from candidate_notices where candidate_id = any(%s::text[])", (candidate_ids,))
     owner.execute("delete from candidates where id = any(%s::text[])", (candidate_ids,))
