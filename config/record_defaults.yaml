@@ -99,18 +99,27 @@ funding_source_by_stream:
 sentences:
   eligibility_none_detected: "No eligibility barriers detected in the notice text."
   pricing_notes: "{funding_source}{project_id}; estimated value {value}. Monitor-estimated, unverified."
-  # The three value cases a reviewer must be able to tell apart at a glance, read
-  # by monitor/stage/record.py's value_narrative for the candidate page, the
-  # queue list and (via pricing_value_note) Pricing Notes, so the three never say
-  # three different things about the same candidate. amount and usd are bare
-  # numbers formatted with thousands separators here only because these are
-  # prose, not the CSV's amount column, which never carries one (rule 9).
+  # The value cases a reviewer must be able to tell apart at a glance, read by
+  # monitor/stage/record.py's value_narrative for the candidate page, the queue
+  # list and (via pricing_value_note) Pricing Notes, so they never say different
+  # things about the same candidate. amount and usd are bare numbers formatted
+  # with thousands separators here only because these are prose, not the CSV's
+  # amount column, which never carries one (rule 9).
   value_not_stated: "not stated"
+  # A notice published in the fx target currency itself (monitor/fx/config.py's
+  # target_currency, currently USD) converts through the identity rate: "USD
+  # 4,200,000 ≈ USD 4,200,000 at 1.0000 USD/USD" is the same number twice with
+  # an equation in between, not information a reviewer needed. value_narrative
+  # renders this plainly instead, and pricing_value_note does the same in
+  # value_basis: usd, which would otherwise write "published as USD ... at
+  # 1.0000 USD/USD".
+  value_in_target: "{currency} {amount:,.0f}"
   value_no_usd: "{currency} {amount:,.0f} (no USD rate held for {currency})"
   value_with_usd: "{currency} {amount:,.0f} ≈ USD {usd:,} at {rate:.4f} {currency}/USD, rate dated {rate_date}"
-  # Used only when value_basis is "usd" and a USD figure exists: the amount
-  # column already holds the conversion, so this carries the published figure
-  # and its rate instead of restating the same USD number twice.
+  # Used only when value_basis is "usd" and a USD figure exists, and the notice
+  # was not already published in the target currency: the amount column already
+  # holds the conversion, so this carries the published figure and its rate
+  # instead of restating the same USD number twice.
   value_usd_basis: "published as {currency} {amount:,.0f} at {rate:.4f} {currency}/USD, rate dated {rate_date}"
   next_steps: >-
     Approved by {reviewer} on {date}. Validate opportunity details; confirm the Account link;

@@ -270,3 +270,45 @@ def test_no_config_key_parses_as_a_boolean():
         assert not coerced, f"{block} has non-string keys {coerced}; quote them"
 
     assert document["regions"]["NO"] == "Europe"
+
+
+# --- record_defaults.yaml is validated on load like every other config file ------
+
+
+def test_the_shipped_record_defaults_load():
+    from monitor.registry.load import load_record_defaults
+
+    document = load_record_defaults()
+
+    assert document["value_basis"] in ("published", "usd")
+    assert len(document["columns"]) == 73
+
+
+def test_a_bad_value_basis_fails_on_load_not_on_a_reviewers_page(tmp_path):
+    """design-cop on 7f11b3f: the check lived only in build_record, so a typo in the
+    YAML passed `make up` and surfaced when a reviewer opened a candidate."""
+    import yaml
+
+    from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
+
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    document["value_basis"] = "dollars please"
+    path = tmp_path / "record_defaults.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="value_basis is 'dollars please'"):
+        load_record_defaults(path)
+
+
+def test_a_missing_value_sentence_fails_on_load(tmp_path):
+    import yaml
+
+    from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
+
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    del document["sentences"]["value_in_target"]
+    path = tmp_path / "record_defaults.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="value_in_target"):
+        load_record_defaults(path)

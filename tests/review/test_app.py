@@ -139,14 +139,44 @@ def test_the_region_filter_selects_rather_than_decorates(client, staged):
 
 
 def test_the_queue_shows_the_value_with_its_own_currency_not_a_bare_number(client, staged):
-    """`staged` carries USD 4,200,000; the header must not hardcode a currency either."""
+    """`staged` carries USD 4,200,000 at the identity rate; the header must not
+    hardcode a currency either, and the identity conversion must read plainly,
+    never "USD 4,200,000 ≈ USD 4,200,000 at 1.0000 USD/USD"."""
     page = client.get("/").text
 
     assert "USD 4,200,000" in page
     assert "Value (USD)" not in page, "the currency comes from the row, never a literal in the template"
+    assert "1.0000" not in page, "a notice published in the target currency has nothing to derive"
 
 
-# --- the three value cases a reviewer must tell apart at a glance ------------
+# --- the four value cases a reviewer must tell apart at a glance -------------
+
+
+def test_candidate_page_shows_a_value_already_in_the_target_currency(client, staged):
+    """`staged`'s value is USD at the identity rate: the plain figure, not the
+    same number twice with an equation in between."""
+    page = client.get(f"/candidate/{staged}").text
+
+    assert "USD 4,200,000" in page
+    assert "1.0000" not in page
+    assert "≈" not in page
+
+
+def test_candidate_page_shows_a_value_already_in_the_target_currency_via_the_factory(client, staged_with_value):
+    """Same identity case, built explicitly through `staged_with_value` rather than
+    relying on `staged`'s default shape."""
+    candidate_id = staged_with_value(
+        estimated_value=Decimal("4200000.00"),
+        value_currency="USD",
+        estimated_value_usd=4_200_000,
+        value_rate=Decimal("1.0"),
+        value_rate_date=date(2026, 9, 1),
+    )
+    page = client.get(f"/candidate/{candidate_id}").text
+
+    assert "USD 4,200,000" in page
+    assert "1.0000" not in page
+    assert "≈" not in page
 
 
 def test_candidate_page_shows_a_value_with_its_usd_derivation_and_rate(client, staged_with_value):

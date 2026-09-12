@@ -16,6 +16,7 @@ from decimal import Decimal
 import pytest
 import yaml
 
+from monitor.fx.config import load as load_fx
 from monitor.registry.load import CONFIG_DIR, load_function_map
 from monitor.stage.record import ClusterSource, RecordCandidate, RecordDefaultsError, build_record
 
@@ -326,10 +327,13 @@ def test_published_basis_with_no_value_uses_the_zero_placeholder(defaults, funct
 
 
 def test_usd_basis_converts_and_puts_the_published_figure_in_pricing_notes(defaults, function_map):
+    """Currency here is the fx target currency (`config/fx.yaml`), not a "USD"
+    literal in this module — the same string today, but for a different reason,
+    and `value_for_basis` must read it from `load_fx()` rather than hardcode it."""
     usd_defaults = {**defaults, "value_basis": "usd"}
     record = record_for(candidate(**UAH_VALUE), [TED], function_map, usd_defaults)
 
-    assert record["Currency"] == "USD"
+    assert record["Currency"] == load_fx().target_currency
     assert record["Total Opportunity Amount"] == 99_408
     assert "UAH 4,428,444" in record["Pricing Notes"]
     assert "44.5483" in record["Pricing Notes"]
@@ -353,6 +357,35 @@ def test_usd_basis_with_no_value_uses_the_zero_placeholder_too(defaults, functio
     assert record["Total Opportunity Amount"] == 0
 
 
+def test_published_basis_with_a_value_already_in_the_target_currency_reads_plainly(defaults, function_map):
+    """`candidate()`'s default is USD at the identity rate (migration 012/013's
+    identity-conversion defect): "USD 4,200,000 ≈ USD 4,200,000 at 1.0000
+    USD/USD" is the same number twice with an equation in between, not
+    information, and it is not what a notice published in the fx target
+    currency should read like on an early-stage record."""
+    record = record_for(candidate(), [TED], function_map, defaults)
+
+    assert record["Currency"] == "USD"
+    assert record["Total Opportunity Amount"] == Decimal("4200000.00")
+    assert "USD 4,200,000" in record["Pricing Notes"]
+    assert "1.0000" not in record["Pricing Notes"]
+    assert "≈" not in record["Pricing Notes"]
+
+
+def test_usd_basis_with_a_value_already_in_the_target_currency_reads_plainly(defaults, function_map):
+    """Same identity case under value_basis: usd: nothing was converted, so there
+    is nothing for Pricing Notes to hold back either — no "published as ... at
+    1.0000 USD/USD"."""
+    usd_defaults = {**defaults, "value_basis": "usd"}
+    record = record_for(candidate(), [TED], function_map, usd_defaults)
+
+    assert record["Currency"] == load_fx().target_currency
+    assert record["Total Opportunity Amount"] == 4_200_000
+    assert "USD 4,200,000" in record["Pricing Notes"]
+    assert "1.0000" not in record["Pricing Notes"]
+    assert "published as" not in record["Pricing Notes"]
+
+
 def test_an_unrecognised_value_basis_raises(defaults, function_map):
     bad_defaults = {**defaults, "value_basis": "eur"}
 
@@ -369,3 +402,26 @@ def test_the_builder_touches_no_database_and_no_model():
     assert "psycopg" not in source
     assert "anthropic" not in source
     assert "import httpx" not in source
+
+
+def test_no_usd_literal_outside_comments_and_docstrings():
+    """rule 6: the currency this module writes always comes from the row or from
+    `config/fx.yaml` through `load_fx()`, never a "USD" string typed into the
+    code. The module's docstrings and comments talk *about* that rule in
+    prose ("Never 'USD' as a literal anywhere else"), so those are stripped
+    first; what must not remain is a "USD"/'USD' token used as a value."""
+    import re
+    from pathlib import Path
+
+    source = Path("monitor/stage/record.py").read_text(encoding="utf-8")
+
+    # Strip triple-quoted strings (the module docstring and every function's),
+    # then strip end-of-line comments, in that order so a "#" inside a
+    # docstring is gone before the comment strip runs.
+    without_docstrings = re.sub(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', "", source)
+    without_comments = re.sub(r"#.*", "", without_docstrings)
+
+    assert not re.search(r"USD", without_comments), (
+        "monitor/stage/record.py has a 'USD' token outside a comment or docstring; "
+        "the currency must come from the row or from load_fx().target_currency"
+    )

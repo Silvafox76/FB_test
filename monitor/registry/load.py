@@ -123,6 +123,36 @@ def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, lis
     return functions, content_hash(path)
 
 
+RECORD_DEFAULTS = CONFIG_DIR / "record_defaults.yaml"
+
+
+def load_record_defaults(path: Path = RECORD_DEFAULTS) -> dict:
+    """The record builder's config, validated where every other config file is (rule 4).
+
+    Until 2026-09-12 this file was only content-hashed here and read directly by
+    `monitor/stage/record.py`, which checks `value_basis` when it builds a record -
+    so a typo in that key passed `make up` and surfaced when a reviewer opened a
+    candidate page. Every other config kind fails on load; this one now does too.
+
+    The allowed values stay defined in `monitor/stage/record.py`, next to the code
+    that acts on them, and are imported inside the function so the registry does
+    not import the stage layer at module load.
+    """
+    from monitor.stage.record import VALUE_BASES
+
+    document = _read_yaml(path)
+    basis = document.get("value_basis")
+    if basis not in VALUE_BASES:
+        raise RegistryError(f"{path.name}: value_basis is {basis!r}, must be one of {sorted(VALUE_BASES)}")
+    sentences = document.get("sentences") or {}
+    for key in ("value_not_stated", "value_no_usd", "value_with_usd", "value_usd_basis", "value_in_target"):
+        if key not in sentences:
+            raise RegistryError(f"{path.name}: sentences has no {key!r}; the record builder renders it")
+    if not document.get("columns"):
+        raise RegistryError(f"{path.name}: no columns; appendix E's export has nothing to write")
+    return document
+
+
 def config_files(sources_dir: Path = SOURCES_DIR, config_dir: Path = CONFIG_DIR) -> list[tuple[Path, str, str | None]]:
     """Every hashed file as (path, kind, language). Language is set for lexicons only.
 
@@ -171,6 +201,9 @@ def seed(conn: psycopg.Connection) -> dict[str, int]:
     """Upsert the registry into the database. One transaction, all or nothing."""
     sources = load_sources()
     functions = load_function_map()
+    # Not written to the database - the builder reads the file - but validated here
+    # so `make up` fails on a bad value_basis instead of the first candidate page.
+    load_record_defaults()
 
     with conn.transaction():
         for source in sources:

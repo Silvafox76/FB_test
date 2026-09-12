@@ -38,6 +38,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from monitor.fx.config import load as load_fx
+
 
 @dataclass(frozen=True)
 class ClusterSource:
@@ -278,20 +280,27 @@ def value_narrative(
 ) -> str:
     """The one honest sentence describing a value, wherever it is shown.
 
-    Three cases, matched to what a reviewer must be able to tell apart at a
-    glance: no value in the notice at all; a value with no USD figure because no
+    Four cases, matched to what a reviewer must be able to tell apart at a
+    glance: no value in the notice at all; a value published in the fx target
+    currency itself (`monitor/fx/config.py`'s `target_currency`), which converts
+    through the identity rate and so has nothing to derive — "USD 4,200,000 ≈
+    USD 4,200,000 at 1.0000 USD/USD" is the same number twice with an equation
+    in between, not information; a value with no USD figure because no
     `fx_rates` row covers the currency (a documented absence, not an error); and
-    a value with the USD figure and the exact rate that produced it, so a
-    reviewer can check the arithmetic rather than trust it. The candidate page,
-    the queue list and (through `pricing_value_note`) the export's Pricing Notes
-    all read this, so the three cannot say three different things about the same
-    candidate (rule 1). Never "USD" as a literal anywhere else: the currency
-    always comes from the row.
+    a value in another currency with the USD figure and the exact rate that
+    produced it, so a reviewer can check the arithmetic rather than trust it.
+    The candidate page, the queue list and (through `pricing_value_note`) the
+    export's Pricing Notes all read this, so the four cannot say different
+    things about the same candidate (rule 1). Never "USD" as a literal anywhere
+    else: the currency always comes from the row, and the target to compare it
+    against always comes from `config/fx.yaml` (rule 6).
     """
     if amount is None:
         return sentences["value_not_stated"]
     if usd is None:
         return sentences["value_no_usd"].format(currency=currency, amount=amount)
+    if currency == load_fx().target_currency:
+        return sentences["value_in_target"].format(currency=currency, amount=amount)
     return sentences["value_with_usd"].format(
         currency=currency,
         amount=amount,
@@ -311,9 +320,20 @@ def pricing_value_note(candidate: RecordCandidate, value_basis: str, sentences: 
     its rate instead — unless there is no USD figure to convert with, in which
     case there is nothing to hold back and this reads exactly as `published`
     would, which is also what keeps `usd` from ever implying "USD 0" for a
-    contract that has a real, just un-convertible, value.
+    contract that has a real, just un-convertible, value. And unless the notice
+    was published in the fx target currency itself, in which case the amount
+    column already holds exactly what was published — there is no conversion to
+    hold back, and this falls through to `value_narrative`'s plain identity
+    sentence rather than "published as USD 4,200,000 at 1.0000 USD/USD", which
+    would say nothing `pricing_notes` doesn't already say once.
     """
-    if value_basis == "usd" and candidate.estimated_value is not None and candidate.estimated_value_usd is not None:
+    identity = candidate.value_currency == load_fx().target_currency
+    if (
+        value_basis == "usd"
+        and not identity
+        and candidate.estimated_value is not None
+        and candidate.estimated_value_usd is not None
+    ):
         return sentences["value_usd_basis"].format(
             currency=candidate.value_currency,
             amount=candidate.estimated_value,
@@ -344,7 +364,7 @@ def value_for_basis(
     if candidate.estimated_value is None:
         return suggested["currency"], placeholders["zero"]
     if value_basis == "usd" and candidate.estimated_value_usd is not None:
-        return "USD", candidate.estimated_value_usd
+        return load_fx().target_currency, candidate.estimated_value_usd
     return candidate.value_currency, candidate.estimated_value
 
 
