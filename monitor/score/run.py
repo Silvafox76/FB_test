@@ -100,13 +100,47 @@ class ScoreCounts:
         return self.scored / self.considered if self.considered else 0.0
 
 
+# One row per notice waiting to be scored.
+#
+# `translations` is keyed on (notice_id, prompt_version), not on notice_id, so a TED
+# notice carries both its `ted-eforms`/`source-native` row and the step 14 machine
+# translation. Measured on 2026-09-12: 630 of the 934 notices with any translation
+# have two. This query used to `left join translations` with nothing narrowing it to
+# one row, so those notices came back twice and were scored twice — 75 of the 146
+# scored notices carry two `scores` rows, which is 75 paid Haiku calls out of 250,
+# about 30% of the scorer's spend, bought for nothing.
+#
+# It failed silently, which is why it survived. A duplicate row is not an error at
+# any boundary: pydantic validates each one, the cap counts each call honestly, and
+# both scores are real answers to the same question. Nothing was wrong except that
+# the work was done twice, and the only visible symptom was a `scores` table with
+# more rows than scored notices — which reads as a feature, since `scores` is one row
+# per scoring call by design.
+#
+# `distinct on ... order by created_at desc` takes the latest rendering of each. On
+# all 630 two-row notices that resolves to the machine translation, which is also the
+# better text: TED's own rendering translates the standardised CPV heading and leaves
+# the buyer's own words in the original language on 618 of 738 non-English TED
+# notices. `prompt_version` is a second sort key only so the answer cannot depend on
+# the planner — no notice in the database has two translations sharing a `created_at`,
+# but a query that is arbitrary when they do is a query that behaves differently on a
+# busier machine.
+#
+# Deliberately the same CTE and the same ordering as `SELECT_IN_BAND` below. The
+# scorer and the rescorer must read the identical rendering or the two calls are not
+# comparable, and step 20 requires that they are.
 SELECT_FILTERED_IN = """
+    with rendering as (
+        select distinct on (t.notice_id) t.notice_id, t.title_en, t.body_en
+        from translations t
+        order by t.notice_id, t.created_at desc, t.prompt_version
+    )
     select n.id, n.content_hash, n.source_id, n.external_id, n.url, n.title, n.buyer, n.country,
            n.admin_level, n.published_at, n.deadline_at, n.language, n.language_confidence,
            n.cpv_codes, n.estimated_value_usd, coalesce(n.body, ''), n.filter_result, n.status,
-           coalesce(t.title_en, ''), coalesce(t.body_en, '')
+           coalesce(r.title_en, ''), coalesce(r.body_en, '')
     from notices n
-    left join translations t on t.notice_id = n.id
+    left join rendering r on r.notice_id = n.id
     where n.status = 'filtered_in'
     order by n.fetched_at
 """
@@ -283,9 +317,11 @@ def rescore_band() -> tuple[int, int]:
 # Both CTEs carry a second sort key for the same reason: a tie on `created_at`
 # would otherwise leave the planner to choose. Two `scores` rows for one notice is
 # not hypothetical either - 75 of the 146 scored notices have two on 2026-09-12,
-# because `SELECT_FILTERED_IN` above joins `translations` without narrowing it to
-# one row and so scores those notices twice. That is a defect in the scorer rather
-# than in this query, and fixing it belongs to a step that owns the scorer.
+# because `SELECT_FILTERED_IN` above USED TO join `translations` without narrowing it
+# to one row, and so scored those notices twice. That defect is fixed above, in the
+# same shape as this query and deliberately so. This clause still earns its place:
+# the 75 rows are still in the table, and `scores` is one row per scoring call by
+# design, so a notice legitimately carries more than one once it has been re-scored.
 #
 # `prompt_version` must match the prompt in force now, because step 20 says the
 # second call uses "the same prompt". A notice scored under an older prompt is not
