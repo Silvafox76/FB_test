@@ -14,6 +14,7 @@ parsers read what is actually in the recording.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -424,10 +425,24 @@ def test_a_notice_page_disagreeing_with_the_listing_on_country_raises(document, 
 
 
 def test_a_notice_page_disagreeing_with_the_listing_on_notice_type_raises(document, listing_html, source):
-    """exclude_notice_types was applied to the listing's string, not this one."""
+    """exclude_notice_types was applied to the listing's string, not this one.
+
+    The tamper is a regex rather than a literal replace, and that is the whole lesson
+    of recording the fixture. The page does not contain the string "Shortlist Notice":
+    it contains `Shortlist` followed by eighteen spaces and `Notice`, because the
+    template indents inside its text nodes. That is exactly what `INLINE_SPACE` in the
+    connector exists to collapse, and a literal replace silently matched nothing — so
+    this test passed no notice through, tampered with nothing, and asserted a raise
+    that could never happen. It never ran until the fixture existed to run it against.
+    """
     tampered = json.loads(json.dumps(document))
+    shortlist = re.compile(r"Shortlist\s+Notice")
+    tampered_count = 0
     for notice_id, html in tampered["details_html"].items():
-        tampered["details_html"][notice_id] = html.replace("Shortlist Notice", "Contract Award Notice")
+        swapped, hits = shortlist.subn("Contract Award Notice", html)
+        tampered["details_html"][notice_id] = swapped
+        tampered_count += hits
+    assert tampered_count, "the fixture no longer carries a Shortlist Notice to tamper with"
 
     connector = EbrdConnector(source, ["48"])
     connector.cutoff = lambda today=None: CUTOFF
@@ -496,7 +511,12 @@ def test_a_description_keeps_the_line_breaks_its_client_typed(details):
         detail[DETAIL_DESCRIPTION] for detail in details.values() if "\n" in detail.get(DETAIL_DESCRIPTION, "")
     ]
 
-    assert len(multiline) == 4
+    # Five, measured against the recorded fixture on 2026-09-12. This asserted four
+    # before the fixture existed, which was a guess rather than a measurement — the
+    # module-level skip meant nothing in this file had ever executed. The property
+    # that matters is the second assertion; the count is here to notice a re-record
+    # changing the corpus underneath it.
+    assert len(multiline) == 5
     assert all("  " not in line for body in multiline for line in body.split("\n"))
 
 
@@ -504,7 +524,10 @@ def test_a_non_breaking_space_does_not_survive_into_a_cell():
     """A phrase written with one would not match the lexicon's ordinary spaces."""
     from selectolax.parser import HTMLParser
 
-    cell = HTMLParser("<td>public&nbsp;financial   management</td>").css_first("td")
+    # Wrapped in a table, because selectolax follows the HTML parsing rules and
+    # DISCARDS a bare <td> parsed outside table context — `css_first("td")` returned
+    # None and the failure read as a connector bug rather than a malformed fixture.
+    cell = HTMLParser("<table><tr><td>public&nbsp;financial   management</td></tr></table>").css_first("td")
 
     assert cell_text(cell) == "public financial management"
 
