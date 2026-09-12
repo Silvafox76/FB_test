@@ -1,0 +1,88 @@
+# BOAMP, France's official bulletin of public procurement notices, read from DILA's
+# own open-data flux rather than from any of its three other routes. The reasons are
+# measured and they are in monitor/connectors/boamp.py's docstring: api.boamp.fr and
+# data.gouv.fr are both blocked by this environment's egress policy, and the
+# Opendatasoft instance behind www.boamp.fr disallows /api/ to every user agent but
+# Googlebot in its robots.txt. echanges.dila.gouv.fr serves no robots.txt at all,
+# needs no registration and is the publisher's own server.
+#
+# admin_level is the one value carried on every notice from this source, and it is a
+# compromise rather than a per-notice reading. BOAMP states the buyer's level only in
+# its eForms documents (buyer-legal-type, on 218 of the 224 eForms files published on
+# 2026-09-11) and its other three document formats carry nothing equivalent on the
+# other 190, so reading it from one format and guessing it for the rest would be the
+# fallback rule 1 forbids. `local` is what the source measurably is: of the 119
+# notices that state a qualified level, 93 are local authorities and 6 regional
+# against 20 central-government ones, and France's ministries publish on PLACE and
+# TED rather than here. monitor/normalise/boamp.py's ADMIN_LEVEL and this value are
+# asserted equal by the contract test.
+id: boamp
+name: Bulletin officiel des annonces de marchés publics
+country: FR
+language: fr
+admin_level: local
+stream: feed
+wave: 1
+# A dated Apache directory index of one XML file per annonce, not an API: there is no
+# query surface at all, no CPV parameter and no index of what a day holds.
+access: public_listing
+connector: FeedConnector
+# 04:30 UTC, 06:30 Europe/Paris. The window is the two completed days before today
+# and the latest file seen in any day directory was written at 19:45 Paris, so
+# yesterday is whole by this time. It also sits clear of the other feeds' slots.
+schedule: '30 4 * * *'
+list_url: https://echanges.dila.gouv.fr/OPENDATA/BOAMP/
+# Open data. www.boamp.fr states the licence in its own footer, verified 2026-09-12:
+# "Sauf mention contraire, tous les contenus de ce site sont sous licence etalab-2.0"
+# (Licence Ouverte 2.0), which permits reuse including commercial reuse and requires
+# attribution. The attribution is satisfied by construction here: every notice is
+# stored with its source id and its boamp.fr URL, and the export carries both.
+# No registration, no key, no CAPTCHA, and echanges.dila.gouv.fr serves no robots.txt
+# (404, so nothing is disallowed). DILA also publishes a standing warning that its
+# open data may contain personal data
+# (/OPENDATA/AVERTISSEMENT-Donnees_a_caractere_personnel.pdf), which is why the body
+# stored from here is the procurement description and never DILA's rendered notice:
+# the rendering carries the buyer's staff names, telephone numbers and email
+# addresses, and rule 19 keeps those out of a model call.
+tos_status: reviewed_ok
+# BOAMP states a notice's nature as GESTION/REFERENCE/TYPE_AVIS/NATURE, the same
+# element on all four of its document formats. Measured 2026-09-11: excluding these
+# three takes a day from 414 files to 289, a 30% cut, and every notice removed is
+# either decided or unreadable.
+#   ATTRIBUTION    the tender is awarded and the winner named. 95 of 414. It also
+#                  carries TITULAIRES, the winning bidders' names and addresses,
+#                  which is third-party business record data that rule 19 keeps out
+#                  of a model call - the same argument sources/simap.yaml makes for
+#                  participant_selection. Reversible from here: Architecture v0.4
+#                  section 8 counts competitor incumbency as something that changes a
+#                  score.
+#   MODIFICATION   a modification of an awarded contract, so post-decision. 1 of 414.
+#   RECTIFICATIF   a correction. 29 of 414, and all of them in the national formats,
+#                  where the document carries only the changed fields and states the
+#                  new deadline in French prose (`infosRectif`) with no
+#                  DATE_LIMITE_REPONSE at all: 0 of the 29 carry one. Rule 10 forbids
+#                  reading a date out of prose, so a correction cannot update a
+#                  deadline here and would arrive as a second notice with no closing
+#                  date beside the original. A corrected *eForms* notice is not in
+#                  this set: BOAMP republishes it whole, as NATURE APPEL_OFFRE with
+#                  STATUT RECTIFICATIF, and it keeps its deadline. Known gap: a
+#                  national-format deadline change is not tracked in this pilot.
+exclude_notice_types: [ATTRIBUTION, MODIFICATION, RECTIFICATIF]
+# false until a live fetch has run. The fixture and the contract test were built
+# without one, because a scoring and a translation run were live against the same
+# database; the orchestrator flips this after the first real fetch.
+enabled: false
+health:
+  # Two completed publication days per run, tenders only. Notice files per day,
+  # measured over the eleven days visible on 2026-09-12: 105, 165, 205, 106, 172,
+  # 298, 315, 393, 399, 402, 414 - never zero, weekends included. 289 of the 414
+  # published on 2026-09-11 were tenders, so a run yields roughly 150 to 570 and the
+  # quietest pair of days seen would yield about 210. expected_min is a third of that
+  # so a genuinely thin holiday week is not a false failure while a broken parser
+  # still trips rule 4. The upper bound is also the ceiling on what one run yields, so
+  # raising it lets a run read more and lowering it truncates one; it is not only a
+  # health band. MAX_NOTICE_REQUESTS in the connector is the separate bound on
+  # requests, which is about 1.4 times the yield.
+  expected_items_per_run: [50, 900]
+  max_consecutive_failures: 3
+owner: ryan.dear
