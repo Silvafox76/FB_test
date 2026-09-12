@@ -60,9 +60,38 @@ def region_for(country: str) -> str:
     return regions.get(country, regions["default"])
 
 
+# The top of the six-digit space `candidates_id_format` allows, reserved for test
+# fixtures and drills. Not a tuning number and so not in thresholds.yaml (rule 6):
+# it is a structural division of the id space the schema fixes at `C[0-9]{6}`, and
+# moving it means moving every fixture with it.
+#
+# It exists because a fixture that picks an id at random from the whole space
+# collides with a real candidate, and both halves of that collision are harmful. The
+# insert fails, which aborts the fixture's setup *after* it has committed its source
+# and notice rows on an autocommit owner connection, leaving an orphan that no query
+# in the system can tell from real data - one was drawn into the golden set on
+# 2026-09-12. And the teardown deletes by id, so a fixture that did not collide on
+# insert but reused a real id would delete a real candidate.
+#
+# The reservation is declared here, next to the allocator, rather than in a test
+# helper, because it is the allocator that has to respect it. A convention four
+# fixture files follow independently is not a reservation; a sequence that refuses
+# to cross the line is.
+FIXTURE_ID_FLOOR = 900_000
+
+
 def next_candidate_id(conn: psycopg.Connection) -> str:
     """C000001, from the sequence. Typed and read aloud by people, so not a uuid."""
-    return f"C{conn.execute('select nextval(%s)', ('candidate_id_seq',)).fetchone()[0]:06d}"
+    allocated = conn.execute("select nextval(%s)", ("candidate_id_seq",)).fetchone()[0]
+    if allocated >= FIXTURE_ID_FLOOR:
+        # Rule 4. Silently allocating into the reserved block would make the next
+        # fixture teardown delete a real candidate, and nothing would report it.
+        raise RuntimeError(
+            f"candidate_id_seq has reached {allocated}, inside the block reserved for test "
+            f"fixtures at {FIXTURE_ID_FLOOR}. Widen the id format in migrations and move "
+            "FIXTURE_ID_FLOOR with it before staging anything else."
+        )
+    return f"C{allocated:06d}"
 
 
 # One row per notice, and the `distinct on` is load-bearing rather than tidy.

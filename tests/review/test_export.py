@@ -60,6 +60,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from monitor.cli import run_status
+from monitor.stage.stager import FIXTURE_ID_FLOOR
 from review import export as export_module
 from review.app import app
 from review.decisions import approve, record_defaults
@@ -123,7 +124,7 @@ def approved(owner, review):
     notice_ids = []
 
     for index, (country, buyer, _reviewer) in enumerate(BUYERS):
-        candidate_id = f"C{(int(marker, 16) + index) % 1_000_000:06d}"
+        candidate_id = f"C{FIXTURE_ID_FLOOR + (int(marker, 16) + index) % (1_000_000 - FIXTURE_ID_FLOOR):06d}"
         source_id = f"test-exp-{marker}-{index}"
         content_hash = f"sha256:{marker}{index}"
 

@@ -23,6 +23,8 @@ import psycopg
 import pytest
 from psycopg import errors
 
+from monitor.stage.stager import FIXTURE_ID_FLOOR
+
 pytestmark = pytest.mark.roles
 
 APPROVED_RECORD_ID = "R999999"
@@ -45,8 +47,9 @@ EXPORT_BATCH_ID = "B9999"
 # teaches the reader to discount the next one.
 #
 # Drawing from 900000-999999 puts the fixture where the sequence will not arrive, the
-# same reservation `APPROVED_RECORD_ID` and `EXPORT_BATCH_ID` above already use.
-FIXTURE_ID_FLOOR = 900_000
+# same reservation `APPROVED_RECORD_ID` and `EXPORT_BATCH_ID` above already use. The
+# floor is imported from the allocator that has to respect it rather than repeated
+# here, and `monitor/stage/stager.py` raises if the sequence ever reaches it.
 FIXTURE_ID_CEILING = 1_000_000
 
 

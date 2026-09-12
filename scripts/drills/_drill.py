@@ -44,6 +44,8 @@ from dataclasses import dataclass, field
 
 import psycopg
 
+from monitor.stage.stager import FIXTURE_ID_FLOOR
+
 PASSED = 0
 FAILED = 1
 CANNOT_RUN = 2
@@ -200,7 +202,7 @@ def staged_candidates(owner_conn: psycopg.Connection, count: int) -> Iterator[Fi
             )
 
         for index in range(count):
-            candidate_id = f"C{(int(marker, 16) + index) % 1_000_000:06d}"
+            candidate_id = f"C{FIXTURE_ID_FLOOR + (int(marker, 16) + index) % (1_000_000 - FIXTURE_ID_FLOOR):06d}"
             cluster: list[str] = []
 
             for stream_index, source_id in enumerate((national, donor)):

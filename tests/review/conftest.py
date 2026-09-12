@@ -21,6 +21,8 @@ import uuid
 import psycopg
 import pytest
 
+from monitor.stage.stager import FIXTURE_ID_FLOOR
+
 
 def url(env_var: str) -> str:
     value = os.environ.get(env_var)
@@ -48,7 +50,10 @@ def review():
 def staged(owner, review):
     """A pending_review candidate, its two notices and the two sources behind them."""
     marker = uuid.uuid4().hex[:8]
-    candidate_id = f"C{int(marker, 16) % 1_000_000:06d}"
+    # Reserved block, not the whole six-digit space: see FIXTURE_ID_FLOOR. This
+    # teardown deletes by candidate id, so an id the stager could also allocate
+    # would make it destructive.
+    candidate_id = f"C{FIXTURE_ID_FLOOR + int(marker, 16) % (1_000_000 - FIXTURE_ID_FLOOR):06d}"
     national = f"test-nat-{marker}"
     donor = f"test-wb-{marker}"
 

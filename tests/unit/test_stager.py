@@ -22,7 +22,14 @@ import uuid
 import psycopg
 import pytest
 
-from monitor.stage.stager import per_source_daily_cap, region_for, run, stage_threshold
+from monitor.stage.stager import (
+    FIXTURE_ID_FLOOR,
+    next_candidate_id,
+    per_source_daily_cap,
+    region_for,
+    run,
+    stage_threshold,
+)
 
 
 @pytest.fixture
@@ -338,3 +345,69 @@ def _actions(conn, source_id: str) -> list[str]:
 )
 def test_region_comes_from_config(country, region):
     assert region_for(country) == region
+
+
+# --- the id space the fixtures depend on -------------------------------------
+
+
+class SequenceAt:
+    """A connection stub that hands back one chosen nextval and records the call.
+
+    A stub rather than the real sequence, and the reason is a role boundary worth
+    keeping: moving a sequence needs UPDATE on it, `monitor_pipeline` holds only
+    USAGE, and that is correct - the pipeline draws ids and has no business setting
+    them. Testing this against a live sequence would mean connecting as the owner,
+    which is not a runtime path (rule 11), and a `setval` on an autocommit owner
+    connection would permanently advance the real sequence whether the test passed
+    or not.
+
+    So what is asserted here is the guard, which is all the guard is: one comparison
+    on the value `nextval` returned. The SQL around it is exercised on a real
+    sequence by every staging test in this file.
+    """
+
+    def __init__(self, value: int) -> None:
+        self.value = value
+        self.queries: list[str] = []
+
+    def execute(self, query, params=None):
+        self.queries.append(query)
+        return self
+
+    def fetchone(self):
+        return (self.value,)
+
+
+def test_the_allocator_refuses_to_enter_the_block_reserved_for_fixtures():
+    """Four fixture files pick ids from that block. The sequence must never reach it.
+
+    They pick from it because a fixture drawing from the whole `C[0-9]{6}` space
+    collides with a real candidate, and on 2026-09-12 one did: the insert failed,
+    which aborted the fixture's setup after it had already committed its source and
+    notice rows on an autocommit owner connection, and the orphan it left was drawn
+    into the golden set. The fixtures moving out of the way is half the fix. This is
+    the other half, because a reservation nothing enforces is a comment.
+
+    It matters most at the moment it is least likely to be noticed. Every fixture
+    teardown deletes its candidate by id, so the first real candidate allocated at
+    C900000 would be deleted by the next test run that happened to draw the same id -
+    silently, as a side effect of a passing test suite.
+    """
+    with pytest.raises(RuntimeError, match="reserved for test"):
+        next_candidate_id(SequenceAt(FIXTURE_ID_FLOOR))
+
+
+def test_the_error_says_what_to_do_rather_than_only_what_happened():
+    """Whoever hits this is 900,000 candidates in and needs the next step, not a trace."""
+    with pytest.raises(RuntimeError) as raised:
+        next_candidate_id(SequenceAt(FIXTURE_ID_FLOOR + 1))
+
+    message = str(raised.value)
+    assert str(FIXTURE_ID_FLOOR) in message
+    assert "migrations" in message
+
+
+def test_the_allocator_is_unaffected_below_the_reservation():
+    """The guard must cost nothing in the range the pipeline actually uses."""
+    assert next_candidate_id(SequenceAt(815)) == "C000815"
+    assert next_candidate_id(SequenceAt(FIXTURE_ID_FLOOR - 1)) == f"C{FIXTURE_ID_FLOOR - 1:06d}"
