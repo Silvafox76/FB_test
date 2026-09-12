@@ -1,0 +1,290 @@
+# Kosovo's central public procurement platform, BUILD_ORDER step 25 ("Balkan
+# portals are BrowserConnector, behind registration"). That assumption is checked
+# rather than carried forward, and for this source it does not hold on either half:
+# the notice listing needs no registration and needs no browser. Both findings are
+# measured below, not asserted.
+#
+# THREE HOSTS, because the brief named two and DNS turned up a third that is
+# actually the one that matters. Probed 2026-09-12, one polite GET per page
+# (rule 21), user agent FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com).
+# DNS resolved independently of the session's HTTPS proxy (`getent hosts`, which
+# does not go through the HTTPS CONNECT tunnel), so host-down and proxy-denial are
+# not conflated here the way sources/senegal.yaml and sources/sierra_leone.yaml flag
+# they can be:
+#
+#   1. https://aqp.rks-gov.net/ (AQP, Agjencia Qendrore e Prokurimit / Central
+#      Procurement Agency) - RESOLVES (2a07:e0c0:3:1::3 / 2a07:e0c0:4:1::3, shared
+#      with krpp.rks-gov.net), ANSWERS 200, live WordPress site. NOT THIS SOURCE.
+#      AQP is a centralised-purchasing body - its own nav is "Rreth AQP-se,
+#      Kontratat e Centralizuara, Kontratat Tjera, Vendimet, Njoftimet, Organizimi" -
+#      i.e. framework agreements AQP itself runs for common government goods, not
+#      the national tender board every contracting authority publishes to. Its own
+#      "Njoftimet" page would cover only AQP's own centralised lots, a small slice
+#      of Kosovo procurement, not the source a PFM pilot wants.
+#   2. https://krpp.rks-gov.net/ (KRPP, Komisioni Rregullativ i Prokurimit Publik /
+#      Public Procurement Regulatory Commission) - RESOLVES (same two addresses as
+#      AQP), but every request - robots.txt and the home page, tried once each, then
+#      the home page retried once to rule out a transient blip - answered
+#      `HTTP/1.1 200 Connection Established` (the CONNECT tunnel to the real origin
+#      succeeded) followed by a full `HTTP/1.1 502 Bad Gateway` WITH
+#      `Server: Microsoft-IIS/10.0`, a `Content-Length` and a complete IIS error
+#      page body. That is a real answer from a real IIS server acting as a reverse
+#      proxy to a dead upstream, not the proxy's own ambiguous
+#      "gateway answered 502 to CONNECT" failure sources/senegal.yaml and
+#      sources/sierra_leone.yaml record for hosts that never got past the tunnel -
+#      the two are distinguishable here and this is the distinguishable one: the
+#      host is up, IIS is up, and whatever KRPP intends to serve on this domain is
+#      down behind it. Not pursued further because of (3).
+#   3. https://e-prokurimi.rks-gov.net/ - RESOLVES to a third address
+#      (2a07:e0c0:3:1::80 / 2a07:e0c0:4:1::80, same government /64 blocks as (1) and
+#      (2) but its own host), ANSWERS 200 (redirect chain 301 -> 301 -> 302 -> 200,
+#      all same-host, to /HOME/ClanakItemNew.aspx?id=327), and is named on its own
+#      home page and in its own Terms of Use (quoted below) as owned, operated and
+#      administered by KRPP. THIS SOURCE. KRPP's own welcome text: "Mire se vini ne
+#      faqen zyrtare te internetit te Prokurimit Publik te Kosoves e cila eshte e
+#      krijuar si Portal i Prokurimit Publik" (Welcome to the official website of
+#      Kosovo Public Procurement, created as the Public Procurement Portal), citing
+#      Law No. 04/L-042 as KRPP's mandate to run it. The nav links both AQP and OSHP
+#      (the review body) as related but separate institutions, confirming this is
+#      the one shared platform, not one of several.
+#
+# ROBOTS.TXT:
+#   - https://e-prokurimi.rks-gov.net/robots.txt -> HTTP 404 (real IIS "File or
+#     directory not found" page, not a proxy failure), i.e. no robots.txt exists.
+#     Nothing is disallowed because there is no file to disallow anything, the same
+#     absence-means-permitted reading sources/doe.yaml and sources/cote_divoire.yaml
+#     record for their own 404s. No crawl-delay is stated anywhere.
+#   - https://aqp.rks-gov.net/robots.txt -> HTTP 200, verbatim:
+#         User-agent: *
+#         Disallow: /wp-admin/
+#         Allow: /wp-admin/admin-ajax.php
+#     Moot for this file (AQP is not the source) but recorded since it was fetched.
+#   - https://krpp.rks-gov.net/robots.txt -> HTTP 502 (see host 2 above); could not
+#     be read. Moot for the same reason.
+#
+# TERMS OF USE, FOUND AND READ. Linked from e-prokurimi's own footer as "Termat dhe
+# Kushtet": https://e-prokurimi.rks-gov.net/Home/Manuals//TermsAndConditions/KushtetDheTermatE-prokurimi.pdf
+# ("Kushtet dhe Termat per Perdorimin e Sistemit te Prokurimit Elektronik - Marreveshja
+# e Perdoruesit", i.e. Terms and Conditions for Use of the Electronic Procurement
+# System - User Agreement), fetched cold with no session, HTTP 200, a genuine
+# 16-page text-layer PDF (pdftotext -layout recovered 46,510 characters of real
+# prose, not a scan). Trilingual, Albanian/English/Serbian in parallel columns, each
+# language numbered independently within its own block; citations below use the
+# English-block clause numbers.
+#
+#   - REGISTRATION IS FOR BIDDING, NOT FOR READING. Clause 3 (Albanian block; "User
+#     account (Registration) will be created only once the terms and conditions...
+#     have been read and accepted") and clause 24 ("Users' credentials": a username
+#     and password from "Registration of new users" are what let an Economic
+#     Operator submit a bid) both tie the account to placing a tender, not to seeing
+#     one. This matches what was measured directly: every notice-listing and
+#     notice-detail page below returned real data on a first, unauthenticated GET,
+#     with only an anonymous ASP.NET_SessionId and no redirect to a login page. So
+#     BUILD_ORDER step 25's "behind registration" does not hold for the read this
+#     source needs; it holds for the bidding half of the platform, which this
+#     source does not touch.
+#   - CLAUSE 23 (Security) states plainly that "Access to the e-procurement system is
+#     provided on the initiative of the user and not on the initiative of PPRC" and
+#     prohibits attacks on the system (defeating security features, forged headers,
+#     DoS) - nothing there reaches ordinary reading of a public listing.
+#   - CLAUSE 22 (User conduct) bans transmitting "computer viruses, trojan horses
+#     worms, bots... or other destructive computer code" - this is about not
+#     attacking the system with malicious payloads, not a ban on automated reading;
+#     "bots" appears in a list with viruses and worms, not as its own clause.
+#   - CLAUSE 28 (Copyright) IS A REAL RESTRICTION AND IS WHY THIS FILE IS NOT
+#     reviewed_ok. 28(a): the system is owned/operated/administered by PPRC (KRPP).
+#     28(b): all content - "trademarks, distinctive titles, texts, news,
+#     photographs, images" - is PPRC's property. 28(c), quoted in full because it is
+#     the clause that matters: "No user may copy, modify, publish, transmit,
+#     transfer or sell, reproduce, create derivative works from, distribute,
+#     display, or in any way exploit any of the content, in whole or in part,
+#     except for i) where this is permitted by public procurement laws and
+#     regulations of the Republic of Kosovo, or ii) with the express written
+#     agreement of PPRC." This pipeline stores notice text, sends it to a model,
+#     derives an English rendering and exports a row to a CRM staging file - that is
+#     copying and reproducing "content" in the plain meaning of 28(c), and whether
+#     it falls inside exception (i) (Kosovo's public procurement law plainly
+#     contemplates public awareness of published notices; whether it stretches to
+#     what this pipeline does with them is a legal reading, not an engineering one)
+#     is exactly the kind of question this step is not supposed to guess at.
+#     Nothing here bans automated *access* or scraping in so many words - there is
+#     no robots.txt disallow, no "no crawling" clause, no rate-limit statement - so
+#     this is not the clean reviewed_restricted stop CLAUDE.md describes for an
+#     outright prohibition. It is also not reviewed_ok: a specific reproduction
+#     restriction was found and read, and applying it to this pipeline's own
+#     processing is a legal judgment call.
+#
+# tos_status: pending. WHO NEEDS TO ACT: legal review of PPRC ToS clause 28(c)
+# against this pipeline's storage, translation, scoring and export of Kosovo notice
+# text, before this source is enabled. Nobody registered an account, submitted the
+# registration wizard, or clicked "accept" on anything to reach any of the findings
+# above (rule: never accept terms on FreeBalance's behalf) - the PDF was read cold,
+# the same way sources/sierra_leone.yaml's bid PDFs were.
+#
+# ACCESS ROUTE. In the order this pilot works down: no documented API; e-prokurimi's
+# own shipped JavaScript was read rather than assumed inert, the same check that
+# turned sources/senegal.yaml and (per BUILD_ORDER step 25's own prior wave) Mali
+# into FeedConnectors reading a JSON endpoint instead of a browser - and it found
+# nothing to reproduce here. This is not a single-page-application: the app is
+# classic ASP.NET WebForms (SPIN_PROD, the "Idom3"/SPIN e-procurement product family
+# also seen elsewhere in the Balkans), server-side ViewState and postbacks, no
+# client-side router, no fetch/XHR call to a JSON API anywhere in its script tags.
+# No RSS or ATOM link in any page `<head>`. No alert-email subscription found. What
+# is there is a public HTML listing, confirmed live with a plain `curl` (no browser,
+# no JS engine) against three pages, none of which needed a session beyond the
+# anonymous one IIS hands out to any visitor:
+#
+#   1. THE NOTICE DIGEST (this source's list_url):
+#      https://e-prokurimi.rks-gov.net/SPIN_PROD/application/ipn/DocumentManagement/NewPreglediDokumenataFrm.aspx
+#      One GET, HTTP 200, 2.27 MB of server-rendered HTML, "Lista e njoftimeve te
+#      publikuara" (List of published notices): every notice from the ten most
+#      recent PUBLICATION DAYS - measured as exactly two Monday-to-Friday business
+#      weeks, 2026-08-31 through 2026-09-11, with no weekend dates present at all,
+#      consistent with the portal simply not publishing on weekends rather than the
+#      window being date-bounded by a query - grouped by day and by notice type,
+#      each entry numbered and titled. No pagination control exists on this page (no
+#      "next", "more" or page-number link; the page's own final visible line is
+#      "Kthehu ne fillim te faqes", back to top). This is the same shape
+#      sources/ebrd.yaml and sources/sierra_leone.yaml both chose FeedConnector for:
+#      one fixed URL, one document, no browser, no query parameters submitted, no
+#      pagination to walk.
+#   2. THE STRUCTURED SEARCH GRID (a better source for per-notice fields, recorded
+#      for the connector builder rather than made the operative URL):
+#      https://e-prokurimi.rks-gov.net/SPIN_PROD/application/ipn/PreglediFrm.aspx?method=ReducedObjavljeniDokumenti
+#      A GET (one redirect to a session-scoped SearchFrm.aspx, then 200) rendered a
+#      populated ASP.NET GridView with NO search terms filled in and NO button
+#      clicked - the grid's own decoded ViewState states "Numri i pergjithshem te
+#      dhenave te cilat i plotesojne kriteret e kerkimit: 216833" (216,833 total
+#      records matching the search - i.e. no filter - criteria), sorted descending
+#      by "Data e publikimit" (a real server-side column sort with a visible sort
+#      arrow, not client-side DataTables the way sources/ebrd.yaml's ECEPP sorts).
+#      Its 20-row-per-page grid carries what the digest does not: Numrin e
+#      prokurimit (procurement number), Autoriteti kontraktues (contracting
+#      authority), Numri i publikimit (a composite id that embeds the notice-type
+#      code, e.g. "2026/KEK-26-2373-1-2-1/B08-0019520"), Lenda e prokurimit / grupi
+#      (subject), FPP (CPV - see CODES below), Lloji i kontrates (contract type),
+#      Vlera e kontrates (value tier), Procedura, Data e publikimit, Ri-Tenderim,
+#      Ankand. Reaching page 2 needs an ASP.NET postback (a POST replaying
+#      __VIEWSTATE/__EVENTTARGET, standard for this framework and not a JavaScript
+#      requirement - httpx can do it, no Playwright needed) rather than a second GET,
+#      which is real added complexity left to the connector builder rather than
+#      solved here; it is not evaluated as this source's default read for that
+#      reason, but a connector wanting CPV per notice without opening a detail page
+#      should read this grid rather than the digest.
+#   3. A SPECIFIC NOTICE'S DETAIL PAGE, e.g.
+#      https://e-prokurimi.rks-gov.net/SPIN_PROD/application/ipn/DocumentManagement/DokumentPodaciFrm.aspx?id=4280846
+#      linked directly from every digest row - GET, HTTP 200, no login. This is
+#      where DOCUMENT DOWNLOAD WAS TESTED AND DID NOT RESOLVE CLEANLY: the "Dokument
+#      PDF" control is wired to `WebForm_DoPostBackWithOptions`, which on inspection
+#      opens an AjaxControlToolkit `ModalPopupBehavior` (a `DynamicServicePath` web
+#      service call) rather than linking a static file. A full (non-AJAX) postback
+#      replaying that button's `__EVENTTARGET` with the page's own ViewState and the
+#      session cookie from the same GET returned another full HTML page, not a PDF -
+#      the popup's real content is fetched by client-side script the postback alone
+#      does not trigger. UNRESOLVED, and recorded rather than guessed at: whether
+#      the underlying tender-document PDFs carry a text layer was NOT established,
+#      unlike the Terms-of-Use PDF above, which was checked directly. Left to
+#      whoever builds the connector, and it may not matter - the digest and the
+#      search grid both carry the subject, authority, dates and (grid only) CPV
+#      without ever opening a notice's document viewer, so a first connector can
+#      likely skip document retrieval entirely rather than solve this.
+#
+# CODES: CPV IS CARRIED, under Kosovo's own name for it. The search grid's "FPP"
+# column ("Fjalori i Perbashkuar i Prokurimit", Kosovo's rendering of the EU Common
+# Procurement Vocabulary) held standard 8-digit-plus-check-digit CPV codes on every
+# row read (31110000-0, 45000000-7). The legal-classification submenu on the portal
+# itself also lists "FPP" and "FPP - suplementar" as browsable code lists, confirming
+# this is the real CPV scheme and not a lookalike. The plain digest view (route 1
+# above) does not carry CPV inline; only the search grid (route 2) does.
+#
+# ACQUISITION SCOPE: the digest's own type headers separate a Contract Notice (a new
+# tender) from four notice types that are all post-decision, the same query-time
+# separation sources/doe.yaml and sources/ebrd.yaml both make and for the same
+# reason - nothing is read as an opportunity and then thrown away, because these are
+# never opportunities. Unlike DOE's eForms formType or EBRD's own notice-type
+# string, there is no query parameter to ask for one type only here: the digest
+# mixes all five under one URL, so the split happens while parsing the one document
+# already fetched, not before fetching it - recorded here rather than left for a
+# connector to discover, since CLAUDE.md rule 6 puts this classification in the
+# registry. Measured 2026-09-12 counting numbered entries under each type header
+# across the ten dates the digest shows (2026-08-31 to 2026-09-11):
+#
+#   KEPT:    B05 Njoftim per Kontrat (Contract Notice - a new tender) - daily counts
+#            26, 16, 17, 24, 29, 21, 25, 18, 23, 27 across the ten dates in order,
+#            226 total over the ten-business-day window; never zero on a posting day.
+#   EXCLUDED (post-decision, all named exactly as the portal prints them so a typo
+#   here cannot silently exclude nothing - see exclude_notice_types):
+#     - B08 Njoftim per dhenie te kontrates (Contract award notice) - 331 over the
+#       same window, the single largest type.
+#     - B52 Njoftimi per nenshkrimin e kontrates (Notice of contract signing) - 282.
+#     - B10 Njoftimi per anulimin e aktivitetit te prokurimit (Cancellation of a
+#       procurement activity) - 108.
+#     - B11 Njoftimi per anulimin e dhenies se kontrates (Cancellation of a contract
+#       award) - 1, seen on a single date.
+#   These labels were read from the digest's own headers and not independently
+#   cross-checked against a documented Kosovo notice-type list, the one honest gap
+#   in this classification; the connector should raise (per sources/ebrd.yaml's
+#   discipline) if any of the four excluded strings ever fails to match a header on
+#   the live page, rather than silently keep matching nothing.
+#
+# VOLUME, measured 2026-09-12, KEPT (B05) NOTICES ONLY, for the last 7 CALENDAR days
+# (2026-09-05 to 2026-09-11 - two of those seven are the weekend, on which nothing
+# publishes): 07-09 21, 08-09 25, 09-09 18, 10-09 23, 11-09 27 = 114 new Contract
+# Notices in 5 posting days. This is a real national volume, not a token connector -
+# an order of magnitude above every West African source in this registry, and it is
+# the whole of Kosovo's public procurement (central ministries, municipalities such
+# as Komuna e Gjilanit, and state-owned enterprises such as KEK and Termokos all
+# post to the one platform), not one agency's slice of it.
+#
+# LANGUAGE: sq (Albanian), confirmed against actual page text rather than assumed
+# from the country. Every digest title, every grid row and every contracting-
+# authority name read was Albanian. The portal also offers Serbian and English UI
+# ("Shqip / Srpski / English" on both the home page and the ToU PDF), and the ToU
+# PDF itself is genuinely trilingual, but the notices themselves - the text a
+# connector would store - were Albanian throughout everything read. sr and en are
+# not recorded as additional source languages because no notice content in either
+# was found; if that changes, language is the normaliser's per-notice call, the same
+# note sources/doe.yaml and sources/ebrd.yaml make about their own mixed corpora.
+#
+# ADMIN_LEVEL: national, describing the platform (Kosovo's one shared e-procurement
+# system for every contracting authority in the country, per KRPP's Law No.
+# 04/L-042 mandate), not a claim that every notice on it is central-government - the
+# contracting-authority names read (a municipal assembly, a national energy
+# corporation) span every level, the same admin_level-is-a-platform-default point
+# sources/doe.yaml makes about Germany's 16 Laender feed.
+id: kosovo
+name: e-Prokurimi (Kosovo National Public Procurement Portal, operated by KRPP)
+country: XK
+admin_level: national
+language: sq
+stream: feed
+wave: 2
+access: public_listing
+connector: FeedConnector
+# 12:30 UTC daily = 14:30 in Kosovo (Europe/Belgrade zone; Kosovo has no separate
+# IANA tz entry and uses the same UTC+2/CEST-in-September offset as Serbia,
+# Montenegro and North Macedonia). Chosen to collide with nothing already in
+# sources/ (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, undp
+# 07:30, worldbank 08:00, simap and worldbank_pipeline 08:30, euft and place 09:00,
+# mcc Monday 09:30, ungm 10:00, ebrd 10:30, benin/cote_divoire/liberia/senegal/
+# sierra_leone 11:00, gambia/mali/nigeria 11:30, ghana 12:00). Afternoon rather than
+# morning because the digest's own dates only settle once a full business day has
+# posted; a run any time after the portal's own working day closes reads the same
+# ten-day window.
+schedule: '30 12 * * *'
+list_url: https://e-prokurimi.rks-gov.net/SPIN_PROD/application/ipn/DocumentManagement/NewPreglediDokumenataFrm.aspx
+tos_status: pending          # PPRC ToU clause 28(c) (Copyright) needs legal review; see TERMS OF USE above for the clause and what needs deciding
+exclude_notice_types: ['B08 Njoftim per dhenie te kontrates', 'B52 Njoftimi per nenshkrimin e kontrates', 'B10 Njoftimi per anulimin e aktivitetit te prokurimit', 'B11 Njoftimi per anulimin e dhenies se kontrates']
+enabled: false          # step 25 not yet built; also blocked on legal clearing tos_status pending (see TERMS OF USE above) before any live fetch
+health:
+  # KEPT (B05) counts only, per ACQUISITION SCOPE and VOLUME above: 226 over the
+  # ten-business-day window the digest shows in one fetch on 2026-09-12 (daily
+  # counts 26,16,17,24,29,21,25,18,23,27; never zero on a posting day). Floor set
+  # well below the observed ten-day total to allow for a quiet stretch (the lowest
+  # single day measured was 16), ceiling with headroom for a busier one; both are a
+  # one-snapshot measurement, not a rolling-window statistic, and should be replaced
+  # once a connector has real run history, the same caveat sources/sierra_leone.yaml
+  # records for its own single-day count.
+  expected_items_per_run: [80, 500]
+  max_consecutive_failures: 3
+owner: ryan.dear
