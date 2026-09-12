@@ -37,6 +37,13 @@ publisher:
   # this sits ahead of every fetch slot (boamp 04:30 through ebrd 10:30) so a
   # staging run later the same day has a fresh rate to stamp.
   schedule: '0 9 * * *'
+  # A day with fewer rows than this is not a thin day, it is a broken response:
+  # the feed has carried 45 currencies every time it has been looked at, and the
+  # conversion needs at least the target and EUR legs to do anything at all. The
+  # same thing sources/*.yaml carries as expected_items_per_run for every other
+  # source, kept here for the same reason (rule 4: near-zero yield on a source
+  # that normally yields is a failure state, not an empty success).
+  minimum_rows: 10
 
 # What a conversion targets. Everything in the corpus becomes this.
 target_currency: USD

@@ -286,10 +286,11 @@ def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: st
         """
         insert into notices (content_hash, source_id, external_id, url, title, buyer, country,
                              admin_level, published_at, deadline_at, language, language_confidence,
-                             cpv_codes, estimated_value_usd, body, status)
+                             cpv_codes, estimated_value, value_currency, body, status)
         values (%(content_hash)s, %(source_id)s, %(external_id)s, %(url)s, %(title)s, %(buyer)s,
                 %(country)s, %(admin_level)s, %(published_at)s, %(deadline_at)s, %(language)s,
-                %(language_confidence)s, %(cpv_codes)s, %(estimated_value_usd)s, %(body)s, %(status)s)
+                %(language_confidence)s, %(cpv_codes)s, %(estimated_value)s, %(value_currency)s,
+                %(body)s, %(status)s)
         returning id
         """,
         notice.model_dump(exclude={"filter_result"}),

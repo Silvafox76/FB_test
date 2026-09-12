@@ -129,12 +129,23 @@ Enabling a timer does not take a pass, and neither does starting the Compose loo
 To take one now:
 
 ```bash
+make fx          # the day's exchange rates, once, before the first stage of the day
 make run         # fetch all, filter, score, dedupe, stage
 ```
 
 `make run` stops at the first stage that fails and keeps everything the stages
 before it committed, so the next pass resumes there. A pass that stops at the
 scorer has still stored and filtered the day's notices.
+
+**Staging needs a rate table no older than the tolerance in `config/fx.yaml`**
+(seven days). It reads the newest day `make fx` has stored and stamps every
+candidate it creates with that rate and its date; if nothing fresh enough is held
+it refuses to stage anything, including candidates with no stated value, rather
+than write a batch carrying last month's arithmetic. `make fx` is deliberately not
+inside `make run`: `run` fires hourly and the rate publisher is read once a day
+(rule 21), on its own timer at 09:00 UTC. The refusal reads
+`StaleRatesError: newest nbu rates are from ..., N days old` and the fix is
+`make fx`.
 
 ## Stop
 

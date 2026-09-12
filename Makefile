@@ -61,7 +61,7 @@ score: ## Score every notice the free filter passed
 	uv run python -m monitor.cli score
 
 fx: ## Fetch and store today's exchange rates from the rate publisher
-	$(RUN) monitor fx
+	uv run python -m monitor.cli fx
 
 stage: ## Dedupe scored notices into candidates and stage them for review
 	uv run python -m monitor.cli stage

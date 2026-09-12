@@ -27,7 +27,8 @@ validates every tool result, so `relevance: 101` is caught by the validator a
 moment later, and a schema failure parks the notice after one retry (rule 2).
 
 *A property the schema does not mark required cannot be returned at all.* This one
-was expensive. Five of appendix C's ten fields have a default in `Score` -
+was expensive. Five of appendix C's fields had a default in `Score` (four still do;
+`estimated_value_usd` was removed on 2026-09-12, see migration 012) -
 `matched_functions`, `system_names` and `eligibility_flags` default to empty lists,
 `estimated_value_usd` and `deadline_at` to null - so pydantic leaves them out of
 `required`, and under `strict` the API accepted tool calls containing only the

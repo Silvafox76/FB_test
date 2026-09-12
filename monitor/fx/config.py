@@ -38,6 +38,7 @@ class Publisher(BaseModel):
     url: str = Field(min_length=1)
     base_currency: str
     schedule: str
+    minimum_rows: int = Field(gt=0)
 
     @field_validator("base_currency")
     @classmethod

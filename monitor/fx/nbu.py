@@ -35,13 +35,6 @@ log = structlog.get_logger(__name__)
 # The publisher's own date format. Its own, not ISO, and not negotiable.
 DATE_FORMAT = "%d.%m.%Y"
 
-# A day with fewer rows than this is not a thin day, it is a broken response: the
-# feed has carried 40-odd currencies every time it has been looked at, and the
-# conversion needs at least the target and EUR legs to do anything at all. Rule 4:
-# zero-yield, or near-zero yield, on a source that normally yields is a failure
-# state rather than an empty success.
-MINIMUM_ROWS = 10
-
 
 @dataclass(frozen=True)
 class Rate:
@@ -63,8 +56,9 @@ def parse(document: object, config: FxConfig) -> list[Rate]:
     publisher = config.publisher.id
     if not isinstance(document, list):
         raise FxFetchError(publisher, f"expected a JSON array, got {type(document).__name__}")
-    if len(document) < MINIMUM_ROWS:
-        raise FxFetchError(publisher, f"{len(document)} rows, fewer than the {MINIMUM_ROWS} a healthy day carries")
+    floor = config.publisher.minimum_rows
+    if len(document) < floor:
+        raise FxFetchError(publisher, f"{len(document)} rows, fewer than the {floor} a healthy day carries")
 
     rates: list[Rate] = []
     for row in document:
