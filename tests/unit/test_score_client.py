@@ -224,16 +224,26 @@ def test_the_cap_is_checked_before_any_request(db_conn, monkeypatch):
     assert sent == []
 
 
-def test_a_cache_read_is_priced_at_a_tenth(db_conn):
-    """The system block is ~7,500 tokens and identical per notice; caching is the point."""
+def test_a_cached_system_block_costs_less_than_sending_it_fresh(db_conn):
+    """The system block is ~7,500 tokens and identical per notice; caching is the point.
+
+    The usage shape matters here and the earlier version of this test got it wrong.
+    It set `cache_read_input_tokens` to 7,000 while leaving `input_tokens` at 7,500,
+    which the API never reports: the counts are disjoint, so a call that read 7,000
+    tokens from cache reports a SMALL `input_tokens` for what was left. Asserting
+    against an impossible response is how this test came to certify arithmetic that
+    subtracted the cache read from the fresh input and could go negative.
+    """
     document = tool_response(VALID_SCORE)
+    document["usage"]["input_tokens"] = 500  # what was not already cached
     document["usage"]["cache_read_input_tokens"] = 7000
     client, _ = client_returning(document)
 
     result = score_notice(db_conn, client, notice(), prompt_version="v1")
 
-    uncached = caps.cost_usd(MODEL, tokens_in=7500, tokens_out=300)
-    assert result.cost_usd < uncached
+    all_fresh = caps.cost_usd(MODEL, tokens_in=7500, tokens_out=300)
+    assert result.cost_usd < all_fresh
+    assert result.cost_usd > 0
 
 
 # --- the prompt --------------------------------------------------------------

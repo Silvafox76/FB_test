@@ -196,15 +196,22 @@ def test_a_retry_that_succeeds_is_not_a_failure(db_conn):
 
 
 def test_every_attempt_is_logged_including_the_failures(db_conn):
-    """Rule 22: a failed call costs the same as a successful one."""
+    """Rule 22: a failed call costs the same as a successful one.
+
+    Counted against a baseline taken in this test rather than against the whole
+    table. The version that asserted `count == 2` outright passed only while
+    model_calls was empty and broke the first time the deployment had really
+    translated anything: it had 640 rows in it and the assertion read 642.
+    """
     client, _ = client_returning("nope", "still nope")
+    before = db_conn.execute("select count(*), coalesce(sum(cost_usd), 0) from model_calls").fetchone()
 
     with pytest.raises(SchemaError):
         translate(db_conn, client, language="fr", title="Titre", body="", prompt_version="v")
 
-    calls = db_conn.execute("select count(*), sum(cost_usd) from model_calls where purpose = 'translate'").fetchone()
-    assert calls[0] == 2
-    assert calls[1] > 0
+    after = db_conn.execute("select count(*), coalesce(sum(cost_usd), 0) from model_calls").fetchone()
+    assert after[0] - before[0] == 2, "both attempts logged, the failed one included"
+    assert after[1] - before[1] > 0
 
 
 def test_the_response_schema_rejects_an_invented_field():

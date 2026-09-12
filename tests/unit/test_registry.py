@@ -21,7 +21,11 @@ from monitor.registry import (
 )
 from monitor.registry.load import CONFIG_DIR, SOURCES_DIR
 
-EXPECTED_SOURCES = {"ted", "prozorro", "fts", "worldbank"}
+# The four the weekend slice proved end to end against their live APIs. Later waves
+# add more, so this is a floor and not the whole set: the test below asserts these
+# are present AND that every file in sources/ loads, rather than pinning a list that
+# every new connector would have to come back and edit.
+WEEKEND_SOURCES = {"ted", "prozorro", "fts", "worldbank"}
 
 
 @pytest.fixture
@@ -32,10 +36,19 @@ def sources_copy(tmp_path):
     return directory
 
 
-def test_all_four_sources_load():
-    sources = {source.id for source in load_sources()}
+def test_every_registry_file_loads_and_the_weekend_four_are_among_them():
+    """Two things, because either alone would miss the point.
 
-    assert sources == EXPECTED_SOURCES
+    Every YAML in sources/ has to load and validate, so a malformed entry added by a
+    later wave fails here rather than three stages downstream (rule 4). And the four
+    sources the weekend slice proved against live APIs have to still be there, so a
+    later edit cannot quietly drop one.
+    """
+    sources = {source.id for source in load_sources()}
+    on_disk = {path.stem for path in SOURCES_DIR.glob("*.yaml")}
+
+    assert sources == on_disk, "every registry file loads, and the loader invents none"
+    assert WEEKEND_SOURCES <= sources, f"missing: {sorted(WEEKEND_SOURCES - sources)}"
 
 
 def test_every_source_is_a_feed_connector_this_weekend():

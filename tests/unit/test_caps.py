@@ -41,6 +41,20 @@ def counting_client() -> tuple[anthropic.Anthropic, list]:
     return client, sent
 
 
+def spend_now(conn) -> tuple[int, float]:
+    """Today's calls and cost as they already stand.
+
+    Every cap test below sets its cap relative to this rather than to zero. The
+    versions that used absolute numbers passed only while model_calls was empty for
+    the day, and broke the first time the deployment had really scored and
+    translated anything: 761 calls sat in the table and a test asserting "cap is 3"
+    tripped on the first line of the fixture. scripts/drills/drill3_call_cap.py had
+    already learned this and computes its cap the same way.
+    """
+    spend = caps.spend_today(conn)
+    return spend.calls, spend.usd
+
+
 def fill_model_calls(conn, count: int, cost_each: float = 0.001) -> None:
     for _ in range(count):
         conn.execute(
@@ -53,23 +67,30 @@ def fill_model_calls(conn, count: int, cost_each: float = 0.001) -> None:
 
 
 def test_the_call_cap_stops_the_run_before_any_request(db_conn, monkeypatch):
-    """The fourth call raises before the transport is touched."""
-    monkeypatch.setenv("DAILY_CALL_CAP", "3")
-    caps._thresholds.cache_clear()
+    """The call that would go over the line raises before the transport is touched."""
+    calls, _ = spend_now(db_conn)
     fill_model_calls(db_conn, 3)
+    cap = calls + 3
+    monkeypatch.setenv("DAILY_CALL_CAP", str(cap))
+    caps._thresholds.cache_clear()
     client, sent = counting_client()
 
-    with pytest.raises(caps.CapExceeded, match="3 calls today"):
+    with pytest.raises(caps.CapExceeded, match=f"{cap} calls today"):
         translate(db_conn, client, language="fr", title="Titre", body="", prompt_version="v")
 
     assert sent == [], "a capped run must make no HTTP request at all"
 
 
 def test_the_cost_cap_stops_the_run_before_any_request(db_conn, monkeypatch):
-    monkeypatch.setenv("DAILY_USD_CAP", "1")
-    monkeypatch.setenv("DAILY_CALL_CAP", "10000")
-    caps._thresholds.cache_clear()
+    _, usd = spend_now(db_conn)
     fill_model_calls(db_conn, 5, cost_each=0.25)
+    # A full 0.25 of headroom rather than landing on the boundary: formatting the
+    # cap to four places can round it a hair ABOVE the seeded spend, and then the
+    # call goes through and the test fails for a reason that has nothing to do
+    # with the cap.
+    monkeypatch.setenv("DAILY_USD_CAP", f"{usd + 1.0:.4f}")
+    monkeypatch.setenv("DAILY_CALL_CAP", "1000000")
+    caps._thresholds.cache_clear()
     client, sent = counting_client()
 
     with pytest.raises(caps.CapExceeded, match="USD"):
@@ -79,9 +100,11 @@ def test_the_cost_cap_stops_the_run_before_any_request(db_conn, monkeypatch):
 
 
 def test_under_the_cap_the_call_goes_through(db_conn, monkeypatch):
-    monkeypatch.setenv("DAILY_CALL_CAP", "5")
-    caps._thresholds.cache_clear()
+    """The control for the two above: the same setup, one call short of the cap."""
+    calls, _ = spend_now(db_conn)
     fill_model_calls(db_conn, 2)
+    monkeypatch.setenv("DAILY_CALL_CAP", str(calls + 5))
+    caps._thresholds.cache_clear()
     client, sent = counting_client()
 
     translate(db_conn, client, language="fr", title="Titre", body="", prompt_version="v")
@@ -94,11 +117,40 @@ def test_cost_is_computed_from_the_configured_rate_card():
     assert caps.cost_usd(MODEL, tokens_in=100, tokens_out=50) == pytest.approx(0.00035)
 
 
-def test_a_cache_read_is_billed_at_a_tenth():
-    full = caps.cost_usd(MODEL, tokens_in=1000, tokens_out=0)
-    cached = caps.cost_usd(MODEL, tokens_in=1000, tokens_out=0, cache_read_tokens=1000)
+def test_a_cache_read_is_billed_at_a_tenth_of_the_same_tokens_fresh():
+    """The same 1,000 tokens, read from cache rather than sent fresh.
 
-    assert cached == pytest.approx(full * 0.1)
+    Stated this way because the four counts the API reports are disjoint. The
+    version of this test that passed before compared `tokens_in=1000` against
+    `tokens_in=1000, cache_read_tokens=1000` and expected the second to be a tenth
+    of the first, which is only true if the cached tokens are a subset of
+    `tokens_in`. They are not, and the arithmetic that satisfied it subtracted one
+    from the other and could go negative (migration 010).
+    """
+    fresh = caps.cost_usd(MODEL, tokens_in=1000, tokens_out=0)
+    from_cache = caps.cost_usd(MODEL, tokens_in=0, tokens_out=0, cache_read_tokens=1000)
+
+    assert from_cache == pytest.approx(fresh * 0.1)
+
+
+def test_the_four_token_counts_are_disjoint_and_all_add_to_the_bill():
+    """Fresh, cache write, cache read and output are four separate line items.
+
+    The regression this pins: no combination of counts may produce a cost lower
+    than the fresh-input-only cost, and none may go negative. `spend_today` sums
+    this column to enforce the USD cap, so a negative row makes the day read
+    cheaper than it was and the cap more permissive than configured.
+    """
+    fresh_only = caps.cost_usd(MODEL, tokens_in=600, tokens_out=200)
+    with_read = caps.cost_usd(MODEL, tokens_in=600, tokens_out=200, cache_read_tokens=7500)
+    with_write = caps.cost_usd(MODEL, tokens_in=600, tokens_out=200, cache_write_tokens=7500)
+
+    assert with_read > fresh_only
+    assert with_write > with_read, "writing the cache costs 1.25x input, reading it 0.1x"
+    assert fresh_only > 0
+
+    # The exact shape that recorded a negative cost on 28 of the first 29 real calls.
+    assert caps.cost_usd(MODEL, tokens_in=614, tokens_out=189, cache_read_tokens=7500) > 0
 
 
 def test_an_unpriced_model_raises_rather_than_costing_nothing():

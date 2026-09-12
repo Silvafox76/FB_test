@@ -43,12 +43,56 @@ def valid_input(**overrides) -> dict:
 # --- the tool definition -----------------------------------------------------
 
 
-def test_the_tool_input_schema_is_the_model_itself():
-    """One contract, not two. If they drift, the model is held to the wrong one."""
+def test_the_tool_input_schema_is_derived_from_the_model_and_not_hand_written():
+    """One contract, not two. If they drift, the model is held to the wrong one.
+
+    It is no longer byte-identical to `Score.model_json_schema()`, because strict
+    mode accepts only a subset of JSON Schema and rejects some of what pydantic
+    generates. What still has to hold is that it is DERIVED: the field set is the
+    model's field set, so adding a field to `Score` reaches the wire without anyone
+    editing the schema module, and hand-writing a schema here fails this test.
+    """
     definition = tool_definition()
 
     assert definition["name"] == TOOL_NAME
-    assert definition["input_schema"] == Score.model_json_schema()
+    assert definition["input_schema"]["properties"].keys() == Score.model_json_schema()["properties"].keys()
+    assert definition["input_schema"]["additionalProperties"] is False
+
+
+def test_every_property_is_required_because_strict_mode_drops_the_rest():
+    """The defect this pins cost a whole scoring run.
+
+    Five of appendix C's ten fields have defaults in `Score`, so pydantic leaves
+    them out of `required`, and a strict tool will not carry a property that is not
+    required. The first 29 notices scored came back with matched_functions,
+    system_names, eligibility_flags, estimated_value_usd and deadline_at empty on
+    every single one, which read exactly like a model matching nothing.
+    """
+    schema = tool_definition()["input_schema"]
+
+    assert set(schema["required"]) == set(schema["properties"]), "a property not required cannot be returned"
+    for name, definition in schema.get("$defs", {}).items():
+        if definition.get("type") == "object":
+            assert set(definition["required"]) == set(definition["properties"]), name
+
+    for field in ("matched_functions", "system_names", "eligibility_flags", "estimated_value_usd", "deadline_at"):
+        assert field in schema["required"], f"{field} has a default in Score and must still be required here"
+
+
+def test_no_keyword_the_strict_api_refuses_survives_anywhere():
+    """`minimum` on an integer is a 400 on the tool definition, not a warning.
+
+    Checked over the serialised document rather than the top level, because
+    MatchedFunction's constraints live in $defs and a top-level-only filter passed
+    locally and failed on the wire.
+    """
+    serialised = json.dumps(tool_definition()["input_schema"])
+
+    for keyword in ("minimum", "maximum", "minLength", "maxLength", "exclusiveMinimum", "multipleOf"):
+        assert f'"{keyword}"' not in serialised, f"{keyword} is refused by the strict tool API"
+
+    # It really was in what pydantic generated, so the filter is doing work.
+    assert '"minimum"' in json.dumps(Score.model_json_schema())
 
 
 def test_the_tool_is_forced():

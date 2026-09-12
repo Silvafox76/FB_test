@@ -24,12 +24,15 @@ def source(source_id: str) -> Source:
 def test_a_source_with_no_connector_raises():
     """There is no generic fallback connector (rule 1).
 
-    World Bank is the one still unwired; its connector and fixture land at step 11.
-    When it is wired this test needs a different example, and the paired test below
-    is what will say so.
+    The example is fabricated rather than taken from the registry. This test used to
+    point at whichever real source was next to be wired - World Bank, until step 11
+    wired it - and then failed for the good reason that the work had been done. A
+    source id that will never have a connector tests the rule and nothing else.
     """
+    unwired = source("ted").model_copy(update={"id": "a-source-nobody-has-written"})
+
     with pytest.raises(KeyError, match="no connector for source"):
-        build_connector(source("worldbank"))
+        build_connector(unwired)
 
 
 def test_ted_builds_with_the_configured_cpv_prefixes():
