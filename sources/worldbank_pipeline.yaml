@@ -31,11 +31,8 @@ tos_status: reviewed_ok        # open data, documented public API, no registrati
                                # search.worldbank.org serves no robots.txt (404 on
                                # 2026-09-12) and projects.worldbank.org's allows
                                # everything outside /apps, /misc and the archives.
-# The orchestrator flips this to true after the live fetch. This agent recorded the
-# fixture with scripts/record_worldbank_pipeline_fixture.py and proved the parser
-# against it; it did not run `monitor fetch`, because a scoring and a translation
-# run were in progress against the same Postgres.
-enabled: true          # step 15: contract test passing, live fetch below
+# Fetched live on 2026-09-12: 42 projects, 0 failed.
+enabled: true          # step 15: contract test passing, live fetch recorded above
 health:
   # Measured 2026-09-12: the covered-country pipeline set is 42 projects, the whole
   # of it read in one request. There is no date window - the set is small and new

@@ -61,12 +61,14 @@ SOURCE_YAML = Path(__file__).resolve().parents[2] / "sources" / "ebrd.yaml"
 # rule 21 allows one polite pass per schedule and hammering a host that is refusing
 # is the opposite of that.
 #
-# An earlier `ebrd.json` was committed and has been deleted rather than kept. It held
-# real recorded data in the recorder's *previous* shape - the detail pages already
-# parsed into dicts instead of stored as the HTML they arrived as - so 45 of the 56
-# cases below could not run against it, and the detail parser could not be tested at
-# all. A fixture that cannot exercise the parser it exists for is worse than none,
-# because it looks like coverage.
+# An earlier `ebrd.json` existed in the working tree and was deleted rather than
+# committed. To be exact, because the first version of this note was not and a reader
+# who went looking would have found nothing: it was never in git. It held real
+# recorded data in the recorder's *previous* shape - the detail pages already parsed
+# into dicts instead of stored as the HTML they arrived as - so 45 of the 56 cases
+# below could not have run against it, and the detail parser could not have been
+# tested at all. A fixture that cannot exercise the parser it exists for is worse than
+# none, because it looks like coverage.
 #
 # This skips rather than fails, and it skips loudly: a skip is reported in every run
 # summary, so the gap stays visible until `scripts/record_ebrd_fixture.py` can reach

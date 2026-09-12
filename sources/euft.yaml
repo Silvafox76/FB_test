@@ -51,11 +51,9 @@ tos_status: reviewed_ok
 # an opportunity. The codes asked for are in monitor/connectors/euft.py with the
 # same reasoning as the World Bank connector's notice types.
 exclude_notice_types: []
-# The orchestrator flips this to true after the live fetch. This agent recorded
-# the fixture with scripts/record_euft_fixture.py and proved the parser against
-# it; it did not run `monitor fetch`, because a scoring and a translation run were
-# in progress against the same Postgres.
-enabled: true          # step 15: contract test passing, live fetch below
+# Fetched live on 2026-09-12: 35 seen, 33 new, 0 failed. One of those notices
+# covered Benin, Cote d'Ivoire, Ghana, Togo, Ukraine and Kosovo at once.
+enabled: true          # step 15: contract test passing, live fetch recorded above
 health:
   # Measured 2026-09-12: the covered-country live set is 35 tenders, the whole of
   # it read in one request of 100. There is no date window, for the same reason

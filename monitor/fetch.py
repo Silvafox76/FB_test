@@ -71,12 +71,24 @@ CONNECTORS = {
     "doe": (DoeConnector, doe_normalise.map_notice),
     "worldbank_pipeline": (WorldBankPipelineConnector, worldbank_pipeline_normalise.map_notice),
     "euft": (EuftConnector, euft_normalise.map_notice),
-    # simap is built, fixture-tested and deliberately NOT here. Its registry entry is
-    # tos_status reviewed_restricted: AGB clause 5 needs a named person's signature
-    # before it may run, and wiring it would let `monitor run` fetch it. The
-    # connector and its contract test stay; only the permission to run is withheld.
     "boamp": (BoampConnector, boamp_normalise.map_notice),
 }
+
+# Built, fixture-tested, and deliberately absent from the table above. Listed here
+# because "why is this connector not wired" is a question the table cannot answer,
+# and because an absence with no note reads as an oversight:
+#
+#   simap   tos_status reviewed_restricted. AGB clause 5 needs a named person's
+#           signature and no file in this repository is one. Wiring it would let
+#           `monitor run` fetch it, so the permission to run is what is withheld;
+#           the connector and its 43 contract tests stay.
+#   ebrd    no recorded fixture. ecepp.ebrd.com served the recording pass on
+#           2026-09-12 and then began resetting connections, so the 56-case contract
+#           test skips and nothing has proven the parser.
+#
+# Both are `enabled: false` in their registry entries as well. The test
+# `test_every_wired_source_is_enabled_and_every_enabled_source_is_wired` asserts
+# those two facts stay in step.
 
 # The provenance stamped on an English rendering the source itself supplied, as
 # opposed to one a model produced. TED translates into all 24 EU languages, so its
