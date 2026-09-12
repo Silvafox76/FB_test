@@ -80,12 +80,28 @@ ROBOTS_HOSTS = [
 ]
 
 # Paths on the two PERMISSIVE origins. Every one of these is allowed by that host's
-# own robots.txt. The 403s are Akamai refusing an identified client, not a policy.
+# own robots.txt, so a non-200 here is a WAF decision and not a policy one.
+#
+# The third element is the set of statuses measured on 2026-09-12, and two of these
+# rows carry two of them on purpose. www.undp.org sits behind Akamai, which refuses
+# most requests from this identified client and admits a few. Tallied over one
+# session: /procurement answered 403 eight times and 200 twice out of ten requests,
+# including a run of five consecutive 403s immediately after one of the 200s; `/`
+# answered 403 once and 200 twice out of three. An expectation of {403} would call
+# every admitted request CHANGED and an expectation of {200} would call every
+# refused one CHANGED, so the honest expectation is both, and the flapping itself
+# is the measurement. It is also why nothing here could ever be a scheduled source:
+# rule 2 forbids retrying into a host that answers this way, and a connector that
+# fetched it would report failure most mornings and a success occasionally.
+#
+# None of this decides anything about UNDP notices, because www.undp.org has none
+# (the sitemap measurement below). It is recorded so a later session does not spend
+# an afternoon on the 403 believing the notices are behind it.
 PERMITTED = [
-    ("https://www.undp.org/sitemap.xml", "the sitemap index; 7 pages on 2026-09-12", 200),
-    ("https://www.undp.org/", "an HTML path: Akamai refuses this client", 403),
-    ("https://www.undp.org/procurement", "UNDP's own procurement guidance page", 403),
-    ("https://data.undp.org/sitemap.xml", "48 URLs, none of them procurement", 200),
+    ("https://www.undp.org/sitemap.xml", "the sitemap index; 7 pages on 2026-09-12", {200}),
+    ("https://www.undp.org/", "an HTML path behind Akamai: mostly 403, occasionally 200", {200, 403}),
+    ("https://www.undp.org/procurement", "UNDP's own guidance page, same WAF behaviour", {200, 403}),
+    ("https://data.undp.org/sitemap.xml", "48 URLs, none of them procurement", {200}),
 ]
 
 # Advertised by UNDP's own pages as syndication routes for these notices, known from
@@ -154,7 +170,7 @@ def read_permitted(client: httpx.Client) -> list[tuple[str, str, int, int, bool]
     rows = []
     for url, note, expected in PERMITTED:
         response = client.get(url)
-        rows.append((url, note, response.status_code, len(response.content), response.status_code == expected))
+        rows.append((url, note, response.status_code, len(response.content), response.status_code in expected))
     return rows
 
 

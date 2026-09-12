@@ -92,13 +92,30 @@
 #           `/procurement/*` guidance pages, and a tail of blog, news and event
 #           articles about procurement policy. A landing page points at
 #           procurement-notices.undp.org; it is not a listing.
-#        b. Akamai answers this client HTTP 403 on every HTML path tried - `/`,
-#           `/procurement`, `/procurement/resources-suppliers` - while letting
-#           /robots.txt and /sitemap.xml through at 200. The body is Akamai's own
-#           ("Access Denied", errors.edgesuite.net reference). Getting past a bot
-#           wall needs a user agent that disguises the client, which rule 21
-#           forbids outright. So even the guidance pages are unreadable, and the
-#           sitemap is the only reason (a) could be measured at all.
+#        b. Akamai mostly refuses this client on HTML paths, and does so
+#           erratically. `/`, `/procurement` and `/procurement/resources-suppliers`
+#           answered 403 with Akamai's own "Access Denied" body and an
+#           errors.edgesuite.net reference, while /robots.txt and /sitemap.xml
+#           passed at 200 throughout. Then, later in the same session and from the
+#           same client, `/` and `/procurement` answered 200 with 180,166 and
+#           93,613 bytes of real HTML - and five consecutive repeats immediately
+#           after were 403 again. Tallied over the session: /procurement 403 eight
+#           times and 200 twice out of ten requests, `/` 403 once and 200 twice out
+#           of three. So it is a WAF admitting a small fraction of requests, not a
+#           hard block.
+#
+#           That distinction is recorded because it is the kind of thing a later
+#           session rediscovers as "it works now". It does not work now. A host
+#           that answers one request in ten is not a source: rule 2 forbids
+#           retrying into it, and rule 4 would have a connector reporting failure
+#           most mornings and a partial success occasionally, which is worse than
+#           either. Getting past it reliably would need a user agent that disguises
+#           the client, which rule 21 forbids outright.
+#
+#           None of which decides anything, because of (a): there are no notices on
+#           this host to read even on a lucky request. (b) is secondary and is
+#           written down only so nobody spends an afternoon on the 403 believing
+#           the notices are behind it.
 #
 #   6. https://data.undp.org/robots.txt -> HTTP 200, 2,124 bytes, the same
 #      permissive Drupal default. Its sitemap is 48 URLs and not one is

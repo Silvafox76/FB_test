@@ -1,0 +1,70 @@
+# EU Funding and Tenders portal (SEDIA search API), the calls-for-tenders stream.
+# Despite the name most of this source's value is outside Europe: it carries the
+# EU Delegation and DG INTPA/ENEST/FPI tenders for partner countries, which is
+# where EU-financed PFM work in West Africa and the Western Balkans is published.
+# admin_level is donor for the same reason the World Bank sources are: the notice
+# is published by the financier, not by the buyer, which is what lets an EU notice
+# and the national notice for the same procurement land in one candidate cluster.
+id: euft
+name: EU Funding and Tenders portal
+country: multi
+# The same 19 as sources/worldbank.yaml. This API keys geography on its own
+# numeric zone ids, not ISO codes; the table lives in monitor/connectors/euft.py
+# because it is this source's vocabulary and no other's. All 19 verified against
+# the live index on 2026-09-12 by faceting geographicalZones over the whole
+# tender corpus - every one returns rows, so none of them is a silent zero:
+#   MK 52  UA 29  ME 23  BA 22  AL 18  XK 15  BJ 12  LR 11  CI 10  GH 7
+#   MR  7  TG  7  SL  4  BF  1  GM  1  ML  1  NE  1  NG  1  SN 1
+covers: ['BJ', 'BF', 'CI', 'GM', 'GH', 'LR', 'ML', 'MR', 'NE', 'NG', 'SN', 'SL', 'TG',
+         'UA', 'AL', 'BA', 'XK', 'ME', 'MK']
+# The default the normaliser uses for a notice that declares no language of its
+# own, in the same way sources/doe.yaml's admin_level is the default for a notice
+# that declares no buyer legal type. 25 of the 35 notices recorded on 2026-09-12
+# state their language in the lot's tender-document reference and are mapped from
+# that; the other 10 are prior information notices, which have no tender documents
+# yet and therefore no stated language, and take this value with
+# language_confidence 0. A test asserts this key and monitor/normalise/euft.py's
+# DEFAULT_LANGUAGE agree.
+language: en
+admin_level: donor
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+# 09:00 UTC daily. Later than the two World Bank reads and TED so the donor feeds
+# do not land in the same minute; the portal ingests overnight (esDA_IngestDate is
+# 05:0x Brussels on every recorded notice), so 09:00 UTC is after the day's batch.
+schedule: '0 9 * * *'
+api_url: https://api.tech.ec.europa.eu/search-api/prod/rest/search
+# Open data, documented public API, no registration and no account. The `apiKey`
+# query parameter is required but is not a credential: its value names the index
+# to search, it is echoed back in every document as DATASOURCE, and a wrong value
+# answers HTTP 500 rather than 401 or 403. See monitor/connectors/euft.py's
+# docstring for the full measurement. robots.txt on api.tech.ec.europa.eu is a 404
+# served by the origin (x-digitc-dynatrace header present), so nothing is
+# disallowed; one polite pass per schedule, identified user agent.
+tos_status: reviewed_ok
+# Empty on purpose. This source's acquisition scope is an inclusion - the two
+# statuses that are still an opportunity - rather than an exclusion list, because
+# its status vocabulary mixes numeric codes with free strings ("Cancelled after
+# publication") and a must_not over that would let an unknown new code through as
+# an opportunity. The codes asked for are in monitor/connectors/euft.py with the
+# same reasoning as the World Bank connector's notice types.
+exclude_notice_types: []
+# The orchestrator flips this to true after the live fetch. This agent recorded
+# the fixture with scripts/record_euft_fixture.py and proved the parser against
+# it; it did not run `monitor fetch`, because a scoring and a translation run were
+# in progress against the same Postgres.
+enabled: false         # step 15: contract test passing, live fetch outstanding
+health:
+  # Measured 2026-09-12: the covered-country live set is 35 tenders, the whole of
+  # it read in one request of 100. There is no date window, for the same reason
+  # sources/worldbank_pipeline.yaml has none: notices for these 19 countries
+  # arrive at about one a week (5 in the six weeks before the fixture), so a
+  # two-day lookback would return nothing on most days and read as zero yield.
+  # items_seen is therefore the whole live set on every run and items_new is zero
+  # after the first. The upper bound is a warning ceiling in the connector, not a
+  # paging limit; the walk stops at MAX_PAGES and says so.
+  expected_items_per_run: [10, 200]
+  max_consecutive_failures: 3
+owner: ryan.dear
