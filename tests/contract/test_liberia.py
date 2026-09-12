@@ -351,18 +351,27 @@ def test_the_description_is_dropped_when_it_only_repeats_the_title(mapped):
         assert m.notice.body  # non-empty and genuinely different prose
 
 
-def test_the_value_is_carried_natively_in_usd(mapped):
+def test_the_value_is_carried_natively_in_usd_but_a_zero_amount_is_treated_as_absent(mapped):
     """Liberia is the first source where `estimated_value_usd` can be carried at
     all: decision 7 drops any non-USD value rather than converting it, and all 14
     recorded releases state theirs in USD already (see the normaliser's module
-    docstring). 11 of the 14 state a value above zero; the other 3 state exactly
-    zero, which is still a stated USD amount and not a missing one, so it is still
-    carried rather than dropped."""
+    docstring).
+
+    The interesting property is not the count but what a stated `0` means. Three of
+    the 14 releases carry `tender.value.amount == 0` - for, among others,
+    "Construction of Two District Offices for the Liberia Electricity Corporation",
+    which does not cost nothing. `0` is the publisher's placeholder for "not
+    stated", the same thing `Notice.estimated_value_usd`'s own None means, so the
+    mapper drops it rather than carrying it through as a price. Carrying it through
+    would put `estimated_value_usd = 0` into appendix E's Total Opportunity Amount
+    and show a reviewer "USD 0" for a building - the plausible-looking wrong value
+    CLAUDE.md's export rules exist to prevent, and worse than the missing value a
+    None renders as."""
     amounts = [m.notice.estimated_value_usd for m in mapped]
 
-    assert all(amount is not None for amount in amounts)
-    assert sum(1 for amount in amounts if amount > 0) == 11
-    assert sum(1 for amount in amounts if amount == 0) == 3
+    assert sum(1 for amount in amounts if amount is not None) == 11
+    assert sum(1 for amount in amounts if amount is None) == 3
+    assert all(amount > 0 for amount in amounts if amount is not None)
     # Locks the field and the units: a regression that read the wrong key, or
     # divided cents to dollars, would still leave 11 non-null amounts but change
     # this one silently.

@@ -98,7 +98,17 @@ def map_notice(raw: dict) -> MappedNotice:
 
     value = tender.get("value") or {}
     amount = value.get("amount")
-    estimated_value_usd = int(amount) if amount is not None and value.get("currency") == USD else None
+    # A stated amount of zero is the publisher's "not stated", not a price, and it is
+    # dropped for that reason. Three of the 14 releases in the fixture carry `0`:
+    # "Construction of Two District Offices for the Liberia Electricity Corporation",
+    # "FY2026 Procurement of Transport Equipment" and "Procurement of Office
+    # Equipment". None of those costs nothing. Carrying the zero through would put
+    # `estimated_value_usd = 0` into appendix E's Total Opportunity Amount and show a
+    # reviewer USD 0 for a building, which is the plausible-looking wrong value
+    # CLAUDE.md's export rules exist to prevent - and `Notice.estimated_value_usd`
+    # already says None means "the notice states no value", which is exactly this.
+    stated = amount is not None and amount > 0 and value.get("currency") == USD
+    estimated_value_usd = int(amount) if stated else None
 
     deadline_raw = (tender.get("tenderPeriod") or {}).get("endDate") or ""
 
