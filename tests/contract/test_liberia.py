@@ -52,6 +52,7 @@ from monitor.connectors.liberia import (
     within_window,
 )
 from monitor.models import Source
+from monitor.normalise.liberia import map_notice
 
 pytestmark = pytest.mark.contract
 
@@ -110,6 +111,19 @@ def releases(fixture, wanted) -> list[dict]:
         parse_release(fixture["compiled_releases"][row["id"]], notice_id=row["id"], expected_ocid=row["ocid"])
         for row in wanted
     ]
+
+
+@pytest.fixture(scope="module")
+def raw_notice_payloads(fixture, wanted) -> list[dict]:
+    """The exact `{"listing": ..., "detail": ...}` shape `LiberiaConnector.fetch_raw`
+    builds per notice - the full downloaded package, not the release already
+    stripped out by `releases` above, since that is what `map_notice` reads."""
+    return [{"listing": row, "detail": fixture["compiled_releases"][row["id"]]} for row in wanted]
+
+
+@pytest.fixture(scope="module")
+def mapped(raw_notice_payloads) -> list:
+    return [map_notice(payload) for payload in raw_notice_payloads]
 
 
 # --- cpv_prefixes, taken and unused ------------------------------------------
@@ -299,6 +313,91 @@ def test_the_committed_fixture_carries_no_real_contact_details(fixture):
                     assert value in ("", placeholder), f"{party.get('name')} {field} is not redacted: {value!r}"
                     checked += 1
     assert checked > 0, "no contactPoint was found to check; the fixture may have changed shape"
+
+
+# --- the normaliser: one OCDS release to a Notice --------------------------
+#
+# `monitor/normalise/liberia.py` has no fixture of its own; it is written and
+# measured directly against the 14 in-window releases this file already parses out
+# of the recorded fixture, so its contract test lives here rather than in a fourth
+# file.
+
+
+def test_all_14_releases_map_without_raising_and_produce_distinct_hashes(mapped):
+    assert len(mapped) == RECORDED_IN_WINDOW
+    assert len({m.notice.content_hash for m in mapped}) == RECORDED_IN_WINDOW
+
+
+def test_all_14_deadlines_and_publication_dates_parse(mapped):
+    """`tender.tenderPeriod.endDate` and `release.date` are both ISO 8601 with a
+    zone on every recorded release (see the normaliser's module docstring), so
+    nothing here should ever fail to parse the way two of Sierra Leone's
+    day-month-only strings do."""
+    assert all(m.notice.deadline_at is not None for m in mapped)
+    assert all(m.notice.published_at is not None for m in mapped)
+
+
+def test_the_description_is_dropped_when_it_only_repeats_the_title(mapped):
+    """11 of 14 releases fill `tender.description` with the title again; carrying
+    that into `Notice.body` would send the scorer the same sentence twice and pay
+    for the tokens (see the normaliser's module docstring)."""
+    with_body = [m for m in mapped if m.notice.body]
+    without_body = [m for m in mapped if not m.notice.body]
+
+    assert len(with_body) == 3
+    assert len(without_body) == 11
+    for m in with_body:
+        assert m.notice.body != m.notice.title
+        assert m.notice.body  # non-empty and genuinely different prose
+
+
+def test_the_value_is_carried_natively_in_usd(mapped):
+    """Liberia is the first source where `estimated_value_usd` can be carried at
+    all: decision 7 drops any non-USD value rather than converting it, and all 14
+    recorded releases state theirs in USD already (see the normaliser's module
+    docstring). 11 of the 14 state a value above zero; the other 3 state exactly
+    zero, which is still a stated USD amount and not a missing one, so it is still
+    carried rather than dropped."""
+    amounts = [m.notice.estimated_value_usd for m in mapped]
+
+    assert all(amount is not None for amount in amounts)
+    assert sum(1 for amount in amounts if amount > 0) == 11
+    assert sum(1 for amount in amounts if amount == 0) == 3
+    # Locks the field and the units: a regression that read the wrong key, or
+    # divided cents to dollars, would still leave 11 non-null amounts but change
+    # this one silently.
+    assert 10625 in amounts
+
+
+def test_a_non_usd_value_is_dropped_rather_than_converted(raw_notice_payloads):
+    """No release in the live fixture states a non-USD amount, so this is
+    constructed rather than measured: decision 7 (`docs/open_decisions.md`) has to
+    hold the day a EUR- or SLL-denominated release does show up."""
+    payload = json.loads(json.dumps(raw_notice_payloads[0]))
+    payload["detail"]["releases"][0]["tender"]["value"]["currency"] = "EUR"
+
+    mapped_notice = map_notice(payload)
+
+    assert mapped_notice.notice.estimated_value_usd is None
+
+
+def test_cpv_codes_stay_empty_because_the_scheme_is_isic(mapped):
+    assert all(m.notice.cpv_codes == [] for m in mapped)
+
+
+def test_admin_level_and_language_are_uniform(mapped):
+    assert {m.notice.admin_level for m in mapped} == {"national"}
+    assert {m.notice.language for m in mapped} == {"en"}
+    assert {m.notice.language_confidence for m in mapped} == {1.0}
+
+
+def test_a_release_package_with_an_empty_releases_list_raises_rather_than_yielding_nothing():
+    """Rule 4: an OCDS package that arrived without the thing it exists to carry is
+    a change at the source, not an empty day."""
+    payload = {"listing": {"id": "unseen-record"}, "detail": {"releases": []}}
+
+    with pytest.raises(ValueError, match="no releases"):
+        map_notice(payload)
 
 
 # --- one whole pass, replayed ---------------------------------------------------

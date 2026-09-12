@@ -41,6 +41,7 @@ from monitor.connectors.ebrd import EbrdConnector
 from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
 from monitor.connectors.prozorro import ProzorroConnector
+from monitor.connectors.sierra_leone import SierraLeoneConnector
 from monitor.connectors.ted import TedConnector
 from monitor.connectors.worldbank import WorldBankConnector
 from monitor.connectors.worldbank_pipeline import WorldBankPipelineConnector
@@ -52,6 +53,7 @@ from monitor.normalise import ebrd as ebrd_normalise
 from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
 from monitor.normalise import prozorro as prozorro_normalise
+from monitor.normalise import sierra_leone as sierra_leone_normalise
 from monitor.normalise import ted as ted_normalise
 from monitor.normalise import worldbank as worldbank_normalise
 from monitor.normalise import worldbank_pipeline as worldbank_pipeline_normalise
@@ -76,6 +78,7 @@ CONNECTORS = {
     "euft": (EuftConnector, euft_normalise.map_notice),
     "boamp": (BoampConnector, boamp_normalise.map_notice),
     "ebrd": (EbrdConnector, ebrd_normalise.map_notice),
+    "sierra_leone": (SierraLeoneConnector, sierra_leone_normalise.map_notice),
 }
 
 # Built, fixture-tested, and deliberately absent from the table above. Listed here
@@ -86,16 +89,42 @@ CONNECTORS = {
 #           signature and no file in this repository is one. Wiring it would let
 #           `monitor run` fetch it, so the permission to run is what is withheld;
 #           the connector and its 43 contract tests stay.
-#   burkina_faso, liberia, sierra_leone
-#           NO NORMALISER. All three have a connector, a recorded fixture and a
-#           passing contract test (29, 25 and 26 cases), and all three are
-#           `tos_status: reviewed_ok`. What is missing is the other half of the pair
-#           this table wants: there is no `monitor/normalise/<source>.py`, so nothing
-#           maps the `RawNotice` they yield to a `Notice`. They are two-thirds built
-#           rather than un-built, and the missing third is one module each plus its
-#           tests. Worth doing: they are the only West African national sources with
-#           cleared terms, and no West African national source is enabled at all, in
-#           a pilot whose priority geography weight for the region is 1.0.
+#   liberia THE NORMALISER EXISTS NOW AND THE BLOCKER HAS MOVED. Until 2026-09-12
+#           there was no `monitor/normalise/liberia.py`, so nothing mapped the
+#           `RawNotice` the connector yields to a `Notice`. That module is written
+#           and maps all 14 OCDS releases in the recorded fixture, with 14/14
+#           deadlines and publication dates parsed. It is also the only mapper that
+#           can carry `estimated_value_usd`, because Liberia publishes in USD
+#           natively and no conversion is involved (decision 7).
+#
+#           What blocks it now is one unverified live fetch. At 17:53 UTC on
+#           2026-09-12 `fetch_raw` against the OCDS search endpoint failed with
+#           `ConnectError: [Errno 104] Connection reset by peer`, while a single
+#           request to the same host's home page returned 200 - so the host is up
+#           and the reset was endpoint-specific, transient or rate limiting. It was
+#           NOT retried (rules 2 and 21), and one failure is no more conclusive than
+#           the one success that misled the EBRD enable earlier the same day. One
+#           clean live fetch is the whole of what stands between this and wiring.
+#
+#   burkina_faso
+#           NOT A MISSING NORMALISER, and calling it one was wrong. This connector
+#           yields one `RawNotice` per BULLETIN PDF - base64, `mime:
+#           "application/pdf"` - not one per notice, and its own docstring flags the
+#           consequence. Three things have to be decided before a mapper is worth
+#           writing, and none is a normaliser's to decide:
+#             - `_store_notice` below does `json.loads(payload)` unconditionally and
+#               `store_payload` always writes a `.json` suffix, so a PDF payload
+#               fails before any mapper is reached.
+#             - the mapper contract is one `RawNotice` to one `MappedNotice`, and a
+#               bulletin holds thirty-odd pages of dossier notices. Splitting them is
+#               a one-to-many step this table has no shape for.
+#             - `sources/burkina_faso.yaml` declares `expected_items_per_run:
+#               [10, 160]`, counted as dossier references INSIDE an issue, while
+#               `fetch()` would report 1 or 2 issues. Health would read every run as
+#               a failure.
+#           So this is an architectural decision about the acquire stage, not a
+#           module anyone can just add.
+#
 #
 # EBRD WAS IN THIS LIST TWICE ON 2026-09-12 AND IS NOW WIRED, which is worth the
 # space because the second entry was wrong for a better reason than the first.

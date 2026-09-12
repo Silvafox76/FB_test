@@ -194,22 +194,36 @@
 # a quiet week of zero *new* postings is not, and this framing is what keeps the
 # two apart. Revisit both bounds once real run history exists.
 #
-# NOTHING HERE IS BLOCKED ON A PERSON, AND NOT BLOCKED ON THE CONNECTOR EITHER ANY
-# MORE. No registration, no account, no credential, no local tax or company
-# registration wall sits in front of /bid/ - unlike several other sources in this
-# pilot, this one needed no escalation to reach an enabled-once-tested state. As of
+# NOTHING HERE IS BLOCKED ON A PERSON, AND THE NORMALISER GAP THAT USED TO BLOCK
+# IT IS CLOSED. No registration, no account, no credential, no local tax or
+# company registration wall sits in front of /bid/ - unlike several other sources
+# in this pilot, this one needed no escalation to reach an enabled state. As of
 # 2026-09-12, monitor/connectors/sierra_leone.py exists, tests/contract/fixtures/
 # sierra_leone.json exists, and tests/contract/test_sierra_leone.py runs 26 cases
-# against it, all passing - so the earlier "connector work not yet done" reason no
-# longer holds. What is actually missing is monitor/normalise/sierra_leone.py - the
-# RawNotice -> Notice mapper - and the matching (connector, mapper) pair in
-# monitor/fetch.py's CONNECTORS table; without both, fetch.py has nothing to map
-# this connector's table-row RawNotice output onto, and it stays disabled. That is
-# one normaliser module plus its own tests, the same gap and nothing more that
-# holds back sources/burkina_faso.yaml and sources/liberia.yaml, the pilot's other
-# two West African national sources with cleared terms - so all three sit
-# two-thirds built while the 1.0 geography weight market currently has zero live
-# national feeds.
+# against it, all passing. monitor/normalise/sierra_leone.py - the RawNotice ->
+# Notice mapper that used to be the missing piece - was written in the main
+# session today, 2026-09-12: all 32 rows in the contract fixture map without
+# raising, producing 32 distinct content hashes; 31 of 32 deadlines and 32 of 32
+# publication dates parse (rule 4: the one unparsed deadline is a data gap in the
+# source row, not a silent failure, and does not raise).
+#
+# LIVE FETCH CONFIRMED BEFORE ENABLING - the check EBRD's enable skipped earlier
+# today, which cost a revert; made deliberately this time. `SierraLeoneConnector.
+# fetch_raw` run live at 17:53 UTC on 2026-09-12 returned 32 raw notices, inside
+# this entry's own expected_items_per_run band of [15, 60] below.
+#
+# The (connector, mapper) pair is being added to monitor/fetch.py's CONNECTORS
+# table in the same change that flips `enabled` below, so
+# `test_every_wired_source_is_enabled_and_every_enabled_source_is_wired` (which
+# asserts `enabled == set(CONNECTORS)`) stays green.
+#
+# THIS IS THE FIRST WEST AFRICAN NATIONAL SOURCE TO GO LIVE. Until now the
+# pilot's 1.0-weight priority geography had no national feed at all - every
+# notice in the database came from Europe or a multi-country donor feed.
+# sources/burkina_faso.yaml and sources/liberia.yaml are the pilot's other two
+# West African national sources with cleared terms; both still sit on the
+# normaliser-done-but-unverified-live or normaliser-not-yet-written side of this
+# same gap (see sources/liberia.yaml for the specifics of what still blocks it).
 id: sierra_leone
 name: National Public Procurement Authority (NPPA) Bid Opportunities
 country: SL
@@ -229,7 +243,7 @@ schedule: '0 11 * * *'
 # for why this is the whole source in one URL with nothing to page through.
 list_url: https://nppa.gov.sl/bid/
 tos_status: reviewed_ok
-enabled: false          # blocked on the normaliser, not the connector - see NOTHING HERE IS BLOCKED ON A PERSON above.
+enabled: true           # normaliser written and live fetch verified 2026-09-12 - see NOTHING HERE IS BLOCKED ON A PERSON above.
 health:
   # See VOLUME above for why this models table size, not arrival rate. 32 rows
   # measured 2026-09-12; floor and ceiling are headroom around that, not a

@@ -36,6 +36,7 @@ from monitor.connectors.sierra_leone import (
     parse_bid_table,
 )
 from monitor.models import RawNotice, Source
+from monitor.normalise.sierra_leone import map_notice
 
 pytestmark = pytest.mark.contract
 
@@ -71,7 +72,30 @@ def rows(listing_html, source) -> list[dict]:
 # --- the registry and the fixture agree -----------------------------------------
 
 
-def test_the_registry_entry_is_disabled_until_a_live_fetch(source):
+def test_the_registry_entry_is_enabled_and_wired(source):
+    """Enabled on 2026-09-12, and this test changed with it rather than being deleted.
+
+    It read `assert source.enabled is False`: a live `fetch_raw` at 17:53 UTC
+    returned 32 notices inside this entry's `[15, 60]` band, a full pipeline pass at
+    17:55 stored all 32 through `monitor/normalise/sierra_leone.py`, and the
+    registry was flipped to `enabled: true` and wired into `monitor/fetch.py`'s
+    CONNECTORS on the strength of that. An assertion written to describe the
+    not-yet-enabled state then started failing as though something had broken,
+    which is the same shape of stale test EBRD's contract test names and fixed the
+    same way (see `test_the_registry_entry_is_enabled_and_wired` there).
+
+    What is worth asserting instead is the pair that has to stay true together: a
+    source is `enabled` in the registry AND present in `monitor.fetch.CONNECTORS`,
+    or it is neither - enabled without a connector raises at fetch time, and wired
+    without being enabled means nothing ever runs it.
+    `tests/unit/test_fetch.py::test_every_wired_source_is_enabled_and_every_enabled_source_is_wired`
+    asserts that property across the whole registry; this asserts it for the one
+    source this file is about.
+    """
+    from monitor.fetch import CONNECTORS
+
+    assert source.enabled is True
+    assert source.id in CONNECTORS
     assert source.id == "sierra_leone"
     assert source.country == "SL"
     assert source.admin_level == "national"
@@ -79,7 +103,6 @@ def test_the_registry_entry_is_disabled_until_a_live_fetch(source):
     assert source.connector_class == "FeedConnector"
     assert source.access_type == "api"
     assert source.tos_status == "reviewed_ok"
-    assert source.enabled is False
     assert source.list_url == "https://nppa.gov.sl/bid/"
 
 
@@ -357,6 +380,119 @@ def test_nothing_here_translates_or_parses_a_date(listing_html, source):
     assert first["organisation"] == "MINISTRY OF SPORTS"
     assert first["date_posted"] == "27-08-2026"
     assert isinstance(first["date_posted"], str)
+
+
+# --- the normaliser: one bid-table row to a Notice -------------------------
+#
+# `monitor/normalise/sierra_leone.py` has no fixture of its own; it is written and
+# measured directly against the 32 rows this file already parses out of the
+# recorded fixture, so its contract test lives here rather than in a fourth file.
+
+
+def test_all_32_rows_map_without_raising_and_produce_distinct_hashes(rows):
+    mapped = [map_notice(row) for row in rows]
+
+    assert len(mapped) == ROW_COUNT
+    assert len({m.notice.content_hash for m in mapped}) == ROW_COUNT
+
+
+def test_the_description_becomes_the_title_and_the_body_stays_empty(rows):
+    """NPPA has no separate title column (see the normaliser's module docstring);
+    the one prose cell is what a reviewer sees as the notice."""
+    for row in rows:
+        mapped = map_notice(row)
+
+        assert mapped.notice.title == row["description"].strip()
+        assert mapped.notice.body == ""
+
+
+def test_31_of_32_deadlines_parse_and_all_32_publication_dates_parse(rows):
+    """The one refusal is a two-digit year, left unparsed deliberately rather than
+    guessed at (rule 10); see the normaliser's module docstring for why."""
+    mapped = [map_notice(row) for row in rows]
+
+    assert sum(1 for m in mapped if m.notice.deadline_at is not None) == 31
+    assert sum(1 for m in mapped if m.notice.published_at is not None) == 32
+
+    unparsed = [row for row, m in zip(rows, mapped, strict=True) if m.notice.deadline_at is None]
+    assert [row["expiration_date"] for row in unparsed] == ["23-04-26"]
+
+
+def test_a_stray_internal_space_recovers_but_a_two_digit_year_does_not(rows):
+    """Four rows in the fixture are typed loosely and get two different, deliberate
+    outcomes: trimming whitespace cannot change which number is the day, so those
+    parse; choosing a century can, so that one does not (see `_iso`'s docstring)."""
+    posted_with_space = next(row for row in rows if row["date_posted"] == "30- 04-2026")
+    mapped = map_notice(posted_with_space)
+    assert mapped.notice.published_at is not None
+    assert (mapped.notice.published_at.month, mapped.notice.published_at.day) == (4, 30)
+
+    both_columns = next(row for row in rows if row["date_posted"] == "26 -01-2026")
+    mapped_both = map_notice(both_columns)
+    assert mapped_both.notice.published_at is not None
+    assert (mapped_both.notice.published_at.year, mapped_both.notice.published_at.month) == (2026, 1)
+    assert mapped_both.notice.deadline_at is not None  # its expiration_date is "23 -02- 2026"
+
+
+def test_the_evidence_for_the_day_month_order_decision_holds_in_this_fixture(rows):
+    """`monitor/normalise/sierra_leone.py` decides DD-MM-YYYY on a count taken from
+    this exact fixture: of the 64 date values across 32 rows, 41 have a first
+    component above 12 (which only a day can be) and the second component never
+    exceeds 10. Reproduced here so a re-recorded fixture that no longer supports
+    that reasoning fails on this line, rather than the decision quietly resting on
+    a count nothing checks any more."""
+    values = [row["date_posted"] for row in rows] + [row["expiration_date"] for row in rows]
+    triples = [[part.strip() for part in value.strip().split("-")] for value in values]
+    digit_triples = [t for t in triples if len(t) == 3 and t[0].isdigit() and t[1].isdigit()]
+
+    assert len(values) == 64
+    assert sum(1 for day, _, _ in digit_triples if int(day) > 12) == 41
+    assert max(int(month) for _, month, _ in digit_triples) == 10
+
+
+def test_a_swapped_day_month_order_would_silently_change_a_real_deadline(rows):
+    """The regression this decision most needs a guard against. Most rows in the
+    fixture have a first component above 12, so misreading month-first on those
+    would fail to parse at all - loudly, and already covered by the parse-count
+    assertion above. This row's raw value, '06-10-2026', is a valid calendar date
+    either way it is read: DD-MM means 6 October, MM-DD would silently mean 10 June
+    instead. Nothing else in this suite would notice `_iso` "fixed" to read
+    month-first, because both readings succeed; only pinning the actual date this
+    row means catches it."""
+    row = next(
+        r
+        for r in rows
+        if r["organisation"] == "MINISTRY OF TECHNICAL AND HIGHER EDUCATION" and r["expiration_date"] == "06-10-2026"
+    )
+
+    mapped = map_notice(row)
+
+    assert mapped.notice.deadline_at is not None
+    assert (mapped.notice.deadline_at.month, mapped.notice.deadline_at.day) == (10, 6)
+
+
+def test_no_cpv_codes_national_admin_level_and_asserted_english(rows):
+    mapped = [map_notice(row) for row in rows]
+
+    assert all(m.notice.cpv_codes == [] for m in mapped)
+    assert {m.notice.admin_level for m in mapped} == {"national"}
+    assert {m.notice.language for m in mapped} == {"en"}
+    assert {m.notice.language_confidence for m in mapped} == {1.0}
+
+
+def test_a_row_with_no_description_raises():
+    """The connector already refuses a row without five cells (see its own contract
+    test above); this is the mapper's own guard for the one cell it depends on."""
+    row = {
+        "organisation": "MINISTRY OF EXAMPLE",
+        "date_posted": "01-01-2026",
+        "expiration_date": "01-02-2026",
+        "description": "   ",
+        "document_url": None,
+    }
+
+    with pytest.raises(ValueError, match="description"):
+        map_notice(row)
 
 
 # --- helpers ---------------------------------------------------------------
