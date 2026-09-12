@@ -1,0 +1,49 @@
+# World Bank project pipeline: operations the Bank has disclosed but not yet taken
+# to its Board. A different endpoint from sources/worldbank.yaml, which reads the
+# procurement notices API, and deliberately not merged with it (BUILD_ORDER step
+# 15): a pipeline entry has no tender, no bid and no closing date, and is the early
+# signal that procurement is coming rather than a procurement to respond to.
+# admin_level is donor for the same reason the notices source is: the entry is
+# published by the financier, not by the buyer.
+id: worldbank_pipeline
+name: World Bank project pipeline
+country: multi
+# The same 19 as sources/worldbank.yaml. This endpoint holds ISO 3166-1 alpha-2
+# codes in `countrycode`, so unlike the notices API these go over the wire as they
+# are written here; no table of the Bank's own country spellings is needed.
+# All 19 checked individually against the live API on 2026-09-12: every one returns
+# rows, and the per-country totals sum to exactly the 3,633 the combined query
+# returns.
+covers: ['BJ', 'BF', 'CI', 'GM', 'GH', 'LR', 'ML', 'MR', 'NE', 'NG', 'SN', 'SL', 'TG',
+         'UA', 'AL', 'BA', 'XK', 'ME', 'MK']
+language: en
+admin_level: donor
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+# 08:30 UTC daily, half an hour after the notices source, so the two World Bank
+# reads do not land on search.worldbank.org in the same minute (rule 21, one polite
+# pass per schedule).
+schedule: '30 8 * * *'
+api_url: https://search.worldbank.org/api/v3/projects
+tos_status: reviewed_ok        # open data, documented public API, no registration;
+                               # search.worldbank.org serves no robots.txt (404 on
+                               # 2026-09-12) and projects.worldbank.org's allows
+                               # everything outside /apps, /misc and the archives.
+# The orchestrator flips this to true after the live fetch. This agent recorded the
+# fixture with scripts/record_worldbank_pipeline_fixture.py and proved the parser
+# against it; it did not run `monitor fetch`, because a scoring and a translation
+# run were in progress against the same Postgres.
+enabled: true          # step 15: contract test passing, live fetch below
+health:
+  # Measured 2026-09-12: the covered-country pipeline set is 42 projects, the whole
+  # of it read in one request. There is no date window - the set is small and new
+  # disclosures arrive at about four a month, so a lookback would return nothing on
+  # most days and read as zero yield. items_seen is therefore the whole set on every
+  # run and items_new is zero after the first, the way TED behaves inside its window.
+  # The upper bound is a warning ceiling in the connector, not a paging limit;
+  # outgrowing one 1,000-row request raises instead.
+  expected_items_per_run: [10, 200]
+  max_consecutive_failures: 3
+owner: ryan.dear

@@ -1,0 +1,240 @@
+# Millennium Challenge Corporation, the US donor that funds compacts and threshold
+# programmes. admin_level is donor: MCC finances the programme and a partner-country
+# accountable entity (an MCA) is the buyer, which is the same shape as
+# sources/worldbank.yaml and what lets an MCC notice and a national notice for the
+# same tender land in one candidate cluster.
+#
+# MCC matters to this pilot more than its volume suggests, which is why
+# monitor/score/prompt.py names it in the donor-financing signal alongside the World
+# Bank, AfDB, EU, IsDB and BOAD.
+#
+# NOT BUILT, BECAUSE mcc.gov PUBLISHES NO PROCUREMENT NOTICES AND OFFERS NO
+# MACHINE-READABLE ROUTE TO ANY. There is no monitor/connectors/mcc.py, no
+# monitor/normalise/mcc.py, no tests/contract/fixtures/mcc.* and no contract test.
+# Not "blocked by a credential" and not "needs a browser": the notices are not on
+# this host at all, so there is nothing on it for a connector to parse.
+# scripts/record_mcc_fixture.py re-runs the whole probe below and prints the table.
+#
+# THE MEASUREMENT, taken 2026-09-12. Every candidate machine-readable route, and
+# what each one actually answered:
+#
+#   1. https://www.mcc.gov/robots.txt -> HTTP 404. No robots.txt is published, so
+#      nothing is disallowed. The 404 is the origin's own: it is the cloud.gov Pages
+#      default 404 body, which names Pages as the host, and not a proxy or WAF
+#      interstitial. mcc.gov is a static site built on cloud.gov Pages.
+#
+#   2. https://www.mcc.gov/sitemap.xml -> HTTP 200, 1,140,962 bytes, 5,240 URLs.
+#      This is the site's own complete inventory and it is the strongest single
+#      piece of evidence, because it is MCC enumerating its own content types.
+#      Grouped by path: 2,184 scorecards, 1,743 /resources/doc, 483 news releases,
+#      305 blog entries, 116 /resources/docs listings, 97 /where-we-work/program,
+#      77 events, 56 videos, and a tail of about 180 static pages. There is no
+#      procurement-notice content type, and not one notice URL among the 5,240.
+#
+#   3. https://www.mcc.gov/resources/rss-feeds/ -> HTTP 200. MCC's own RSS page,
+#      listing five feeds. All five are dead or forbidden:
+#        - Blog, Events, News Releases, Speeches point at /resources/feed-blogs,
+#          -feed-events, -feed-releases, -feed-speeches. All four -> HTTP 404.
+#          They are leftovers from the WordPress site the static build replaced.
+#        - "Compact Program Procurements", the one feed that would be this source,
+#          points at http://mcc.dgmarket.com/tenders/RssFeedAction.do~locationISO= .
+#          That is dgMarket, a THIRD-PARTY AGGREGATOR and not MCC infrastructure.
+#          It answers HTTP 500 through its CDN; the bare host mcc.dgmarket.com
+#          times out at 20s with zero bytes; the parent www.dgmarket.com answers
+#          HTTP 403 from a bot wall. Rule 21 forbids it twice over regardless of
+#          whether it is up: "no third-party mirror of an official portal", and
+#          getting past a bot wall needs "a user agent that disguises the client".
+#
+#   4. https://data.mcc.gov/data.json -> HTTP 200, 780,551 bytes, a Project Open
+#      Data v1.1 DCAT catalogue of 311 datasets. Searched title and description for
+#      procure/tender/bid/contract/opportunity/forecast: one hit, "Indonesia Compact
+#      - Procurement Modernization", which is an evaluation dataset about a project.
+#      No procurement-notice dataset. data.mcc.gov/robots.txt and /api/ are 404.
+#
+#   5. https://www.mcc.gov/api/grants -> HTTP 404. This is the only API path that
+#      appears anywhere in the site's own JavaScript (/assets/js/main.min.js, which
+#      still calls $.getJSON("/api/grants") to fill a #grants list). Another
+#      WordPress leftover. Every /api/* path tried is 404.
+#
+#   6. MCC's own prose says where the notices went, and it agrees with all of the
+#      above. /work-with-us/mcc-partner-countries/ : "Live grant and procurement
+#      opportunities are posted on the dgMarket website" - route 3, forbidden.
+#      /work-with-us/mcc-business/ : MCC headquarters contracts and grants are on
+#      SAM.gov and Grants.gov. Neither is a route to this source:
+#        - api.sam.gov answers a bare HTTP 404 with content-length 0 on every path
+#          tried, including ones that certainly exist, so the gateway is not serving
+#          this client at all; and SAM.gov's Get Opportunities API needs a
+#          registered api.data.gov key, which is a credential a person obtains.
+#          Even with one it would be the wrong data: those are US Federal
+#          Acquisition Regulation contracts for MCC's Washington DC headquarters,
+#          buyer country US, about USD 70m a year, not the USD 500m a year of
+#          partner-country programme procurement this source exists to see.
+#        - api.grants.gov/v1/api/search2 works unauthenticated and was queried:
+#          agencies=MCC returns hitCount 3 across every status, the newest opened
+#          2021-02-10. Three US assistance awards in five years is not a feed.
+#
+#   7. The one thing MCC does host with procurement data in it is the Partner
+#      Country Business Forecast, /resources/doc/report-partner-country-business-
+#      forecast/, dated 30 July 2026. It is a single HTML <table>, 36 data rows,
+#      columns Country / MCA Program Procurement Contact / Project Name /
+#      Procurement Description / Requirement Type / Industry Focus / Industry Sub
+#      Focus / Anticipated Quarter of Publication. Three reasons it is not this
+#      source, and they are about what the rows are, not about how hard they are to
+#      parse:
+#        a. It is a FORECAST, not a notice. There is no deadline, no notice id and
+#           no notice URL on any row - the date column is "Anticipated Quarter of
+#           Publication" ("Jul-Sep 2026", and one row reading "Oct-Dec 2027").
+#           Notice.deadline_at would be None on all 36 and Notice.url would have
+#           nowhere to point but back at the forecast page itself. Rule 10 forbids
+#           inventing the missing date, and a candidate with no deadline and no
+#           notice to open is not a reviewer's unit of work.
+#        b. It is quarterly and it is republished whole. A connector polling it sees
+#           the same 36 rows for thirteen weeks, so a run yields either 36 duplicates
+#           or nothing, and rule 4's zero-yield-is-a-failure test cannot tell a dead
+#           source from an unchanged quarter.
+#        c. The contact column is a person's work email address, one per row
+#           (jbarahona@charleskendall.com, joseph.tignegre@dt-global.com,
+#           drilon.potera@mcakosovo.org and so on). That is contact detail, which
+#           rule 19 keeps out of every model call, so the column would have to be
+#           dropped at the mapper before the scorer ever saw a row.
+#      Of the 36 rows, 13 are in pilot countries: Kosovo 4, Sierra Leone 5,
+#      Cote d'Ivoire Regional 3, Liberia 1. The other 23 are Belize, Mozambique,
+#      Nepal and Zambia.
+#
+# WHERE THE NOTICES ACTUALLY ARE. MCC's country-ownership model is the reason this
+# host has none: "Program procurements, grants, and public-private partnerships are
+# solicited, awarded, and administered by partner country accountable entities - or
+# Millennium Challenge Accounts" (/work-with-us/mcc-partner-countries/). Each MCA
+# publishes on its own national site. Checked one: the Sierra Leone compact page at
+# /where-we-work/program/sierra-leone-compact/ carries no outbound link to an MCA
+# site at all, so mcc.gov does not even index them.
+#
+# WHAT A PERSON WOULD HAVE TO DO TO UNBLOCK IT. Three options, and the choice is a
+# decision for a named person and not a branch in the code (rule 1):
+#
+#   a. Re-scope this source to the MCA entities, one connector per country, and
+#      accept that it stops being a donor feed and becomes national portal work.
+#      That is steps 17 and 18's shape, and for the pilot it overlaps them heavily:
+#      of the seven covered countries below, Benin, Cote d'Ivoire, Liberia and
+#      Senegal already have a national portal connector planned. What MCA coverage
+#      would add over those is the MCC-funded tenders an MCA publishes only on its
+#      own site, which is a real gap, but it is 5 to 7 new hosts to onboard and each
+#      needs its own robots.txt and terms review.
+#   b. Build the Business Forecast as a PageConnector at step 17 and treat its rows
+#      as pipeline INTELLIGENCE rather than notices - something that tells a
+#      reviewer a tender is coming in Kosovo next quarter. That needs a product
+#      decision first, because nothing in the current schema holds a row with no
+#      deadline and no URL, and Candidate is built around a notice a reviewer can
+#      open. It is not connector work until that decision exists.
+#   c. Leave MCC unread on the acquisition side and rely on the scorer, which
+#      already lifts relevance when a notice from another source names MCC as its
+#      financier (monitor/score/prompt.py). MCC-funded tenders are mostly visible
+#      that way already, since an MCA tender is normally published nationally too.
+#      This is the cheapest option and it is what happens if nobody decides.
+#
+# None of a, b or c is this file's to take. Enabling this source without one of them
+# would mean a connector pointed at a page that has no notices on it.
+id: mcc
+name: Millennium Challenge Corporation
+country: multi
+# The MCC partner countries that intersect the pilot's geography, measured and not
+# recalled. Method, 2026-09-12: https://www.mcc.gov/where-we-work/ publishes one
+# HTML table of every MCC programme ever - 97 rows over 55 countries, each with a
+# Lifecycle Status drawn from Closed, Closure, Development, Discontinued,
+# Implementation, Signed, Terminated. A programme that can still publish a
+# procurement is one in Signed, Implementation, Development or Closure, which is 22
+# countries. Intersecting those with config/thresholds.yaml's geography keys leaves
+# these seven, with the programme that puts each one here:
+#   BJ  Benin Regional Transport Compact          Implementation
+#   CI  Cote d'Ivoire Regional Compact            Signed, 16 September 2025
+#   LR  Liberia Proposed Compact                  Development
+#   SN  Senegal Power Compact                     Implementation
+#   SL  Sierra Leone Compact                      Signed
+#   AL  Albania Proposed Compact                  Development
+#   XK  Kosovo Compact                            Implementation
+# The July 2026 Business Forecast agrees independently: its only pilot-country rows
+# are Kosovo, Sierra Leone, Cote d'Ivoire and Liberia, all four of them in this list.
+#
+# Deliberately NOT covered, so the omissions are not read as oversights:
+#   - BF GM GH ML MR NE TG UA are MCC countries whose every programme is Closed or
+#     Terminated (Ghana's two compacts closed 2012 and 2024; Mali terminated 2012;
+#     Burkina Faso II terminated 2020; the Gambia, Togo and Mauritania terminated;
+#     Niger and Ukraine closed). A closed compact publishes nothing.
+#   - NG Nigeria has never had an MCC programme of any kind. It is absent from all
+#     97 rows.
+#   - No EU, EEA, UK or Swiss country appears, because MCC selects on income and
+#     governance scorecards and none of them is eligible. The intersection with the
+#     pilot therefore lies entirely inside the 19 priority countries.
+covers: ['BJ', 'CI', 'LR', 'SN', 'SL', 'AL', 'XK']
+language: en
+admin_level: donor
+# portal, not feed: every route that would have made this a feed is dead or
+# forbidden (measurements 1 to 6 above), and the only thing left on the host is
+# HTML. stream is what the source is, not what anyone wanted it to be.
+stream: portal
+access: public_listing
+# PageConnector, the step 17 base class. It does not exist yet and this file does
+# not bring it forward: naming it here records what this source would need, which is
+# the same judgement CLAUDE.md's layout makes when it puts Playwright at step 17 and
+# "not before". Nothing in mcc.gov needs JavaScript - the forecast table is in the
+# served HTML - so this would never be BrowserConnector.
+#
+# THIS LINE FAILS tests/unit/test_registry.py::test_every_source_is_a_feed_connector
+# _this_weekend, which asserts the set of connector_class over sources/ is exactly
+# {"FeedConnector"}. That test is outside this agent's lane and is left untouched
+# (CLAUDE.md, file ownership). Its docstring says what it is guarding - "Playwright
+# arrives at step 17 and not before" - and PageConnector is not Playwright: it is
+# httpx and selectolax, which are already in the Stack. The assertion is tighter
+# than its own stated intent, and the one-line fix belongs to whoever owns that file:
+#     assert {s.connector_class for s in load_sources()} <= {"FeedConnector", "PageConnector"}
+# The alternative - writing FeedConnector here to keep the test green - would put a
+# measured falsehood in the registry three lines under a comment block explaining at
+# length that this source has no feed. That is the wrong trade and it is not taken.
+connector: PageConnector
+wave: 1
+# Weekly rather than daily, and provisional either way. The only candidate page is a
+# quarterly document, so a daily poll would make about 90 requests per change where
+# a weekly one makes 13; rule 21's "one polite pass per schedule" is about the pass,
+# and the schedule is where politeness is actually decided. Monday 09:30 UTC
+# collides with nothing already in sources/ (boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, worldbank 08:00, simap 08:30, place 09:00).
+schedule: '30 9 * * 1'
+# The Business Forecast page, which is the only URL on this host carrying any
+# procurement data at all, and it is here because Source requires a list_url or an
+# api_url. It is NOT an endorsement of route (b) above: it is the page a person
+# would open to see what this source does and does not publish. The dgMarket URL is
+# deliberately absent rather than recorded as a route, because a later session would
+# find it in the registry and trust it, and rule 21 forbids fetching it.
+list_url: https://www.mcc.gov/resources/doc/report-partner-country-business-forecast/
+# Reviewed, and the answer is that the open route carries nothing and the route that
+# carries something is forbidden. reviewed_restricted rather than pending, because
+# the review happened and produced an answer, and rather than reviewed_ok, because
+# reviewed_ok on a source with no readable notices would read as "ready to enable".
+# The two halves, kept apart because they resolve differently:
+#   - mcc.gov itself is open. US federal, public domain by 17 USC 105, no robots.txt
+#     and so nothing disallowed, no terms of use restricting automated access found
+#     on the site. If a notices route ever appears on this host, nothing blocks
+#     reading it and this becomes reviewed_ok.
+#   - mcc.dgmarket.com, the only route MCC offers to live partner-country
+#     opportunities, is a third-party aggregator behind a bot wall. Rule 21 forbids
+#     it on both counts and no amount of review changes that.
+tos_status: reviewed_restricted
+# Not a step the orchestrator can flip after a live fetch, which is the difference
+# between this file and sources/simap.yaml and sources/doe.yaml. There is no
+# connector to run and no page for one to read. A commit that flips this needs
+# decision (a) or (b) above taken by a person first, and then the connector, the
+# fixture and the contract test that decision implies.
+enabled: false
+health:
+  # UNMEASURED, and unmeasurable until a route exists, so these are placeholders
+  # and not observations. Stated anyway because Source requires them; a guessed
+  # upper bound is a paging and request ceiling in every connector in this
+  # repository and not only a health band, so whoever builds this replaces both
+  # numbers from real runs before enabled becomes true. The minimum is 1 rather
+  # than 0 so a silent run can never read as a healthy one (rule 4) - which is also
+  # the sharpest argument against route (b): the Business Forecast's natural yield
+  # is 36 unchanged rows for thirteen weeks and then 36 different ones, and no
+  # honest band describes that.
+  expected_items_per_run: [1, 40]
+  max_consecutive_failures: 3
+owner: ryan.dear

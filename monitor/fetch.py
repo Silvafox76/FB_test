@@ -41,6 +41,7 @@ from monitor.connectors.fts import FtsConnector
 from monitor.connectors.prozorro import ProzorroConnector
 from monitor.connectors.ted import TedConnector
 from monitor.connectors.worldbank import WorldBankConnector
+from monitor.connectors.worldbank_pipeline import WorldBankPipelineConnector
 from monitor.health import source_health
 from monitor.models import Source, Translation
 from monitor.normalise import boamp as boamp_normalise
@@ -49,6 +50,7 @@ from monitor.normalise import fts as fts_normalise
 from monitor.normalise import prozorro as prozorro_normalise
 from monitor.normalise import ted as ted_normalise
 from monitor.normalise import worldbank as worldbank_normalise
+from monitor.normalise import worldbank_pipeline as worldbank_pipeline_normalise
 from monitor.registry.load import CONFIG_DIR, load_sources
 
 log = structlog.get_logger(__name__)
@@ -65,6 +67,7 @@ CONNECTORS = {
     "fts": (FtsConnector, fts_normalise.map_notice),
     "worldbank": (WorldBankConnector, worldbank_normalise.map_notice),
     "doe": (DoeConnector, doe_normalise.map_notice),
+    "worldbank_pipeline": (WorldBankPipelineConnector, worldbank_pipeline_normalise.map_notice),
     # simap is built, fixture-tested and deliberately NOT here. Its registry entry is
     # tos_status reviewed_restricted: AGB clause 5 needs a named person's signature
     # before it may run, and wiring it would let `monitor run` fetch it. The
