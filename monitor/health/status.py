@@ -83,3 +83,36 @@ def render(statuses: list[SourceStatus]) -> str:
     lines.append("")
     lines.append(f"considered {considered}, passed {passed}, dropped {dropped}, drop rate {overall}")
     return "\n".join(lines)
+
+
+# The same "newest day that has happened" rule monitor/fx/store.py uses, so this
+# line and the stager agree on which day is current.
+NEWEST_RATE = """
+select rate_date, count(*) from fx_rates
+where source = %s and rate_date <= %s
+group by rate_date
+order by rate_date desc
+limit 1
+"""
+
+
+def render_rates(conn: psycopg.Connection) -> str:
+    """One line: the newest rate day held, how old it is, and whether staging will accept it.
+
+    Staging refuses a rate table older than `max_rate_age_days` (monitor/fx/store.py),
+    so a person reading this at 09:30 wants to know before `make run` fires, not
+    from its traceback. Reads as monitor_pipeline, which holds select on fx_rates.
+    """
+    from datetime import UTC, datetime
+
+    from monitor.fx.config import load
+
+    config = load()
+    today = datetime.now(UTC).date()
+    row = conn.execute(NEWEST_RATE, (config.publisher.id, today)).fetchone()
+    if row is None:
+        return f"rates: none held from {config.publisher.id}; staging will refuse until `make fx` runs"
+    newest, currencies = row
+    age = (today - newest).days
+    verdict = "ok" if age <= config.max_rate_age_days else f"STALE, past the {config.max_rate_age_days}-day tolerance"
+    return f"rates: {config.publisher.id} {newest.isoformat()}, {currencies} currencies, {age} days old, {verdict}"

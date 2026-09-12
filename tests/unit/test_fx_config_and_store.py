@@ -160,3 +160,25 @@ def test_the_edge_of_the_tolerance_is_still_usable(conn, config):
 def test_no_rates_at_all_says_what_to_run(conn, config):
     with pytest.raises(StaleRatesError, match="monitor fx"):
         latest(conn, config, today=date(2026, 9, 14))
+
+
+def test_a_rate_for_a_day_that_has_not_happened_is_never_the_newest(conn, config):
+    """NBU publishes tomorrow's rate this afternoon. Held, but not chosen until tomorrow.
+
+    Before this rule `latest` picked the calendar-newest row and `monitor status`
+    read "-2 days old"; a candidate staged on a Saturday would have carried
+    Monday's rate.
+    """
+    store(conn, _rates(date(2026, 9, 12)), config)
+    store(conn, _rates(date(2026, 9, 14)), config)
+
+    assert latest(conn, config, today=date(2026, 9, 12)).rate_date == date(2026, 9, 12)
+    assert latest(conn, config, today=date(2026, 9, 13)).rate_date == date(2026, 9, 12)
+    assert latest(conn, config, today=date(2026, 9, 14)).rate_date == date(2026, 9, 14)
+
+
+def test_only_future_rows_held_reads_as_no_rates_at_all(conn, config):
+    store(conn, _rates(date(2026, 9, 14)), config)
+
+    with pytest.raises(StaleRatesError, match="monitor fx"):
+        latest(conn, config, today=date(2026, 9, 12))

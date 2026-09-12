@@ -1,0 +1,41 @@
+# The day's exchange rates under systemd: one fetch from the one publisher named
+# in config/fx.yaml, stored in fx_rates, nothing else.
+#
+# The command is the Makefile's `fx` target verbatim. No [Install] section:
+# monitor-fx.timer owns the schedule and is the unit you enable.
+#
+# Rule 17: opens no port, listens for nothing. Rule 20: no credential here;
+# EnvironmentFile carries the database URL. Rule 2: no Restart=, a failed fetch
+# exits non-zero and the next day's timer takes the next one; `monitor status`
+# shows the age of the newest rate held in the meantime.
+
+[Unit]
+Description=PFM Opportunity Monitor: fetch the day's exchange rates
+Documentation=file:/opt/monitor/deploy/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=monitor
+Group=monitor
+WorkingDirectory=/opt/monitor
+EnvironmentFile=/etc/monitor/monitor.env
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/usr/local/bin/uv run python -m monitor.cli fx
+
+LogsDirectory=monitor
+LogsDirectoryMode=0750
+StandardOutput=append:/var/log/monitor/fx.log
+StandardError=append:/var/log/monitor/fx.log
+
+# One HTTP request and 45 rows. A minute is generous.
+TimeoutStartSec=2min
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true

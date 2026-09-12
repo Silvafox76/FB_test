@@ -36,6 +36,7 @@ class Publisher(BaseModel):
     id: str = Field(min_length=1)
     name: str = Field(min_length=1)
     url: str = Field(min_length=1)
+    query_date_format: str = Field(min_length=1)
     base_currency: str
     schedule: str
     minimum_rows: int = Field(gt=0)
@@ -44,6 +45,14 @@ class Publisher(BaseModel):
     @classmethod
     def _base(cls, value: str) -> str:
         return _currency(value)
+
+    @field_validator("url")
+    @classmethod
+    def _url_takes_a_date(cls, value: str) -> str:
+        # The undated endpoint forward-dates after 15:30 Kyiv; see config/fx.yaml.
+        if "{date}" not in value:
+            raise ValueError("publisher url must carry a {date} placeholder; the undated endpoint forward-dates")
+        return value
 
     @field_validator("schedule")
     @classmethod

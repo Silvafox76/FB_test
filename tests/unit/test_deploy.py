@@ -80,7 +80,7 @@ def lands_at(period: int, offset: int, now: datetime) -> datetime:
 
 def test_every_cron_service_has_a_readable_sleep_expression():
     """If this stops matching, every other test here silently tests nothing."""
-    assert set(sleep_expressions()) == {"pipeline-cron", "status-cron", "metrics-cron"}
+    assert set(sleep_expressions()) == {"pipeline-cron", "status-cron", "metrics-cron", "fx-cron"}
 
 
 @pytest.mark.parametrize("now", STARTS)
@@ -172,6 +172,31 @@ def test_the_metrics_unit_carries_both_database_urls():
 def test_no_cron_service_restarts_itself():
     """Rule 2. Docker's restart backoff is a retry loop wearing a different hat."""
     text = COMPOSE.read_text(encoding="utf-8")
-    assert text.count('restart: "no"') == 3
+    # Four loops - pipeline, status, metrics, fx - and every one of them says no.
+    assert text.count('restart: "no"') == 4
     assert "restart: always" not in text
     assert "restart: unless-stopped" not in text
+
+
+DAY = 86400
+
+
+@pytest.mark.parametrize("now", STARTS)
+def test_the_fx_service_runs_daily_at_nine_utc(now):
+    """The one time that is written in three places on purpose - the compose loop,
+    the systemd timer and config/fx.yaml - because nothing else wakes `monitor fx`."""
+    period, offset = sleep_expressions()["fx-cron"]
+    landed = lands_at(period, offset, now)
+
+    assert period == DAY
+    assert (landed.hour, landed.minute) == (9, 0), landed.isoformat()
+
+
+def test_the_fx_timer_the_compose_loop_and_the_config_all_say_nine_utc():
+    from monitor.fx.config import load
+
+    timer = (SYSTEMD / "monitor-fx.timer").read_text(encoding="utf-8")
+    assert "OnCalendar=*-*-* 09:00:00 UTC" in timer
+    assert load().publisher.schedule == "0 9 * * *"
+    # A missed day's rate is work, not a reading: it is taken late (see the timer).
+    assert "Persistent=true" in timer

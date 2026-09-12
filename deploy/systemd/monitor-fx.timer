@@ -1,0 +1,35 @@
+# When the host fetches the day's exchange rates. Daily at 09:00 UTC, the time
+# config/fx.yaml declares under publisher.schedule, and it is written in both
+# places on purpose: the registry rule that keeps source schedules OUT of the
+# timers (monitor-run.timer explains it) does not apply here, because `monitor fx`
+# is not a source the hourly pass reads - nothing else wakes it. This timer is the
+# whole mechanism, so it carries the time, and fx.yaml carries the same time so a
+# reader of either file sees the other's number. tests/unit/test_deploy.py checks
+# they agree.
+#
+# Why its own unit and not a line in monitor-run: `run` fires hourly and the rate
+# publisher is read once a day (rule 21). Any hour works with the dated endpoint
+# the client uses, so 09:00 is chosen for the pipeline's sake - ahead of the
+# staging passes that will stamp that day's row onto candidates.
+
+[Unit]
+Description=PFM Opportunity Monitor: fetch and store the day's exchange rates
+Documentation=file:/opt/monitor/deploy/README.md
+
+[Timer]
+Unit=monitor-fx.service
+
+# Explicitly UTC, like every other schedule in this repository.
+OnCalendar=*-*-* 09:00:00 UTC
+
+# A little jitter, for the same politeness reason monitor-run.timer gives.
+RandomizedDelaySec=60
+
+# Persistent=true: a missed day's rate is work, not a reading. Staging refuses a
+# table older than the tolerance in config/fx.yaml, so a host that was asleep at
+# 09:00 takes the fetch when it wakes rather than leaving `make run` to fail on
+# StaleRatesError at :00.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

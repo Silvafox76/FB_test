@@ -19,6 +19,8 @@ from monitor.fx.config import load
 from monitor.fx.convert import RateTable, convert, units_per_usd
 from monitor.fx.nbu import FxFetchError, parse
 
+RECORDED_DAY = date(2026, 9, 14)
+
 FIXTURE = Path(__file__).parent / "fixtures" / "nbu.json"
 
 
@@ -34,7 +36,7 @@ def config():
 
 @pytest.fixture
 def table(document, config):
-    rates = parse(document, config)
+    rates = parse(document, config, asked_for=RECORDED_DAY)
     return RateTable(
         rate_date=rates[0].rate_date,
         base=config.publisher.base_currency,
@@ -46,7 +48,7 @@ def table(document, config):
 
 
 def test_the_recorded_day_parses_into_every_row_it_carries(document, config):
-    rates = parse(document, config)
+    rates = parse(document, config, asked_for=RECORDED_DAY)
 
     assert len(rates) == len(document) == 45
     assert {rate.rate_date for rate in rates} == {date(2026, 9, 14)}
@@ -56,12 +58,12 @@ def test_the_date_is_read_by_the_publishers_own_format_not_iso(document, config)
     """`exchangedate` is DD.MM.YYYY. Read as ISO it would raise, or worse, not."""
     assert document[0]["exchangedate"] == "14.09.2026"
 
-    assert parse(document, config)[0].rate_date == date(2026, 9, 14)
+    assert parse(document, config, asked_for=RECORDED_DAY)[0].rate_date == date(2026, 9, 14)
 
 
 def test_rates_are_decimals_read_through_str_rather_than_float(document, config):
     """A float round trip puts binary error into a figure that reaches a record."""
-    rates = {rate.currency: rate.uah_per_unit for rate in parse(document, config)}
+    rates = {rate.currency: rate.uah_per_unit for rate in parse(document, config, asked_for=RECORDED_DAY)}
 
     assert rates["USD"] == Decimal("44.5483")
     assert all(isinstance(rate, Decimal) for rate in rates.values())
@@ -84,42 +86,42 @@ def test_metals_and_the_imf_unit_are_carried_like_any_other_code(table):
 def test_an_empty_day_raises_rather_than_reporting_a_healthy_zero(config):
     """Rule 4: zero-yield on a source that normally yields is a failure state."""
     with pytest.raises(FxFetchError, match="fewer than"):
-        parse([], config)
+        parse([], config, asked_for=RECORDED_DAY)
 
 
 def test_a_day_with_no_target_currency_raises(document, config):
     without_usd = [row for row in document if row["cc"] != "USD"]
 
     with pytest.raises(FxFetchError, match="no USD row"):
-        parse(without_usd, config)
+        parse(without_usd, config, asked_for=RECORDED_DAY)
 
 
 def test_a_day_with_no_euro_leg_raises_because_the_pegs_need_it(document, config):
     without_eur = [row for row in document if row["cc"] != "EUR"]
 
     with pytest.raises(FxFetchError, match="no EUR row"):
-        parse(without_eur, config)
+        parse(without_eur, config, asked_for=RECORDED_DAY)
 
 
 def test_a_non_positive_rate_raises(document, config):
     broken = [dict(row, rate=0) if row["cc"] == "PLN" else row for row in document]
 
     with pytest.raises(FxFetchError, match="not a rate"):
-        parse(broken, config)
+        parse(broken, config, asked_for=RECORDED_DAY)
 
 
 def test_two_dates_in_one_response_raise(document, config):
     mixed = [dict(row, exchangedate="13.09.2026") if row["cc"] == "PLN" else row for row in document]
 
     with pytest.raises(FxFetchError, match="different dates"):
-        parse(mixed, config)
+        parse(mixed, config, asked_for=RECORDED_DAY)
 
 
 def test_a_row_missing_a_field_names_the_field(document, config):
     stripped = [{k: v for k, v in row.items() if k != "rate"} if row["cc"] == "PLN" else row for row in document]
 
     with pytest.raises(FxFetchError, match="missing rate"):
-        parse(stripped, config)
+        parse(stripped, config, asked_for=RECORDED_DAY)
 
 
 # --- the arithmetic ----------------------------------------------------------
@@ -202,3 +204,28 @@ def test_a_table_with_no_target_row_refuses_to_convert_anything(config):
 
     with pytest.raises(ValueError, match="no USD row"):
         units_per_usd("EUR", broken, config)
+
+
+def test_a_response_for_a_day_other_than_the_one_asked_for_is_refused(document, config):
+    """NBU sets tomorrow's rate the afternoon before, and from then on the undated
+    endpoint serves it: this very fixture was fetched on the 12th and is dated the
+    14th. The client asks for a named day and refuses any other, so a candidate is
+    never stamped with a rate from a day that has not happened."""
+    with pytest.raises(FxFetchError, match="asked for 2026-09-12 and the response is dated 2026-09-14"):
+        parse(document, config, asked_for=date(2026, 9, 12))
+
+
+def test_a_row_with_a_key_the_feed_has_never_had_is_refused(document, config):
+    """Rule 4: unknown fields raise. A new key is the feed changing shape."""
+    changed = [dict(row, surprise=1) if row["cc"] == "PLN" else row for row in document]
+
+    with pytest.raises(FxFetchError, match="surprise"):
+        parse(changed, config, asked_for=RECORDED_DAY)
+
+
+def test_the_request_url_carries_the_day_asked_for(config):
+    """The dated endpoint, never the undated one (config/fx.yaml explains why)."""
+    assert "{date}" in config.publisher.url
+    assert config.publisher.url.format(date=date(2026, 9, 12).strftime(config.publisher.query_date_format)).endswith(
+        "?date=20260912&json"
+    )

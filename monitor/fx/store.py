@@ -26,7 +26,12 @@ values (%s, %s, %s, %s)
 on conflict (source, currency, rate_date) do nothing
 """
 
-NEWEST_DATE = "select max(rate_date) from fx_rates where source = %s"
+# `rate_date <= today`: the newest rate for a day that has HAPPENED. NBU publishes
+# the next banking day's rate the afternoon before, and a row for a day that has
+# not arrived is real data that is simply not yet the right day to stamp on a
+# record. This is the definition of "newest", not a fallback from one day to
+# another (rule 1): there is exactly one answer for any given `today`.
+NEWEST_DATE = "select max(rate_date) from fx_rates where source = %s and rate_date <= %s"
 
 DAY = "select currency, uah_per_unit from fx_rates where source = %s and rate_date = %s"
 
@@ -62,8 +67,10 @@ def latest(conn: psycopg.Connection, config: FxConfig, *, today: date | None = N
     `today` is an argument rather than read from the clock inside, so a test can
     place the staleness boundary exactly rather than depending on when it runs.
 
-    Raises when there are no rates at all, and when the newest day is older than
-    `max_rate_age_days`. Both are failure states rather than a reason to fall back
+    Raises when there are no rates for any day up to `today`, and when the newest
+    such day is older than `max_rate_age_days`. A row dated after `today` is never
+    chosen, so the age can never be negative and a candidate is never stamped
+    with a rate from a day that has not happened. Both are failure states rather than a reason to fall back
     to an older rate or to skip the conversion quietly (rules 1 and 4): a figure on
     a reviewer's screen carrying last month's rate is exactly the kind of number
     that looks current and is not.
@@ -71,7 +78,7 @@ def latest(conn: psycopg.Connection, config: FxConfig, *, today: date | None = N
     today = today or datetime.now(UTC).date()
     publisher = config.publisher.id
 
-    row = conn.execute(NEWEST_DATE, (publisher,)).fetchone()
+    row = conn.execute(NEWEST_DATE, (publisher, today)).fetchone()
     newest = row[0] if row else None
     if newest is None:
         raise StaleRatesError(f"no rates held from {publisher}; run `monitor fx` before staging")

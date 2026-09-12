@@ -27,15 +27,30 @@
 publisher:
   id: nbu
   name: National Bank of Ukraine, official exchange rates
-  url: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json
+  # The DATED form of the endpoint, always. NBU sets tomorrow's official rate in the
+  # afternoon (about 15:30 Kyiv), and from that moment the undated endpoint returns
+  # TOMORROW'S rows: a fetch on Friday 2026-09-12 at 18:00 UTC came back stamped
+  # 14.09.2026, Monday's rate. A candidate staged that evening would have carried
+  # a rate from a day that had not happened. Asking for a named date returns
+  # exactly that date's rows - measured: ?date=20260912 gives 12.09.2026, and a
+  # weekend day gives the Friday rate carried forward under its own date - and the
+  # client refuses a response whose date is not the one it asked for (rule 4).
+  # `{date}` is filled with the run's UTC date in `query_date_format`.
+  url: https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date={date}&json
+  query_date_format: '%Y%m%d'
   # The feed quotes UAH per one unit of every OTHER currency, so there is no row
   # for UAH itself. This is not an omission to work around: it is the base, and
   # the conversion treats it as such. A notice published in UAH converts as
   # `amount / uah_per_unit['USD']` rather than through a lookup that would fail.
   base_currency: UAH
-  # 09:00 UTC daily. NBU publishes the day's rates in the morning Kyiv time, and
-  # this sits ahead of every fetch slot (boamp 04:30 through ebrd 10:30) so a
-  # staging run later the same day has a fresh rate to stamp.
+  # 09:00 UTC daily. Any hour works with the dated endpoint - the rate for a given
+  # day is fixed the afternoon before and does not move - so the slot is chosen
+  # for the pipeline's sake, not the publisher's: it sits ahead of every source's
+  # fetch slot (boamp 04:30 through ebrd 10:30 are all earlier, but the hourly
+  # `run` that stages them is not) so a staging pass on any given day finds that
+  # day's row already stored. Read by deploy/systemd/monitor-fx.timer and the
+  # fx-cron loop in deploy/docker-compose.cron.yml, which carry the same time
+  # and say so.
   schedule: '0 9 * * *'
   # A day with fewer rows than this is not a thin day, it is a broken response:
   # the feed has carried 45 currencies every time it has been looked at, and the

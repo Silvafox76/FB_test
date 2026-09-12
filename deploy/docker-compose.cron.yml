@@ -116,6 +116,42 @@ services:
         done
     restart: "no"
 
+  # `monitor fx` daily at 09:00 UTC: the day's exchange rates from the one
+  # publisher in config/fx.yaml, into fx_rates. The same time as
+  # deploy/systemd/monitor-fx.timer and as fx.yaml's publisher.schedule, and
+  # tests/unit/test_deploy.py checks the three agree. Its own loop rather than a
+  # line in pipeline-cron because `run` fires hourly and the rate publisher is read
+  # once a day (rule 21).
+  fx-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-fx-cron
+    env_file: .env
+    environment:
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    # Same sleep-to-the-next-boundary loop as the other three. 86400 is a day and
+    # 32400 is 09:00 counted from midnight UTC, so the next boundary is the next
+    # 09:00 UTC. Never sleeps zero.
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          sleep $$(( 86400 - ( $$(date +%s) - 32400 ) % 86400 ))
+          echo "== monitor fx $$(date -u +%Y-%m-%dT%H:%M:%SZ) ==" >> /app/logs/fx.log
+          python -m monitor.cli fx >> /app/logs/fx.log 2>&1
+          echo "== monitor fx exit $$? ==" >> /app/logs/fx.log
+        done
+    restart: "no"
+
   # `monitor metrics` weekly, Monday at 06:30 UTC. The same cadence and the same
   # offset as monitor-metrics.timer, and for the same reasons written down there:
   # Monday so the week's numbers are in front of the weekly tuning session, :30 so

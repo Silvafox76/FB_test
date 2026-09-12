@@ -194,11 +194,14 @@ def _deadline(raw: dict):
 def _published(raw: dict) -> tuple[Decimal | None, str | None]:
     """The stated value as published, in the currency published.
 
-    404 of the 806 stored notices state one, across ten currencies: EUR 275, PLN
-    30, CZK 28, RON 22, SEK 22, GBP 20, NOK 15, DKK 8 and a handful more. Both
-    fields arrive as JSON strings on all 404, which is why the shared helper parses
-    through `str` rather than `float`. 19 of them state zero, which that helper
-    reads as the publisher's "not stated" rather than as a free contract.
+    404 of the 806 stored notices carry the field and 385 of those state a real
+    amount, across nine currencies: EUR 258, PLN 30, CZK 26, RON 22, SEK 22, NOK
+    15, DKK 8, MDL 3 and GBP 1 (measured 2026-09-12; an earlier draft of this
+    paragraph counted the string '0' as a value, which is how it arrived at ten
+    currencies and EUR 275). Both fields arrive as JSON strings on all 404, which
+    is why the shared helper parses through `str` rather than `float`. The other
+    19 state zero, which that helper reads as the publisher's "not stated" rather
+    than as a free contract.
 
     Decision 6 is closed by this: a EUR value is carried as EUR and converted at a
     stamped rate at staging (migration 012), not dropped and not silently made USD.

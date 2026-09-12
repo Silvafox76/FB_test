@@ -352,37 +352,40 @@ def test_the_description_is_dropped_when_it_only_repeats_the_title(mapped):
         assert m.notice.body  # non-empty and genuinely different prose
 
 
-def test_the_value_is_carried_in_usd_but_a_zero_amount_is_treated_as_absent(mapped):
-    """All 14 releases state USD, and three of them state zero.
+def test_the_value_is_read_from_the_budget_block_so_all_fourteen_carry_one(mapped):
+    """`planning.budget.amount`, not `tender.value.amount`, and the difference is 484,000 USD.
 
-    Liberia used to be the only source whose value survived at all, because
-    decision 7 dropped any non-USD amount rather than convert it. Every source now
-    carries its own currency, so Liberia is no longer special - it just happens to
-    publish in the target currency.
-
-    The property that still matters is what a stated `0` means. Three of the 14
-    carry `tender.value.amount == 0`, among them "Construction of Two District
-    Offices for the Liberia Electricity Corporation", which does not cost nothing.
-    `0` is the publisher's placeholder for "not stated", so it is dropped rather
-    than carried through as a price: carried through it becomes USD 0 in appendix
-    E's Total Opportunity Amount and shows a reviewer "USD 0" for a building, which
-    is the plausible-looking wrong value CLAUDE.md's export rules exist to prevent
-    and is worse than the blank a None renders as. The rule now lives in
-    monitor/normalise/value.py, because TED publishes 19 zeros of its own.
+    On 11 of the 14 releases the two blocks are byte-identical. On the other three
+    `tender.value.amount` is 0 while the budget block carries the real figure:
+    41,150 for "FY2026 Procurement of Transport Equipment", 49,150 for "Procurement
+    of Office Equipment" and 484,000 for "Construction of Two District Offices",
+    the largest opportunity in the whole Liberian corpus. An earlier version of this
+    test read the value block and asserted "11 carry a value and 3 are absent",
+    which was the zeroed copy being mistaken for the publisher's silence. The
+    budget block is the original (rule 9) and is the one field read (rule 1).
     """
     amounts = [m.notice.estimated_value for m in mapped]
 
-    assert sum(1 for amount in amounts if amount is not None) == 11
-    assert sum(1 for amount in amounts if amount is None) == 3
-    assert all(amount > 0 for amount in amounts if amount is not None)
-    # Every carried amount says USD, and every dropped one says nothing at all -
-    # the pair cannot come apart.
-    assert [m.notice.value_currency for m in mapped if m.notice.estimated_value is not None] == ["USD"] * 11
-    assert all(m.notice.value_currency is None for m in mapped if m.notice.estimated_value is None)
-    # Locks the field and the units: a regression that read the wrong key, or
-    # divided cents to dollars, would still leave 11 non-null amounts but change
-    # this one silently.
+    assert all(amount is not None and amount > 0 for amount in amounts)
+    assert len(amounts) == 14
+    assert [m.notice.value_currency for m in mapped] == ["USD"] * 14
+    # The three that the value block zeroes, at their budget figures.
+    assert Decimal("484000.00") in amounts
+    assert Decimal("41150.00") in amounts
+    assert Decimal("49150.00") in amounts
+    # Locks the field and the units on one that both blocks agree on.
     assert Decimal("10625.00") in amounts
+
+
+def test_the_value_block_is_a_copy_of_the_budget_block_except_where_it_is_zeroed(raw_notice_payloads):
+    """The measurement behind reading the budget block: where the copy is not zero, it matches."""
+    for payload in raw_notice_payloads:
+        release = payload["detail"]["releases"][0]
+        value = (release.get("tender") or {}).get("value") or {}
+        budget = ((release.get("planning") or {}).get("budget") or {}).get("amount") or {}
+        if value.get("amount"):
+            assert value["amount"] == budget["amount"], release.get("ocid")
+        assert value.get("currency") == budget.get("currency") == "USD"
 
 
 def test_a_non_usd_value_is_carried_in_its_own_currency(raw_notice_payloads):
@@ -393,8 +396,9 @@ def test_a_non_usd_value_is_carried_in_its_own_currency(raw_notice_payloads):
     euro figure as dollars - which is exactly what the scorer was doing before the
     value stopped coming from the model."""
     payload = json.loads(json.dumps(raw_notice_payloads[0]))
-    stated = payload["detail"]["releases"][0]["tender"]["value"]["amount"]
-    payload["detail"]["releases"][0]["tender"]["value"]["currency"] = "EUR"
+    budget = payload["detail"]["releases"][0]["planning"]["budget"]["amount"]
+    stated = budget["amount"]
+    budget["currency"] = "EUR"
 
     notice = map_notice(payload).notice
 

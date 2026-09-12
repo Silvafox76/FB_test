@@ -14,13 +14,14 @@ most releases. Carrying it into `Notice.body` anyway would send the scorer the s
 sentence twice and pay for the tokens, so the body is set only when it says
 something the title does not. The three that differ keep theirs.
 
-**The value is carried as published.** All 14 releases carry `tender.value` as
-`{"amount": ..., "currency": "USD"}`, so Liberia was for a while the only source whose
-value survived at all: decision 7 dropped any non-USD amount rather than convert it,
-because converting needed a rate and a date the pipeline did not have. Migration 012
-gives it both, so every source now carries its own currency and the conversion is a
-stamped step at staging. Liberia is no longer special; it is just the source that
-happens to publish in the target currency.
+**The value is carried as published, from `planning.budget`.** All 14 releases carry
+a USD amount there, so Liberia was for a while the only source whose value survived at
+all: decision 7 dropped any non-USD amount rather than convert it, because converting
+needed a rate and a date the pipeline did not have. Migration 012 gives it both, so
+every source now carries its own currency and the conversion is a stamped step at
+staging. Liberia is no longer special; it is just the source that happens to publish
+in the target currency. Why the budget block and not `tender.value` is explained at
+the read below: the value block is a copy, and on three releases a zeroed one.
 
 **Classifications are ISIC, not CPV, so `cpv_codes` stays empty.** All 18
 classifications across the fixture use the ISIC scheme. Mapping ISIC to CPV would be
@@ -93,15 +94,23 @@ def map_notice(raw: dict) -> MappedNotice:
     buyer = ((release.get("buyer") or {}).get("name") or "").strip()
     url = (raw.get("listing") or {}).get("url") or ""
 
-    # The zero-is-not-stated rule started here - three of the 14 releases carry `0`
-    # for "Construction of Two District Offices", "FY2026 Procurement of Transport
-    # Equipment" and "Procurement of Office Equipment", none of which costs nothing -
-    # and it now lives in `monitor/normalise/value.py` because TED turned out to
-    # publish 19 zeros of its own. Liberia's USD is no longer a special case either:
-    # it is carried as the published currency like every other source's, and it
-    # converts through the identity rate at staging.
-    value = tender.get("value") or {}
-    estimated_value, value_currency = published_value(value.get("amount"), value.get("currency"), source_id=SOURCE_ID)
+    # `planning.budget.amount`, NOT `tender.value`. On 11 of the 14 releases the two
+    # are byte-identical; on the other three `tender.value.amount` is 0 while
+    # `planning.budget.amount` carries the real figure - 41,150 for "FY2026
+    # Procurement of Transport Equipment", 49,150 for "Procurement of Office
+    # Equipment", and 484,000 USD for "Construction of Two District Offices", which
+    # is the largest opportunity in the whole Liberian corpus. So the zero this
+    # module used to treat as "not stated" was a zeroed COPY, and reading the copy
+    # threw away the one number that mattered most. The budget block is the
+    # publisher's own figure and the value block is derived from it; this reads the
+    # original (rule 9). It is one field, not a fallback from one to the other
+    # (rule 1): `tender.value` is not consulted at all.
+    #
+    # The zero-is-not-stated rule that started here for those three releases now
+    # lives in `monitor/normalise/value.py`, because TED publishes 19 zeros of its
+    # own, and it still applies: a budget stated as 0 would be dropped, not carried.
+    budget = ((release.get("planning") or {}).get("budget") or {}).get("amount") or {}
+    estimated_value, value_currency = published_value(budget.get("amount"), budget.get("currency"), source_id=SOURCE_ID)
 
     deadline_raw = (tender.get("tenderPeriod") or {}).get("endDate") or ""
 

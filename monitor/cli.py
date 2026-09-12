@@ -483,11 +483,13 @@ def run_metrics(days: int) -> int:
 def run_status() -> int:
     """Source health and the filter's arithmetic per source, then the export backlog."""
     from monitor.db import connect
-    from monitor.health.status import collect, render
+    from monitor.health.status import collect, render, render_rates
     from review.export import backlog, render_backlog, reporting_connection
 
     with connect("pipeline") as conn:
         print(render(collect(conn)))
+        print()
+        print(render_rates(conn))
 
     # On a second connection, as monitor_readonly, because the backlog lives in
     # `approved_records` and `migrations/002_roles.sql` revokes all on that table from
