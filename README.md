@@ -96,16 +96,10 @@ landed at step 2, before any code that might need it, and runs on every commit f
 
 **Steps 1 to 22 have been worked, and not all of their acceptance tests are met.** Code is not the
 same thing as a passed gate, so the table below says which is which rather than reporting a step as
-done because its files exist. 1,186 tests pass and 1 is skipped; 2 fail —
-`tests/unit/test_backfill_values.py::test_pass_two_running_twice_changes_nothing` and
-`tests/unit/test_stager.py::test_a_second_notice_about_the_same_tender_joins_rather_than_making_a_candidate`
-— both because the shared dev database still holds fixtures that interrupted `test_export.py` runs
-left behind: 617 `test-exp-*` sources, one `scored` notice each with no score row, and three
-`pending_review` candidates (`C919153`–`C919155`) whose title is the one the stager test stages.
-The fixture teardown does not survive an interrupted run, and the runtime roles hold no delete, so
-the cleanup is an owner-role action. Neither failure touches code this branch changed. The
+done because its files exist. 1,191 tests pass and 1 is skipped, on a database with no test
+fixtures left in it. The
 checkpoint test that proves `monitor_pipeline` holds no privilege on `approved_records` runs on every
-commit and is not one of the two. The pipeline holds 2,487 notices from 11 enabled sources, 1,277 of
+commit. The pipeline holds 2,487 notices from 11 enabled sources, 1,277 of
 them carrying a published value in the currency it was published in, and 148 candidates, 26 of them
 in the review queue — 6 West Africa, 2 Balkans, 18 Europe; of those 26, 11 show a converted USD
 figure, 15 state no value, and none is stuck in a currency with no rate held for it. **Sierra Leone
@@ -174,3 +168,10 @@ uv run python scripts/export_function_map.py
 ```
 
 Everything else under `config/` and all of `sources/` is hand-edited and validated on load.
+
+*Test fixtures can outlive an interrupted run.* `tests/review/test_export.py` creates sources,
+notices and candidates on an owner connection and deletes them at teardown; a run killed mid-test
+skips the teardown. On 2026-09-12 a day of concurrent agent runs left 617 `test-exp-*` sources
+and three `pending_review` candidates in the dev database, which made two unrelated tests fail
+until they were removed as owner (the runtime roles hold no delete). Their ids are reserved above
+`C900000` and their source ids start `test-`, so they are easy to find and safe to remove.
