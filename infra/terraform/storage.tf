@@ -150,6 +150,16 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw" {
     expiration {
       days = var.db_backup_retention_days
     }
+
+    # THE SECOND HALF OF "90-DAY RETENTION", and without it the first half is a
+    # lie. On a versioned bucket, `expiration` does not delete anything: it makes
+    # the object's current version noncurrent and puts a delete marker on top. The
+    # dump disappears from a normal listing and the bytes stay, and are billed,
+    # forever. A weekly dump of a growing database would quietly accumulate for the
+    # length of the pilot while the console showed 90 days of history.
+    noncurrent_version_expiration {
+      noncurrent_days = var.db_backup_retention_days
+    }
   }
 
   # Not an object rule: this cleans up the parts of uploads that failed halfway.
