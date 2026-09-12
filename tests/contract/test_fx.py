@@ -229,3 +229,50 @@ def test_the_request_url_carries_the_day_asked_for(config):
     assert config.publisher.url.format(date=date(2026, 9, 12).strftime(config.publisher.query_date_format)).endswith(
         "?date=20260912&json"
     )
+
+
+# --- the dated endpoint, recorded rather than remembered -----------------------
+#
+# `nbu_dated_20260912.json` and `nbu_dated_20260913.json` are the DATED endpoint's
+# responses for a Friday and the Saturday after it, fetched 2026-09-12. They are
+# what the client's date-refusal rule and config/fx.yaml's weekend claim rest on.
+
+DATED = {
+    day: Path(__file__).parent / "fixtures" / f"nbu_dated_{day.strftime('%Y%m%d')}.json"
+    for day in (date(2026, 9, 12), date(2026, 9, 13))
+}
+
+
+def _usd(rows):
+    return next(Decimal(str(row["rate"])) for row in rows if row["cc"] == "USD")
+
+
+def test_the_dated_endpoint_returns_the_day_asked_for(config):
+    for day, path in DATED.items():
+        rates = parse(json.loads(path.read_text(encoding="utf-8")), config, asked_for=day)
+        assert {rate.rate_date for rate in rates} == {day}
+        assert len(rates) == 45
+
+
+def test_a_weekend_day_carries_the_friday_rate_under_its_own_date(config):
+    """The measurement behind config/fx.yaml: no market on Saturday, so Saturday's
+    row IS Friday's number, stamped Saturday. `latest` would select it for a
+    Saturday staging pass, and a candidate staged then is stamped with the day it
+    was staged, not the last banking day."""
+    friday = json.loads(DATED[date(2026, 9, 12)].read_text(encoding="utf-8"))
+    saturday = json.loads(DATED[date(2026, 9, 13)].read_text(encoding="utf-8"))
+
+    assert _usd(saturday) == _usd(friday)
+
+
+def test_the_undated_endpoint_really_was_forward_dated(config):
+    """Recorded on the 12th, the undated response is dated the 14th and carries a
+    DIFFERENT USD rate from the dated 12th - Monday's number, set Friday afternoon.
+    This is the defect the dated endpoint exists to avoid."""
+    undated = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    friday = json.loads(DATED[date(2026, 9, 12)].read_text(encoding="utf-8"))
+
+    assert {row["exchangedate"] for row in undated} == {"14.09.2026"}
+    assert _usd(undated) != _usd(friday)
+    with pytest.raises(FxFetchError, match="asked for 2026-09-12"):
+        parse(undated, config, asked_for=date(2026, 9, 12))

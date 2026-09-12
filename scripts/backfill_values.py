@@ -155,9 +155,21 @@ def backfill_notices(conn, storage_root: Path, connectors: dict | None = None) -
             continue
 
         document = json.loads(path.read_text(encoding="utf-8"))
+        # This is the one place in the repository that catches a mapper's failure
+        # instead of re-raising it, and it is deliberate. monitor/fetch.py wraps the
+        # identical call in NormaliseError and lets it fail the run, which is right
+        # for a live pass: one bad payload marks the source unhealthy and the next
+        # scheduled pass tries again. This is a one-off sweep over every stored
+        # payload, thousands of rows, with no next pass. Halting on the first
+        # unmappable file would discard the work done on every row before it and
+        # report nothing about the rows after it. So the failure is logged at error
+        # with the source and hash bound, counted, and printed in the final report
+        # as its own line - never silent, never rounded into "updated" - and the
+        # sweep goes on. The 2026-09-12 run reported 0 here. Rule 3 names connectors
+        # and the model client; a normaliser over a file already on disk is neither.
         try:
             mapped = mapper(document)
-        except Exception as cause:  # noqa: BLE001 - logged with source and hash, never hidden
+        except Exception as cause:  # noqa: BLE001 - logged with source and hash, counted, reported
             bound.error("backfill_mapper_error", error=repr(cause))
             skipped_mapper_error += 1
             continue
