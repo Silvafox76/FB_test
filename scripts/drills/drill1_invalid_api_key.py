@@ -43,9 +43,10 @@ And if the day's call or dollar cap is already spent, the score stage stops at t
 before it reaches the client, which is drill 3's outcome and not this one's: the drill
 checks the budget first and exits 2 rather than reporting a failure it did not cause.
 Measured, not imagined - it is how this drill failed the first time it was run on a day
-another lane had spent all 600 calls. Raising the cap to get past that is a decision for
-`config/thresholds.yaml` or the environment, taken by a person and said out loud, not
-something a drill does to itself.
+another lane had spent the day's calls. Raising the cap to get past that is a decision
+for `config/thresholds.yaml`, taken by a person and said out loud, not something a
+drill does to itself - and not one for `.env`, where a stale DAILY_CALL_CAP shadowed
+the configured cap until a translation run died 545 calls in.
 """
 
 from __future__ import annotations

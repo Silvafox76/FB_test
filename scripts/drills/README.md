@@ -61,8 +61,10 @@ a day whose call or dollar cap is spent the score stage stops at the cap and nev
 the credential - drill 3's outcome, not this one's. The drill checks the budget first and
 exits 2 with the numbers rather than reporting a failure it did not cause. This is measured,
 not imagined: it is how the drill failed the first time it ran on a day another job had
-spent all 600 calls. Raising the cap to get past it is a decision to take in
-`config/thresholds.yaml` or the environment, by a person, out loud.
+spent the day's calls. Raising the cap to get past it is a decision to take in
+`config/thresholds.yaml`, by a person, out loud - and not in `.env`, where a stale
+`DAILY_CALL_CAP=600` shadowed the configured 2,000 for long enough to kill a
+translation run 545 calls in.
 
 Two honest notes:
 
@@ -215,9 +217,9 @@ All six against the live database on this host, over the night of 2026-09-11 int
 
 | drill | verdict | checks | what it showed |
 | --- | --- | --- | --- |
-| 1 | PASS | 5 | HTTP 401 `invalid x-api-key`, exit 1, nothing written, notice still `filtered_in`. Run at the cap in `config/thresholds.yaml` because the `.env` override of 600 calls had been spent that day; the refused request bills nothing. |
+| 1 | PASS | 5 | HTTP 401 `invalid x-api-key`, exit 1, nothing written, notice still `filtered_in`; today's billed call count unmoved. First attempt refused to run at all, because a scoring run still had a connection open - the right answer, and the drill said so rather than measuring the concurrency. |
 | 2 | PASS | 7 | `worldbank: ValueError: World Bank notice 0 (OP00468043) is missing ['contact_organization']` three times; healthy -> watch -> unhealthy; `fts`, `prozorro`, `ted` untouched; health row and `fetch_runs` restored. |
-| 3 | PASS | 11 | `score_cap_exceeded`, `CapExceeded: score: 600 calls today, cap is 600`, exit 1, no 401 anywhere, nothing billed. The day's own 600 calls were the cap, so the drill seeded none. |
+| 3 | PASS | 11 | `score_cap_exceeded`, `CapExceeded: score: 759 calls today, cap is 759`, exit 1, no 401 anywhere, nothing billed. The cap is set to today's own count plus the seeds, not to a literal 2, so the drill is correct on any day rather than only on one with an empty `model_calls`. |
 | 4 | PASS | 8 | 303 to `/candidate/<id>?error=a reviewer name is required`; nothing written; `candidate ... cannot be set to approved without a named reviewer` from Postgres; the control approved. |
 | 5 | PASS | 5 | `InsufficientPrivilege: permission denied for table approved_records` on both the insert and the select. |
 | 6 | PASS | 12 | Killed while waiting for a ShareLock with `approved_records` and `export_batches` RowExclusiveLocks already held: `B0097` complete on disk with a matching sha256, no batch row, no stamped record, no `.part`; then `B0098` exported both records cleanly. |

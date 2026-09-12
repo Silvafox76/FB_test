@@ -42,7 +42,7 @@ These are properties of the system, not preferences. If a change would break one
 19. Prompts carry public notice text and metadata only. Any reviewer name, staff name, contact detail, business record or prior candidate reaching a model call is blocking. The pipeline holds no CRM data to send, which is a property of the architecture rather than a rule to remember.
 20. No secret, token, credential or portal password in code, config, fixtures, logs or commits. Request bodies to the model are never logged. Credentials come from environment variables in the pilot and Secrets Manager on the host.
 21. Acquisition ethics: respect robots.txt, identified user agent (`FreeBalance-OpportunityMonitor/0.1 (+contact email)`), one polite pass per schedule, no CAPTCHA solving, no residential or rotating proxies, no third-party mirror of an official portal, no user agent that disguises the client.
-22. Every model call is capped and logged: 600 calls and USD 25 per day, checked before each call; model, purpose, prompt_version, tokens in and out, cost and latency recorded per call.
+22. Every model call is capped and logged: 2,000 calls and USD 25 per day, checked before each call; model, purpose, prompt_version, tokens in and out, cost and latency recorded per call. The caps live in `config/thresholds.yaml` and that file is authoritative; `DAILY_CALL_CAP` and `DAILY_USD_CAP` override it and exist for drill 3 only, never as a permanent setting. The call cap was 600 until one day of TED alone needed 1,132 translate calls; the USD cap is the one that binds and has not been close.
 
 ## Stack
 
