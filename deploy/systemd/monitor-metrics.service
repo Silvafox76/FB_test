@@ -1,0 +1,66 @@
+# The weekly numbers: precision, recall, the translation rejection rate, the
+# connector break rate, the export backlog and the duplicate count, measured over
+# the last seven days and written as one row the review app's metrics page reads.
+#
+# The command is the Makefile's `metrics` target verbatim (`uv run python -m
+# monitor.cli metrics`). No arguments and no flags, which is the point: what a
+# person runs on demand and what this timer runs on Monday are the same command,
+# so a number on the page is never "the one from the run with the other options".
+#
+# TWO DATABASE URLS, unlike every other unit here, and it is rule 11 that makes it
+# two rather than carelessness. The job READS the export backlog, which lives in
+# `approved_records`, and `monitor_pipeline` has no privilege on that table at all
+# - not even select. So collection runs as `monitor_readonly`. The row it then
+# WRITES goes to `metrics`, which the reporting role has no insert on, so the write
+# runs as `monitor_pipeline`. Both URLs are in the same EnvironmentFile and the
+# split is inside monitor/cli.py, where it is visible, rather than being papered
+# over by giving one role both privileges.
+#
+# Rule 18: nothing is notified. The job writes a row, prints a report to this log,
+# and stops. The reviewer reads the page when they read it.
+# Rule 22: no model call. The scorer quality numbers come from the last recorded
+# `make golden` run, never from a fresh scoring pass - a weekly report does not get
+# to spend the day's model budget.
+# Rule 17: opens no port. Rule 20: no credential here; see EnvironmentFile.
+
+[Unit]
+Description=PFM Opportunity Monitor: weekly metrics to /var/log/monitor/metrics.log
+Documentation=file:/opt/monitor/deploy/README.md
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=monitor
+Group=monitor
+WorkingDirectory=/opt/monitor
+
+EnvironmentFile=/etc/monitor/monitor.env
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/usr/local/bin/uv run python -m monitor.cli metrics
+
+# Its own file. This one is read once a week by someone preparing a tuning session
+# or a gate review, and it should be seven short reports rather than seven reports
+# buried in a week of hourly passes.
+LogsDirectory=monitor
+LogsDirectoryMode=0750
+StandardOutput=append:/var/log/monitor/metrics.log
+StandardError=append:/var/log/monitor/metrics.log
+
+# Longer than the status reading's five minutes because this one counts over a
+# seven-day window across five tables rather than reading current state. Still
+# short enough that a hang is a failure a person sees on Monday rather than a unit
+# that sits in `activating` all week.
+TimeoutStartSec=15min
+
+# No Restart= (rule 2). A week's numbers that failed to collect are not retried
+# behind anyone's back: the failure is in this log, `make metrics` reruns it on
+# demand, and the window is relative to the run so a late run is still correct.
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectControlGroups=true
+ProtectKernelTunables=true
+RestrictSUIDSGID=true

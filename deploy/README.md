@@ -1,13 +1,14 @@
 # Scheduler
 
-Two commands on a clock: `monitor run` (one full pass) and `monitor status` (the
-reading), both appending to a log file. Two ways to run them, because the pilot
-host and the demo workstation are different machines:
+Three commands on a clock: `monitor run` (one full pass, hourly), `monitor status`
+(the reading, hourly at :30) and `monitor metrics` (the week's numbers, Monday at
+06:30 UTC), each appending to its own log file. Two ways to run them, because the
+pilot host and the demo workstation are different machines:
 
 | Machine | Mechanism | Files |
 | --- | --- | --- |
-| Pilot host (Ubuntu 24.04, systemd 255) | two service/timer pairs | `deploy/systemd/*.service`, `*.timer` |
-| Workstation with Docker and no systemd | two loop containers | `deploy/docker-compose.cron.yml` |
+| Pilot host (Ubuntu 24.04, systemd 255) | three service/timer pairs | `deploy/systemd/*.service`, `*.timer` |
+| Workstation with Docker and no systemd | three loop containers | `deploy/docker-compose.cron.yml` |
 
 They are the same commands at the same wall-clock times on purpose. When a pass on
 one machine looks different from a pass on the other, the scheduler is not the
@@ -91,7 +92,7 @@ sudo sh -c 'curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/loc
 sudo install -m 0644 /opt/monitor/deploy/systemd/monitor-*.service /etc/systemd/system/
 sudo install -m 0644 /opt/monitor/deploy/systemd/monitor-*.timer   /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now monitor-run.timer monitor-status.timer
+sudo systemctl enable --now monitor-run.timer monitor-status.timer monitor-metrics.timer
 ```
 
 Enable the **timers**, not the services. The `.service` units have no `[Install]`
@@ -102,8 +103,19 @@ Take one pass by hand before trusting the clock:
 
 ```bash
 sudo systemctl start monitor-status.service   # fast, read-only, proves the env file
-sudo systemctl start monitor-run.service      # the real thing
+sudo systemctl start monitor-metrics.service # proves the SECOND URL in the env file
+sudo systemctl start monitor-run.service     # the real thing
 ```
+
+Start `monitor-metrics.service` by hand even though the timer will get to it on
+Monday, and start it before you trust the installation. It is the only unit here
+that needs **two** database URLs, so it is the only one that proves the env file
+carries `DATABASE_URL_READONLY` as well as `DATABASE_URL_PIPELINE`. Rule 11 is
+what makes it two: collection reads the export backlog out of `approved_records`,
+which `monitor_pipeline` has no privilege on at all, so it reads as
+`monitor_readonly` and writes its row as `monitor_pipeline`. A missing readonly URL
+fails on the one number the week 14 gate most wants, and it fails on Monday
+morning rather than on the day you installed it.
 
 ## The environment file
 
@@ -133,8 +145,16 @@ Two parser details that cost an evening if you meet them by surprise:
   only thing that chooses the database role (rule 11), so check it is the pipeline
   role's URL before wondering why a permission was denied.
 
-Neither unit references the review role's URL, and neither should: the review app
-is the only thing that connects as `monitor_review`.
+`monitor-metrics.service` is the one unit that needs **two** of these URLs, and the
+split is rule 11 rather than an oversight: the export backlog lives in
+`approved_records`, which `monitor_pipeline` has no privilege on, so collection
+reads as `monitor_readonly`; the row it writes goes to `metrics`, which the
+reporting role has no insert on, so the write is `monitor_pipeline`. Both are in
+the same file and `monitor/cli.py` opens them in sequence. Neither role is granted
+the other's privilege to make one connection do.
+
+No unit here references the review role's URL, and none should: the review app is
+the only thing that connects as `monitor_review`.
 
 ## Did they fire, and where is the log
 
@@ -154,7 +174,18 @@ there wasn't one.
 | --- | --- | --- |
 | Pass output (structlog lines, counts, tracebacks) | `/var/log/monitor/run.log` | `logs/run.log` in the checkout |
 | Status readings | `/var/log/monitor/status.log` | `logs/status.log` |
+| Weekly metrics reports | `/var/log/monitor/metrics.log` | `logs/metrics.log` |
 | Fired / did not fire, exit status | `journalctl -u monitor-run.service` | `docker logs monitor-pipeline-cron` |
+
+One difference between the two mechanisms worth knowing before Monday.
+`monitor-metrics.timer` sets `Persistent=true`, so a host that was down over Monday
+06:30 takes the run when it comes back; the Compose loop has no equivalent and
+simply waits for the next Monday. The two hourly schedules do not catch up on
+either mechanism and should not: a status reading replayed at 09:00 would describe
+09:00, which the 09:30 tick describes anyway. A week's numbers are work rather than
+a reading, which is what makes the difference deliberate. Either way `make metrics`
+takes a missed run on demand, and the window is relative to when the job runs, so a
+run taken on Tuesday reports the seven days to Tuesday and the page says so.
 
 ```bash
 tail -f /var/log/monitor/run.log
@@ -243,7 +274,7 @@ checkout's `logs/` and not `deploy/logs/`:
 
 ```bash
 docker compose -f docker-compose.yml -f deploy/docker-compose.cron.yml \
-    up -d pipeline-cron status-cron
+    up -d pipeline-cron status-cron metrics-cron
 
 tail -f logs/run.log
 

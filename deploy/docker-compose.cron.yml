@@ -115,3 +115,64 @@ services:
           echo "== monitor status exit $$? ==" >> /app/logs/status.log
         done
     restart: "no"
+
+  # `monitor metrics` weekly, Monday at 06:30 UTC. The same cadence and the same
+  # offset as monitor-metrics.timer, and for the same reasons written down there:
+  # Monday so the week's numbers are in front of the weekly tuning session, :30 so
+  # the report is not collected in the middle of the pass it partly describes.
+  metrics-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitor-metrics-cron
+    env_file: .env
+    environment:
+      # TWO URLs, unlike the other two services here, and rule 11 is what makes it
+      # two. Collection reads the export backlog out of `approved_records`, which
+      # `monitor_pipeline` has no privilege on - not even select - so it runs as
+      # `monitor_readonly`. The row it writes goes to `metrics`, which the reporting
+      # role has no insert on, so the write runs as `monitor_pipeline`. The split is
+      # in monitor/cli.py where it can be read, rather than hidden by granting one
+      # role both privileges.
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+      DATABASE_URL_READONLY: postgresql://monitor_readonly:${MONITOR_READONLY_PASSWORD:?set MONITOR_READONLY_PASSWORD in .env}@postgres:5432/monitor
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # config/ is read because the job reads thresholds.yaml for the staging
+      # threshold it reports precision at. tests/golden is read because the golden
+      # set's label count is one of the numbers, and it is a file rather than a
+      # table: the labels are a person's work, committed to the repository.
+      - ./config:/app/config:ro
+      - ./sources:/app/sources:ro
+      - ./tests/golden:/app/tests/golden:ro
+      - ./logs:/app/logs
+    # The same sleep-then-run loop as the two services above: no cron daemon in the
+    # image, because that would be a second way to schedule the same command (rule
+    # 1) and a second place to look when a run did not happen.
+    #
+    # 604800 is a week. The offset 369000 is Monday 06:30 UTC counted from the Unix
+    # epoch, which fell on a Thursday: 4 days to 1970-01-05 (345600) plus 6.5 hours
+    # (23400). Sleeping to the next multiple rather than for a flat week means a
+    # restart does not drift the run off Monday.
+    #
+    # Worked out by hand first and it was wrong - 279000 lands on Sunday 05:30 - so
+    # it is checked by test_deploy.py against the real arithmetic rather than left
+    # as a number in a comment that reads plausibly.
+    #
+    # Unlike monitor-metrics.timer there is no Persistent= equivalent here and none
+    # is faked: a container that was down over Monday simply waits for the next one.
+    # deploy/README.md says so, and `make metrics` takes the missed run on demand.
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          sleep $$(( 604800 - ( $$(date +%s) - 369000 ) % 604800 ))
+          echo "== monitor metrics $$(date -u +%Y-%m-%dT%H:%M:%SZ) ==" >> /app/logs/metrics.log
+          python -m monitor.cli metrics >> /app/logs/metrics.log 2>&1
+          echo "== monitor metrics exit $$? ==" >> /app/logs/metrics.log
+        done
+    restart: "no"

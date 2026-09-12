@@ -1,0 +1,38 @@
+# The weekly numbers, Monday at 06:30 UTC.
+#
+# MONDAY because the window is a week and the report is read at the weekly tuning
+# session; a run on Monday morning means the numbers in front of that session
+# describe the week that just ended rather than a week that ends mid-session.
+#
+# 06:30 rather than 06:00, for the same reason monitor-status.timer sits at :30:
+# monitor-run.timer fires on the hour, and a report collected while a pass is still
+# fetching describes a half-finished week. Collection is read-only so it is safe at
+# any moment - :30 makes it useful as well as safe. 06:30 UTC is 02:30 in Montreal,
+# which is after the overnight passes and long before anyone opens the page.
+#
+# Persistent=TRUE, and the difference from monitor-status.timer is deliberate
+# rather than a copy that drifted. A status line is a reading of the moment: one
+# missed at 03:30 has nothing to recover, because replaying it at 09:00 would
+# describe 09:00, which the 09:30 tick writes anyway. A week's numbers are work,
+# not a reading. If the host was down on Monday, the week still happened and its
+# row is still missing from the table the week 14 gate reads, so the run is taken
+# late instead of skipped. The window is relative to when the job runs, so a run
+# taken on Tuesday reports the seven days to Tuesday and says so on the page.
+#
+# One tick a week and no jitter: it touches the local database only, so there is no
+# portal to be polite to.
+
+[Unit]
+Description=Weekly PFM Opportunity Monitor metrics collection
+Documentation=file:/opt/monitor/deploy/README.md
+
+[Timer]
+Unit=monitor-metrics.service
+
+# UTC, like both other timers. One clock, written down.
+OnCalendar=Mon *-*-* 06:30:00 UTC
+
+Persistent=true
+
+[Install]
+WantedBy=timers.target

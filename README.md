@@ -94,12 +94,47 @@ landed at step 2, before any code that might need it, and runs on every commit f
 
 ## Build status
 
-Step 3 of 31 (registry, models, config) complete. Step 4 is partly built and blocked: the
-`FeedConnector` base, the normaliser's hash, deadline and CPV rules and the source-health transitions
-are done and tested, but the TED parser waits on a recorded fixture, because a parser is never written
-against documentation memory. Run `scripts/record_ted_fixture.py` from a host with outbound access to
-`api.ted.europa.eu` to unblock it. The checkpoint test runs on every commit in CI. See
-`BUILD_ORDER.md` for what is next and what gates it, and `docs/open_decisions.md` for what is open.
+**Steps 1 to 22 have been worked, and not all of their acceptance tests are met.** Code is not the
+same thing as a passed gate, so the table below says which is which rather than reporting a step as
+done because its files exist. 1,039 tests pass, and the checkpoint test that proves
+`monitor_pipeline` holds no privilege on `approved_records` runs on every commit. The pipeline holds 2,083 notices from 8 enabled sources and 143 candidates, 12 of them in the
+review queue. Nothing has been approved or exported: the pilot has not entered shadow mode.
+
+| Steps | State |
+| --- | --- |
+| 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
+| 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
+| 17 to 19, West Africa | Built, **partly met**. Ten of ten West African portals have no recorded fixture; five have no terms page to clear at all. |
+| 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
+| 21, golden set and metrics | Metrics half met; golden half **not met** — see below. |
+| 22, security review | Met. Eleven findings, two closed early, two deferred with an owner and a date. |
+| 25, wave 2 | Out of order — its gates at steps 23 and 24 have not run. Both connectors ship `enabled: false`. |
+
+Steps 23, 24 and 26 to 31 are untouched: shadow and live mode, the weekly tuning cadence, the week 14
+gate. `docs/open_decisions.md` carries the per-step disclosure table, including why this branch built
+several steps out of order, and 41 open and closed decisions with what each blocked source is blocked
+on.
+
+**Two things worth knowing before trusting any number this system produces.**
+
+*The golden set has no labels.* It is 150 stratified notices across 8 sources and 19 languages,
+straddling the free filter so it can measure what the filter drops as well as what the scorer keeps —
+and every label is empty. `make golden` refuses to compute a figure until a person fills them in, by
+design: a set labelled by the same family of model it measures would score well against its own
+opinion, and a real regression would read as agreement. **So precision and recall are unmeasured, and
+any claim about this system's accuracy today has no measurement behind it.** It needs roughly two
+hours from a named labeller, and it is the single largest unmeasured thing in the pilot.
+
+*The staging threshold cannot usefully be tuned.* Swept across all 143 candidates, every value from 43
+to 68 stages the same 12, so the current 60 sits mid-plateau and moving it inside that range changes
+nothing. The 146 scores take 18 distinct values and pile onto round ones — 58 notices at exactly 5, 38
+at 15, 10 at 72 — so the scorer behaves as a five-or-six-way classifier wearing a 0-100 scale. The top
+score in the corpus is 72, so any threshold at 73 or above empties the queue. The levers that would
+move the queue are the scoring prompt and the upstream filter, not the number (decision 39).
+
+Observability of a running pilot is a person reading `make status` and `make metrics`. The five
+application alarms in `infra/terraform/observability.tf` still have no publisher and sit in
+INSUFFICIENT_DATA on purpose rather than being quietly deleted (decision 41).
 
 `config/function_map.yaml` is generated, not hand-written. Regenerate it with:
 

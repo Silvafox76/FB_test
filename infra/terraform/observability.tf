@@ -22,18 +22,29 @@
 #                                    custom namespace in var.metric_namespace and
 #                                    sit in INSUFFICIENT_DATA until something does.
 #
-# WHICH MODULE WOULD HAVE TO PUBLISH THEM: `monitor/health/metrics.py`. CLAUDE.md's
-# layout already names it - `health/ source_health.py, metrics.py` - and it is the
-# one file in that layout that has never been written. It would read the four
-# tables and call PutMetricData into var.metric_namespace at the end of each pass;
-# the instance role already permits exactly that call in exactly that namespace and
-# nothing else (identity.tf).
+# WHICH MODULE WOULD HAVE TO PUBLISH THEM: `monitor/health/metrics.py`. It was
+# written at step 21 and this paragraph used to say it never had been. What it does
+# NOT do is publish to CloudWatch: it measures over a window and writes one row per
+# metric into a Postgres `metrics` table that the review app's page reads, which is
+# what BUILD_ORDER step 21 asks for and all of what it asks for. So these five
+# alarms still sit in INSUFFICIENT_DATA and the sentence above still holds - what
+# has changed is that the arithmetic exists and only the transport is missing.
 #
-# One consequence of rule 11 that whoever writes it will meet immediately: the
-# export backlog lives in `approved_records`, and `monitor_pipeline` has NO
-# privilege on that table. So the metrics publisher cannot be a step inside the
-# pipeline's own connection. It reads as `monitor_readonly`, which is the role that
-# exists for reporting and has select on everything.
+# Adding PutMetricData is deliberately not done here (decision 41). Three reasons,
+# in order of weight. There is no way to test it: this workspace has never been
+# applied, there are no usable AWS credentials in the pilot, and CLAUDE.md forbids
+# building against documentation memory rather than a real response. The cadences
+# do not line up either - the weekly job measures a seven-day window, while the
+# zero-yield and daily-cap alarms are facts about a single pass and would have to be
+# published by the pass itself, not by a weekly report. And the pilot runs on
+# Postgres in Docker, so nothing is deployed for an alarm to watch.
+#
+# Whoever does it inherits one consequence of rule 11 that the metrics job already
+# meets and solves: the export backlog lives in `approved_records`, and
+# `monitor_pipeline` has NO privilege on that table. So collection cannot be a step
+# inside the pipeline's own connection. It reads as `monitor_readonly` and writes
+# its row as `monitor_pipeline`, and `monitor/cli.py` holds both connections open in
+# sequence rather than giving either role the other one's privilege.
 #
 # These alarms are declared now rather than when the publisher lands, on purpose.
 # An alarm in INSUFFICIENT_DATA is a visible, checkable statement that nobody is
@@ -159,7 +170,7 @@ resource "aws_cloudwatch_log_group" "host" {
 # across all sources, and `monitor status` is what names which one.
 resource "aws_cloudwatch_metric_alarm" "source_consecutive_failures" {
   alarm_name        = "${var.project}-source-consecutive-failures"
-  alarm_description = "A source has failed ${var.alarm_thresholds.source_consecutive_failures} runs in a row and is unhealthy. Which source: `monitor status`. Published by monitor/health/metrics.py, which does not exist yet."
+  alarm_description = "A source has failed ${var.alarm_thresholds.source_consecutive_failures} runs in a row and is unhealthy. Which source: `monitor status`. monitor/health/metrics.py measures this weekly into Postgres but publishes nothing to CloudWatch, so this alarm has no data (decision 41)."
 
   namespace           = var.metric_namespace
   metric_name         = "SourceConsecutiveFailures"
@@ -180,7 +191,7 @@ resource "aws_cloudwatch_metric_alarm" "source_consecutive_failures" {
 # source_health only reaches `watch` at 2.
 resource "aws_cloudwatch_metric_alarm" "zero_yield" {
   alarm_name        = "${var.project}-zero-yield"
-  alarm_description = "A source that normally yields returned nothing (rule 4). Published by monitor/health/metrics.py, which does not exist yet."
+  alarm_description = "A source that normally yields returned nothing (rule 4). monitor/health/metrics.py measures this weekly into Postgres but publishes nothing to CloudWatch, so this alarm has no data (decision 41)."
 
   namespace           = var.metric_namespace
   metric_name         = "ZeroYieldRuns"
@@ -256,7 +267,7 @@ resource "aws_cloudwatch_metric_alarm" "disk_used_percent" {
 # mid-token - and every failure parks a notice.
 resource "aws_cloudwatch_metric_alarm" "translation_schema_failures" {
   alarm_name        = "${var.project}-translation-schema-failure-rate"
-  alarm_description = "Translation schema failures above ${var.alarm_thresholds.translation_schema_failure_pct} percent (BUILD_ORDER step 14 accepts 98 percent validity). Published by monitor/health/metrics.py, which does not exist yet."
+  alarm_description = "Translation schema failures above ${var.alarm_thresholds.translation_schema_failure_pct} percent (BUILD_ORDER step 14 accepts 98 percent validity). monitor/health/metrics.py measures this weekly into Postgres but publishes nothing to CloudWatch, so this alarm has no data (decision 41)."
 
   namespace           = var.metric_namespace
   metric_name         = "TranslationSchemaFailureRate"
@@ -276,7 +287,7 @@ resource "aws_cloudwatch_metric_alarm" "translation_schema_failures" {
 # stall. BUILD_ORDER step 16 asks for this alarm by name.
 resource "aws_cloudwatch_metric_alarm" "export_backlog" {
   alarm_name        = "${var.project}-export-backlog-age"
-  alarm_description = "Oldest approved, unexported record is more than ${var.alarm_thresholds.export_backlog_days} days old (BUILD_ORDER step 16). Published by monitor/health/metrics.py, which does not exist yet and must read approved_records as monitor_readonly (rule 11)."
+  alarm_description = "Oldest approved, unexported record is more than ${var.alarm_thresholds.export_backlog_days} days old (BUILD_ORDER step 16). monitor/health/metrics.py measures this weekly into Postgres but publishes nothing to CloudWatch, so this alarm has no data (decision 41)."
 
   namespace           = var.metric_namespace
   metric_name         = "ExportBacklogAgeDays"
@@ -305,7 +316,7 @@ resource "aws_cloudwatch_metric_alarm" "export_backlog" {
 # STOPPED before it finished, and the notices it did not read are still waiting.
 resource "aws_cloudwatch_metric_alarm" "daily_model_calls" {
   alarm_name        = "${var.project}-daily-model-call-cap"
-  alarm_description = "Model calls today reached the rule 22 cap of ${var.alarm_thresholds.daily_model_calls}; the run stopped before it finished. Published by monitor/health/metrics.py, which does not exist yet."
+  alarm_description = "Model calls today reached the rule 22 cap of ${var.alarm_thresholds.daily_model_calls}; the run stopped before it finished. monitor/health/metrics.py measures this weekly into Postgres but publishes nothing to CloudWatch, so this alarm has no data (decision 41)."
 
   namespace           = var.metric_namespace
   metric_name         = "ModelCallsToday"
