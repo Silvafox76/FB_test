@@ -1,0 +1,48 @@
+# Copy to terraform.tfvars and fill in. infra/terraform/.gitignore ignores
+# terraform.tfvars, the state files and .terraform/; the root .gitignore covers none
+# of them, which is why that file exists.
+#
+# NOTHING SECRET GOES IN THIS FILE OR IN terraform.tfvars (rule 20). No API key, no
+# portal password, no database password. Terraform state records every value it is
+# given, in clear text, forever - secrets.tf and versions.tf say what that means.
+# The two variables below are an email address and a repository name, and that is
+# the whole of what this workspace needs from a person.
+
+# ---------------------------------------------------------------------------
+# Required: no defaults, because a plausible default would be applied unread.
+# ---------------------------------------------------------------------------
+
+# Every alarm and the budget notification arrive here, through one SNS topic. AWS
+# mails a confirmation link and delivers nothing until someone clicks it.
+alarm_email = "ops@example.org"
+
+# owner/repo of the repository allowed to assume the deploy role - the only thing
+# standing between "GitHub Actions" and "our GitHub Actions". Step 12 moves the
+# repository to the FreeBalance organisation, so this value changes that day.
+github_repository = "FreeBalance/pfm-opportunity-monitor"
+
+# ---------------------------------------------------------------------------
+# Everything below has a default in variables.tf that matches Architecture v0.4
+# section 6. Uncomment only to depart from the document, and say why in the commit.
+# ---------------------------------------------------------------------------
+
+# Section 6's own escalation: t3.xlarge if the wave-2 window exceeds two hours.
+# instance_type = "t3.xlarge"
+
+# The bucket name is globally unique across all of AWS, so a rebuild into a
+# different account needs a different one.
+# raw_bucket_name = "fb-opp-monitor-raw"
+
+# Portal credentials per source (section 6). None of the fourteen wave-1 sources
+# needs one today; the EBRD tender archive behind a CAS login (sources/ebrd.yaml)
+# is the first that would. Adding an entry here creates the empty secret AND adds
+# it to the instance role's GetSecretValue resource list, and nothing else. The
+# VALUE is still set out of band.
+# secrets = {
+#   "model-api-key"    = "Anthropic API key for MODEL_ROUTE=direct."
+#   "ebrd-portal-login" = "EBRD client portal credential, if D-whatever ever says to get one."
+# }
+
+# The seven alarm thresholds are an object: override it and you override all seven,
+# so copy the whole block from variables.tf rather than a line of it.
+# alarm_thresholds = { ... }

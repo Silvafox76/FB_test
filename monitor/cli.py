@@ -54,9 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 # How the model is reached. Set explicitly; there is no detection and no falling
 # back from one to the other, because which credential a deployment uses is a
-# decision a person takes rather than a branch the code takes (rule 1). Step 12
-# adds `bedrock` here for the cutover, which is why this is a route name rather
-# than a boolean.
+# decision a person takes rather than a branch the code takes (rule 1). This is a
+# route name rather than a boolean because step 12 added a third value.
 #
 #   direct   the key is in the environment, as ANTHROPIC_API_KEY. Local runs and
 #            the pilot host.
@@ -64,8 +63,68 @@ def build_parser() -> argparse.ArgumentParser:
 #            and attached after the request leaves the sandbox. The key is never in
 #            the environment, never in a log and never in a container image, which
 #            is why this is the better route where it is available.
-MODEL_ROUTES = ("direct", "proxy")
+#   bedrock  the EC2 instance profile signs the request with SigV4 (appendix D:
+#            `bedrock:InvokeModel` on the named models). There is no model
+#            credential on the host at all, which is the point of the cutover.
+#
+# BUILD_ORDER step 12 calls `direct` "the recorded fallback" for two weeks after
+# the cutover. It is a fallback in the operational sense - a route a person can
+# switch back to - and not in the sense rule 1 forbids: nothing detects a Bedrock
+# failure and nothing reroutes. Someone edits MODEL_ROUTE and restarts.
+MODEL_ROUTES = ("direct", "proxy", "bedrock")
 DEFAULT_MODEL_ROUTE = "direct"
+
+# Architecture v0.4 section 6's one region, Montreal. A knob rather than a literal
+# in the client constructor (rule 6), and deliberately the same variable boto3
+# signs with, so a region move is one edit and there are not two values that can
+# disagree about where the request went.
+DEFAULT_AWS_REGION = "ca-central-1"
+
+# Which cross-region inference profile the Bedrock model ids name, and why there is
+# no default.
+#
+# Checked against the AWS Bedrock model cards on 2026-09-12 (Claude Haiku 4.5 and
+# Claude Sonnet 5, "Regional Availability", `bedrock-runtime` endpoint): NEITHER
+# MODEL SUPPORTS IN-REGION INFERENCE IN ca-central-1. Architecture v0.4 section 6
+# says to "confirm Haiku 4.5 and Sonnet 5 availability in-region before the Bedrock
+# cutover (D1, D19)". That is confirmed, and the answer is no. A bare model id is
+# rejected for on-demand throughput, so the call must name an inference profile,
+# and choosing between the two reachable ones is a data-residency decision:
+#
+#   us      the `us.` geo profile. From ca-central-1 the request is served in
+#           ca-central-1, us-east-1, us-east-2 or us-west-2; the Sonnet 5 card
+#           states the US geo "keeps data within US and Canada regions".
+#   global  the `global.` profile. Routed anywhere in the world, no residency
+#           constraint, widest capacity.
+#
+# There is no `ca.` profile for either model, and the eu, au and jp geos do not
+# list ca-central-1 as a source region, so these two are the entire choice.
+#
+# No default, deliberately. A default would be this file answering a residency
+# question on the account's behalf, and rule 1 says an alternative is a decision
+# people take rather than a branch the code takes. Rule 19 bounds what is at stake:
+# a prompt carries public notice text and metadata only, so whatever crosses a
+# border was already published on a government portal.
+BEDROCK_INFERENCE_GEOS = ("us", "global")
+
+# The two models' Bedrock ids, per geo, copied from the AWS model cards on
+# 2026-09-12 rather than assembled from a pattern or recalled.
+#
+# UNVERIFIED AGAINST A LIVE ACCOUNT. This repository has never held AWS
+# credentials, so no id here has been seen to return a 200. Before the cutover,
+# confirm with `aws bedrock list-inference-profiles --region ca-central-1` and
+# correct this table if AWS has moved. Sonnet 5's id carries no date suffix and
+# Haiku 4.5's does; that asymmetry is what the cards say, not a typo here.
+BEDROCK_MODEL_IDS: dict[str, dict[str, str]] = {
+    "us": {
+        "claude-haiku-4-5": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "claude-sonnet-5": "us.anthropic.claude-sonnet-5",
+    },
+    "global": {
+        "claude-haiku-4-5": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "claude-sonnet-5": "global.anthropic.claude-sonnet-5",
+    },
+}
 
 
 def model_route() -> str:
@@ -73,6 +132,53 @@ def model_route() -> str:
     if route not in MODEL_ROUTES:
         raise RuntimeError(f"MODEL_ROUTE is {route!r}; it must be one of {', '.join(MODEL_ROUTES)}")
     return route
+
+
+def aws_region() -> str:
+    """The region the Bedrock request is signed for and sent to."""
+    return os.environ.get("AWS_REGION", DEFAULT_AWS_REGION).strip()
+
+
+def bedrock_inference_geo() -> str:
+    """Which inference profile the bedrock route uses. Unset is an error, not a guess."""
+    geo = os.environ.get("BEDROCK_INFERENCE_GEO", "").strip().lower()
+    if geo not in BEDROCK_INFERENCE_GEOS:
+        raise RuntimeError(
+            f"BEDROCK_INFERENCE_GEO is {geo!r}; it must be one of {', '.join(BEDROCK_INFERENCE_GEOS)}. "
+            f"Neither Haiku 4.5 nor Sonnet 5 runs in-region in {aws_region()}, so the call has to name a "
+            "cross-region inference profile, and which one is a residency decision rather than a default "
+            "(Architecture v0.4 section 6, D1 and D19)."
+        )
+    return geo
+
+
+def model_id(model: str) -> str:
+    """What this model is called on the configured route.
+
+    `claude-haiku-4-5` on the direct and proxy routes; a Bedrock inference profile
+    id on the bedrock route. Only the wire name changes: the logical name stays what
+    `model_calls` records and what the rate card in `config/thresholds.yaml` is keyed
+    on, so a row written before the cutover and a row written after are comparable.
+    That is what makes step 12's acceptance test - `make golden` on Bedrock
+    reproducing the direct-API numbers at the same prompt_version - a comparison of
+    like with like rather than of two differently labelled things.
+
+    The route is read from the environment, never inferred from the client object.
+    `isinstance(client, anthropic.AnthropicBedrock)` would work and is exactly the
+    detection rule 1 forbids.
+    """
+    if model_route() != "bedrock":
+        return model
+
+    geo = bedrock_inference_geo()
+    ids = BEDROCK_MODEL_IDS[geo]
+    if model not in ids:
+        raise RuntimeError(
+            f"no {geo} Bedrock inference profile recorded for {model!r}. Add it to BEDROCK_MODEL_IDS in "
+            "monitor/cli.py from the model's AWS model card, then confirm it with "
+            f"`aws bedrock list-inference-profiles --region {aws_region()}`."
+        )
+    return ids[model]
 
 
 def model_client():
@@ -93,6 +199,30 @@ def model_client():
         # headers explicitly omitted" as the alternative to a key. Verified against
         # the SDK on 2026-09-12: the request goes out carrying neither header.
         return anthropic.Anthropic(api_key=None, default_headers={"X-Api-Key": anthropic.omit})
+
+    if route == "bedrock":
+        # `aws_region`, not `region`: BUILD_ORDER step 12 writes
+        # `AnthropicBedrock(region="ca-central-1")` and the SDK's keyword is
+        # `aws_region`. Checked against anthropic 1.5.0, which is what is installed.
+        #
+        # Nothing is passed for the credential. The EC2 instance profile supplies it
+        # and botocore signs each request with SigV4 at send time, which is why
+        # `anthropic[bedrock]` (and so boto3) is a dependency and why rule 20's "no
+        # secret in code or config" costs nothing here: on this route there is no
+        # model credential anywhere to put in a file.
+        #
+        # The region is passed explicitly rather than left to the SDK to infer from
+        # AWS_REGION, because when it is unset the SDK falls back to a boto3 session
+        # and then to an error, and a run that signs for a region nobody chose is
+        # the kind of quiet wrong answer rule 4 exists to prevent.
+        #
+        # The geo is read here only to fail at startup rather than after the first
+        # notice: `model_id` resolves it again per call, and an unset one would
+        # otherwise surface one cap check into a run of a thousand. Same reason the
+        # direct route checks for a key here instead of letting the first request
+        # find out.
+        bedrock_inference_geo()
+        return anthropic.AnthropicBedrock(aws_region=aws_region())
 
     if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
         raise RuntimeError(

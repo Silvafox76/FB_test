@@ -35,6 +35,19 @@ VALID_SCORE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def pinned_route(monkeypatch):
+    """Every test here states its own route rather than inheriting the machine's.
+
+    Since step 12 the request's model name depends on `MODEL_ROUTE`, so a developer
+    with `MODEL_ROUTE=bedrock` in their .env would otherwise see the direct-route
+    tests below fail on an inference profile id. The bedrock tests at the bottom set
+    it themselves and win, because they set it after this.
+    """
+    monkeypatch.setenv("MODEL_ROUTE", "direct")
+    monkeypatch.delenv("BEDROCK_INFERENCE_GEO", raising=False)
+
+
 def notice(**overrides) -> Notice:
     payload = {
         "content_hash": "sha256:test",
@@ -265,3 +278,85 @@ def test_the_prompt_carries_what_the_architecture_says_it_should():
     assert "SIGFiP" in prompt
     assert "national_only" in prompt
     assert "1.0: BF" in prompt or "1.0: BJ" in prompt
+
+
+# --- the bedrock route (step 12) ---------------------------------------------
+
+
+def bedrock_client_returning(*documents) -> tuple[anthropic.AnthropicBedrock, list[dict]]:
+    """A real AnthropicBedrock over a mocked transport, as the direct-route helper is.
+
+    The keys are fake and never leave the process: SigV4 signs with whatever it is
+    given, so a mocked transport needs no AWS account and this test runs anywhere.
+    They are passed explicitly rather than left to boto3 to resolve, because an
+    unset credential sends botocore looking for the instance metadata endpoint and
+    the test would hang on a machine that has one.
+    """
+    sent: list[dict] = []
+    remaining = list(documents)
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        sent.append({"url": str(request.url), "body": json.loads(request.content)})
+        return httpx2.Response(200, json=remaining.pop(0))
+
+    client = anthropic.AnthropicBedrock(
+        aws_region="ca-central-1",
+        aws_access_key="AKIAnotareal",
+        aws_secret_key="notarealsecret",
+        http_client=httpx2.Client(transport=httpx2.MockTransport(handler)),
+    )
+    return client, sent
+
+
+def test_bedrock_is_called_by_inference_profile_id_not_by_model_name(db_conn, monkeypatch):
+    """The assertion is on the URL, because that is where Bedrock carries the model.
+
+    `AnthropicBedrock` pops `model` out of the body and puts it in the path,
+    `/model/{id}/invoke`. So the direct-route test's `body["model"] == MODEL` would
+    pass here by finding nothing, and the one thing this step can get wrong - the
+    logical name going over the wire unchanged - would not be caught.
+    """
+    monkeypatch.setenv("MODEL_ROUTE", "bedrock")
+    monkeypatch.setenv("BEDROCK_INFERENCE_GEO", "us")
+    client, sent = bedrock_client_returning(tool_response(VALID_SCORE))
+
+    score_notice(db_conn, client, notice(), prompt_version="v1")
+
+    assert sent[0]["url"].endswith("/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/invoke")
+    assert "model" not in sent[0]["body"], "Bedrock takes the model in the path, not the body"
+    assert sent[0]["body"]["tool_choice"] == {"type": "tool", "name": TOOL_NAME}
+
+
+def test_the_cutover_logs_the_logical_name_so_the_two_runs_compare(db_conn, monkeypatch):
+    """Step 12's acceptance is `make golden` on Bedrock matching the direct-API run.
+
+    That only means anything if both runs write the same `model` to `model_calls`.
+    It is also what makes the row costable at all: `config/thresholds.yaml`'s rate
+    card is keyed on the logical name, so a row saying
+    `us.anthropic.claude-haiku-4-5-20251001-v1:0` would raise a KeyError in
+    `caps.cost_usd` before it ever reached the cap arithmetic.
+    """
+    monkeypatch.setenv("MODEL_ROUTE", "bedrock")
+    monkeypatch.setenv("BEDROCK_INFERENCE_GEO", "global")
+    client, sent = bedrock_client_returning(tool_response(VALID_SCORE))
+
+    result = score_notice(db_conn, client, notice(), prompt_version="v1")
+
+    assert "global.anthropic" in sent[0]["url"], "the profile id did go over the wire"
+    assert result.model == MODEL
+    logged = db_conn.execute("select model from model_calls order by at desc limit 1").fetchone()[0]
+    assert logged == MODEL
+
+
+def test_the_retry_reaches_the_same_bedrock_profile(db_conn, monkeypatch):
+    """Rule 2's one retry is the same model. Resolving the id once is what makes it so."""
+    monkeypatch.setenv("MODEL_ROUTE", "bedrock")
+    monkeypatch.setenv("BEDROCK_INFERENCE_GEO", "us")
+    invalid = dict(VALID_SCORE, relevance=101)
+    client, sent = bedrock_client_returning(tool_response(invalid), tool_response(invalid))
+
+    with pytest.raises(SchemaError):
+        score_notice(db_conn, client, notice(), prompt_version="v1")
+
+    assert len(sent) == 2
+    assert sent[0]["url"] == sent[1]["url"]

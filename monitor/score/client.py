@@ -28,6 +28,7 @@ import structlog
 from pydantic import ValidationError
 
 from monitor import caps
+from monitor.cli import model_id
 from monitor.models import Notice, Score
 from monitor.score.prompt import body_budget, system_prompt
 from monitor.score.schema import TOOL_NAME, tool_choice, tool_definition
@@ -37,6 +38,11 @@ log = structlog.get_logger(__name__)
 # Architecture v0.4 section 8: "Haiku 4.5 translates and scores everything that
 # passes the filter." Sonnet 5 appears only at step 20's rescore, for the 40 to 70
 # band, and is a scoring decision rather than a second path.
+#
+# This is the model's logical name, which is what is logged and costed. On the
+# bedrock route the wire name is a different string - an inference profile id - and
+# `model_id` is the one place that translates (step 12). The request is built with
+# `model_id(MODEL)`; `model_calls` keeps `MODEL`.
 MODEL = "claude-haiku-4-5"
 MAX_TOKENS = 2048
 PURPOSE = "score"
@@ -89,7 +95,11 @@ def user_message(notice: Notice, *, title_en: str = "", body_en: str = "") -> st
 
 def score_notice(
     conn: psycopg.Connection,
-    client: anthropic.Anthropic,
+    # `AnthropicBedrock` is not a subclass of `Anthropic` in the SDK - both derive
+    # from its base client - so after step 12 this annotation has to name both or it
+    # is simply false on the route the pilot host runs. Widened rather than loosened
+    # to `object`: these two and no others are what `model_client` returns.
+    client: anthropic.Anthropic | anthropic.AnthropicBedrock,
     notice: Notice,
     *,
     title_en: str = "",
@@ -104,10 +114,16 @@ def score_notice(
     tokens_in = tokens_out = latency_ms = 0
     last_error = ""
 
+    # Resolved once, outside the retry loop: the retry must reach the same model as
+    # the first attempt, and re-reading the environment between two calls of one
+    # scoring is a way for them to differ (rule 2's retry is the same model, the
+    # same prompt and the same forced tool).
+    wire_model = model_id(MODEL)
+
     for attempt in (1, 2):
         started = time.monotonic()
         response = client.messages.create(
-            model=MODEL,
+            model=wire_model,
             max_tokens=MAX_TOKENS,
             # Marked for caching: the block is ~7,500 tokens and identical for every
             # notice in a run, so it is paid once per window and then at a tenth.

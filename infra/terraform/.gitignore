@@ -1,0 +1,25 @@
+# Terraform working files. The repository's root .gitignore covers Python, logs and
+# .env; none of its rules match these, and two of them are the reason this file
+# exists rather than a preference.
+#
+# *.tfstate, and any backup of one, must never be committed: state is a clear-text
+# record of every attribute of every resource, and the day someone adds a secret
+# version resource it is a clear-text record of the secret too (versions.tf). State
+# for this workspace lives in the S3 backend; a local state file here means someone
+# ran `terraform apply` without `init` against the backend, which is itself worth
+# noticing.
+#
+# terraform.tfvars is ignored because it is the file a person fills in. It holds no
+# secret by design (terraform.tfvars.example says so twice), but it is per-deployment
+# and the example is what the repository carries.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+*.auto.tfvars
+crash.log
+
+# NOT ignored, deliberately: .terraform.lock.hcl. The provider lock is how two
+# people and CI get the same provider version, which is the point of pinning it.
+!.terraform.lock.hcl
