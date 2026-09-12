@@ -21,6 +21,18 @@ Five things are tested beyond that list, each because it can be quietly wrong:
   - **the button**, because "one make target and one button" is the step, and a page that
     renders but posts nowhere would satisfy neither.
 
+Step 16 adds four more, all of them about what happens after a batch exists:
+
+  - **the generated column spec**, rendered from `config/record_defaults.yaml` and compared
+    with `docs/export_spec.md`. A column added to the config without regenerating the page
+    fails here, which is the only reason that document is generated rather than written.
+  - **the backlog**, as the arithmetic `ExportBacklogAgeDays` is published from and as the
+    rows the queue page and `monitor status` show.
+  - **re-export**, which must reissue the file that left and must not issue a new batch id,
+    touch a stamp, or overwrite a published directory. Each of those is asserted by breaking
+    it: the file is deleted, the column list is shortened, the CSV on disk is corrupted.
+  - **the two new controls on /export**: the batch listing and the re-export form.
+
 It needs a live database with every migration applied and it does not skip when one is
 absent, for the reason `tests/roles/test_roles.py` gives. Its three candidates are built
 here rather than from `conftest.py`'s `staged`, which makes one: a batch of three is what
@@ -35,19 +47,37 @@ import hashlib
 import io
 import json
 import os
+import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import unquote
 
 import psycopg
 import pytest
 from starlette.testclient import TestClient
 
+from monitor.cli import run_status
 from review import export as export_module
 from review.app import app
 from review.decisions import approve, record_defaults
-from review.export import ExportRefused, batch_paths, day_range, export
+from review.export import (
+    SPEC_PATH,
+    Backlog,
+    ExportRefused,
+    Waiting,
+    backlog,
+    batch_paths,
+    columns,
+    day_range,
+    export,
+    list_batches,
+    re_export,
+    render_backlog,
+    spec_markdown,
+)
 
 pytestmark = pytest.mark.roles
 
@@ -168,12 +198,23 @@ def approved(owner, review):
     owner.execute("delete from events where entity_id = any(%s::text[])", (list(candidate_ids) + list(record_ids),))
     owner.execute("update candidates set approved_record_id = null where id = any(%s::text[])", (candidate_ids,))
     owner.execute("delete from approved_records where id = any(%s::text[])", (list(record_ids),))
+    batch_ids = [
+        row[0] for row in owner.execute("select batch_id from export_batches where operator = %s", (operator,))
+    ]
+    # A re-export's event names the batch, so it is not caught by the record ids above.
+    owner.execute("delete from events where entity_type = 'export_batch' and entity_id = any(%s::text[])", (batch_ids,))
     owner.execute("delete from export_batches where operator = %s", (operator,))
     owner.execute("delete from candidate_notices where candidate_id = any(%s::text[])", (candidate_ids,))
     owner.execute("delete from candidates where id = any(%s::text[])", (candidate_ids,))
     owner.execute("delete from notices where id = any(%s::uuid[])", (notice_ids,))
     owner.execute("delete from notices_raw where source_id = any(%s::text[])", (source_ids,))
     owner.execute("delete from sources where id = any(%s::text[])", (source_ids,))
+
+
+@pytest.fixture
+def exported(approved, exports_dir) -> str:
+    """One batch, produced from the three approved records, its file on disk. Returns the batch id."""
+    return export(*today_range(), approved.operator)
 
 
 def today_range() -> tuple[datetime, datetime]:
@@ -473,3 +514,293 @@ def test_the_button_refuses_a_blank_operator_and_says_so(approved, exports_dir, 
     assert posted.status_code == 303
     assert "error=" in posted.headers["location"]
     assert list(exports_dir.iterdir()) == []
+
+
+# --- the backlog ------------------------------------------------------------------
+
+
+def test_the_backlog_age_is_how_long_the_oldest_record_has_waited():
+    """`ExportBacklogAgeDays`, the number the export-backlog-age alarm is declared against.
+
+    Pure arithmetic on a constructed backlog rather than on the database, because the value
+    that matters is the one a seven-day threshold is compared with, and a test that built
+    its own nine-day-old record would be asserting that `now()` is now.
+    """
+    as_of = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
+    waiting = Backlog(
+        records=(
+            Waiting("R000001", "C000001", REVIEWERS[0], as_of - timedelta(days=9, hours=12)),
+            Waiting("R000002", "C000002", REVIEWERS[1], as_of - timedelta(days=1)),
+        ),
+        as_of=as_of,
+    )
+
+    assert waiting.count == 2
+    assert waiting.oldest.record_id == "R000001", "oldest first, which is the order the alarm cares about"
+    assert waiting.age_days == pytest.approx(9.5)
+
+    empty = Backlog(records=(), as_of=as_of)
+    assert empty.count == 0
+    assert empty.oldest is None
+    assert empty.age_days == 0.0, "nothing waiting is nought days, not no reading"
+
+
+def test_the_status_line_names_the_metric_and_the_oldest_record():
+    as_of = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
+    waiting = Backlog(
+        records=(Waiting("R000001", "C000001", REVIEWERS[0], as_of - timedelta(days=9, hours=12)),),
+        as_of=as_of,
+    )
+
+    line = render_backlog(waiting)
+    assert "export backlog: 1 approved record waiting" in line
+    assert "oldest R000001 approved 9.5 days ago (2026-09-03" in line
+    assert "ExportBacklogAgeDays 9.5" in line
+
+    assert "nothing waiting" in render_backlog(Backlog(records=(), as_of=as_of))
+
+
+def test_the_backlog_is_every_approved_record_not_yet_exported_oldest_first(approved, review):
+    mine = [record for record in backlog(review).records if record.record_id in approved.record_ids]
+
+    assert [record.record_id for record in mine] == list(approved.record_ids), "oldest approval first"
+    assert [record.candidate_id for record in mine] == list(approved.candidate_ids)
+    assert [record.approved_by for record in mine] == [reviewer for _country, _buyer, reviewer in BUYERS]
+
+
+def test_exporting_takes_the_records_out_of_the_backlog(approved, exports_dir, review):
+    export(*today_range(), approved.operator)
+
+    waiting = {record.record_id for record in backlog(review).records}
+    assert not waiting & set(approved.record_ids), "a record that has left is not waiting to leave"
+
+
+def test_monitor_status_prints_the_export_backlog(approved, capsys):
+    """`make status` is `monitor status`, and step 16's acceptance is that the backlog is in it.
+
+    It is read there on a `monitor_readonly` connection: the command's own connection is the
+    pipeline's, and `migrations/002_roles.sql` revokes all on `approved_records` from that
+    role, so this passing at all is the proof the second connection is the right one.
+    """
+    assert run_status() == 0
+
+    printed = capsys.readouterr().out
+    assert "export backlog:" in printed
+    assert "ExportBacklogAgeDays" in printed
+    # Three records are waiting, so the empty wording would mean the number is not being read.
+    assert "nothing waiting" not in printed
+
+
+def test_the_queue_page_shows_what_is_waiting_to_be_exported(approved, client):
+    page = client.get("/").text
+
+    assert "waiting to be exported" in page
+    assert "/export" in page
+
+
+# --- re-exporting a named batch ---------------------------------------------------
+
+
+def test_re_export_writes_the_same_two_files_again_after_they_are_deleted(approved, exports_dir, exported, review):
+    """The case this exists for: the file is gone and BD needs the batch they were promised."""
+    csv_path, manifest_path = batch_paths(exports_dir, exported)
+    original_csv = csv_path.read_bytes()
+    original_manifest = manifest_path.read_bytes()
+    shutil.rmtree(csv_path.parent)
+
+    reissued = re_export(exported, "Ops Person")
+
+    assert reissued.rewritten
+    assert reissued.batch_id == exported, "the same batch id: the records already name it"
+    assert csv_path.read_bytes() == original_csv, "byte for byte the file that left"
+    assert manifest_path.read_bytes() == original_manifest
+    assert manifest_of(exports_dir, exported)["operator"] == approved.operator, (
+        "the manifest names the person who produced the batch, not the person who reissued it"
+    )
+    assert reissued.sha256 == manifest_of(exports_dir, exported)["sha256"]
+
+
+def test_re_export_issues_no_new_batch_and_touches_no_stamp(approved, exports_dir, exported, review):
+    """What re-export must not do: a new batch id for the same records, or a cleared stamp.
+
+    Either would lose the audit trail. A second batch row would leave two batches claiming
+    the same records; a cleared `exported_at` would put records BD has already imported back
+    in the backlog as if they were new.
+    """
+    before = stamps(review, approved.record_ids)
+    csv_path, _ = batch_paths(exports_dir, exported)
+    shutil.rmtree(csv_path.parent)
+
+    re_export(exported, "Ops Person")
+
+    assert stamps(review, approved.record_ids) == before
+    assert (
+        review.execute("select count(*) from export_batches where operator = %s", (approved.operator,)).fetchone()[0]
+        == 1
+    )
+    assert {record.record_id for record in backlog(review).records} & set(approved.record_ids) == set()
+
+
+def test_re_export_records_who_asked_for_it(approved, exports_dir, exported, review):
+    re_export(exported, "Ops Person")
+
+    events = review.execute(
+        "select actor, after from events where entity_type = 'export_batch' and entity_id = %s",
+        (exported,),
+    ).fetchall()
+    assert len(events) == 1
+    actor, after = events[0]
+    assert actor == "Ops Person", "the person reissuing is in the audit log, not in the file"
+    assert after.startswith(f"{exported}: verified in place")
+
+
+def test_re_export_of_a_batch_still_on_disk_rewrites_nothing(approved, exports_dir, exported):
+    """A published batch is checked and left alone. Rewriting it would be a new file under an old name."""
+    csv_path, _ = batch_paths(exports_dir, exported)
+    written_at = csv_path.stat().st_mtime_ns
+
+    reissued = re_export(exported, "Ops Person")
+
+    assert not reissued.rewritten
+    assert csv_path.stat().st_mtime_ns == written_at
+
+
+def test_re_export_refuses_when_the_column_list_has_changed_since_the_batch(
+    approved, exports_dir, exported, monkeypatch
+):
+    """The reason the rebuilt bytes are hashed at all.
+
+    A column removed from `config/record_defaults.yaml` after a batch was produced renders a
+    different file. Reissuing it under the batch's own id would hand BD a header row that is
+    not the one they mapped, and the manifest's sha256 would no longer describe the file
+    beside it.
+    """
+    shortened = record_defaults()
+    shortened["columns"] = shortened["columns"][:-1]
+    monkeypatch.setattr(export_module, "record_defaults", lambda: shortened)
+
+    with pytest.raises(ExportRefused, match="rebuilds to a different file"):
+        re_export(exported, "Ops Person")
+
+
+def test_re_export_never_overwrites_a_published_directory(approved, exports_dir, exported):
+    """Bytes on disk that are not the batch are wreckage, and a person looks at wreckage."""
+    csv_path, _ = batch_paths(exports_dir, exported)
+    csv_path.write_bytes(b"not the batch that left")
+
+    with pytest.raises(ExportRefused, match="already exists and is not"):
+        re_export(exported, "Ops Person")
+
+    assert csv_path.read_bytes() == b"not the batch that left"
+
+
+def test_re_export_refuses_a_batch_that_does_not_exist(approved, exports_dir):
+    with pytest.raises(ExportRefused, match="there is no batch"):
+        re_export("B9999", "Ops Person")
+
+
+def test_re_export_refuses_a_blank_operator(approved, exports_dir, exported):
+    with pytest.raises(ExportRefused, match="operator name is required"):
+        re_export(exported, "   ")
+
+
+# --- the listing and the second button --------------------------------------------
+
+
+def test_the_batch_listing_says_whether_each_file_is_still_there(approved, exports_dir, exported, review):
+    listed = [batch for batch in list_batches(review) if batch.batch_id == exported]
+    assert len(listed) == 1
+    assert listed[0].on_disk
+
+    csv_path, _ = batch_paths(exports_dir, exported)
+    shutil.rmtree(csv_path.parent)
+    assert not [batch for batch in list_batches(review) if batch.batch_id == exported][0].on_disk
+
+
+def test_the_export_page_lists_the_batch_and_offers_the_re_export(approved, exports_dir, exported, client):
+    page = client.get("/export").text
+
+    assert exported in page
+    assert "on disk" in page
+    assert 'action="/export/re-export"' in page
+
+
+def test_the_re_export_button_puts_a_missing_file_back(approved, exports_dir, exported, client):
+    csv_path, _ = batch_paths(exports_dir, exported)
+    original = csv_path.read_bytes()
+    shutil.rmtree(csv_path.parent)
+
+    posted = client.post(
+        "/export/re-export",
+        data={"batch": exported, "operator": approved.operator},
+        follow_redirects=False,
+    )
+
+    assert posted.status_code == 303
+    assert f"batch={exported}" in posted.headers["location"]
+    assert csv_path.read_bytes() == original
+
+    # The outcome comes back as a note and not as an error: nothing failed.
+    page = client.get(posted.headers["location"]).text
+    assert f"{exported} written again" in page
+
+
+def test_the_re_export_button_refuses_a_batch_that_does_not_exist(approved, exports_dir, client):
+    posted = client.post(
+        "/export/re-export",
+        data={"batch": "B9999", "operator": approved.operator},
+        follow_redirects=False,
+    )
+
+    assert posted.status_code == 303
+    # Unquoted, because the refusal travels as a percent-encoded query parameter.
+    assert "error=" in posted.headers["location"]
+    assert "there is no batch 'B9999'" in unquote(posted.headers["location"])
+
+
+# --- the generated column spec ----------------------------------------------------
+
+
+def test_the_spec_on_disk_is_the_one_the_config_generates():
+    """Step 16's acceptance: the document cannot drift from the column list it describes."""
+    assert SPEC_PATH.read_text(encoding="utf-8") == spec_markdown(), (
+        "docs/export_spec.md and config/record_defaults.yaml disagree. Run "
+        "`uv run python scripts/generate_export_spec.py` and commit the result with the config change."
+    )
+
+
+def test_a_column_added_to_the_config_fails_that_check(monkeypatch):
+    """The failure the step asks for, provoked rather than described.
+
+    A 74th column is added to the loaded config and the spec is rendered again: it now names
+    the new column and no longer matches the file on disk, which is exactly the assertion
+    above going red.
+    """
+    defaults = record_defaults()
+    defaults["columns"] = [*defaults["columns"], {"name": "Reseller Margin", "category": "B"}]
+    monkeypatch.setattr(export_module, "record_defaults", lambda: defaults)
+
+    generated = spec_markdown()
+    assert "| 74 | Reseller Margin | B |" in generated
+    assert generated != SPEC_PATH.read_text(encoding="utf-8")
+
+
+def test_the_spec_table_is_the_csv_header_row():
+    """Not only that the text matches: that the table is the header row, in order."""
+    listed = [
+        line.split("|")[2].strip()
+        for line in SPEC_PATH.read_text(encoding="utf-8").splitlines()
+        if re.match(r"^\| \d+ \|", line)
+    ]
+    assert listed == columns()
+    assert len(listed) == 73
+
+
+def test_a_category_appendix_e_does_not_define_is_refused(monkeypatch):
+    """A new category is a document change, not a silent omission from the legend (rule 4)."""
+    defaults = record_defaults()
+    defaults["columns"] = [*defaults["columns"], {"name": "Reseller Margin", "category": "X"}]
+    monkeypatch.setattr(export_module, "record_defaults", lambda: defaults)
+
+    with pytest.raises(ExportRefused, match="appendix E does not define"):
+        spec_markdown()

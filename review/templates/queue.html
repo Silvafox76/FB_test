@@ -9,6 +9,17 @@
   {% if region %}<span class="muted">{{ total }} across all regions.</span>{% endif %}
 </p>
 
+{# The export backlog: approved records nobody can act on until a file is produced.
+   Shown only when something is waiting, because a nought is not work. #}
+{% if backlog.count %}
+<p class="summary">
+  <strong>{{ backlog.count }}</strong> approved record{{ 's' if backlog.count != 1 }} waiting to be exported,
+  the oldest for {{ '%.1f'|format(backlog.age_days) }} days
+  ({{ backlog.oldest.approved_at.strftime('%Y-%m-%d') }}, {{ backlog.oldest.approved_by }}).
+  <a href="/export">Export</a>
+</p>
+{% endif %}
+
 <p class="filters">
   <a class="filter {{ 'on' if not region }}" href="/">All regions</a>
   {% for name in regions %}

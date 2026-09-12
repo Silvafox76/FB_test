@@ -51,14 +51,21 @@ chooses which of the two can happen.
 **A record is exported once.** The selection takes only rows with `exported_at` null and
 the stamp repeats that condition and counts: if anything took a row between the select and
 the update, the counts disagree and the transaction raises instead of writing a second
-batch over the first. Re-exporting a named batch is a separate explicit call and it is
-step 22's work, not this step's; until then the batch stays on disk and the manifest's
-sha256 is how a re-read is checked.
+batch over the first. Re-exporting a named batch is the separate explicit call `re_export`
+below, and it reissues the file that left rather than producing a new one: no new batch id,
+no stamp touched, and the rebuilt bytes checked against the sha256 the batch recorded.
 
 **A batch with no rows is still a batch.** A second export of the same range writes a
 header-only CSV, a manifest saying nought rows, and an `export_batches` row. One code path
 rather than two (rule 1), and "we ran the export on Tuesday and there was nothing new"
 becomes a recorded fact rather than something somebody remembers.
+
+**The backlog is one query and this module owns it.** What is approved and not yet exported
+is read by `backlog` and by nothing else: the queue page, the export page and `monitor
+status` all render the same reading, so the three cannot quietly disagree about how much
+work is waiting (rule 1). The age of its oldest record is the CloudWatch metric
+`ExportBacklogAgeDays`; `Backlog.age_days` says where the alarm that reads it is declared
+and why no threshold is repeated here.
 
 **Where the files go.** `MONITOR_EXPORT_DIR`, or `exports/` beside this repository when it
 is unset: the directory `docker-compose.yml` already mounts at `/app/exports` and
@@ -75,6 +82,7 @@ import hashlib
 import io
 import json
 import os
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -322,6 +330,421 @@ def day_range(range_from: str, range_to: str) -> tuple[datetime, datetime]:
     and the command cannot disagree about what a day is.
     """
     return day_start(range_from, "from"), day_start(range_to, "to") + timedelta(days=1)
+
+
+# --- the backlog: approved and not yet exported ---------------------------------
+
+SELECT_BACKLOG = """
+    select id, candidate_id, approved_by, created_at
+    from approved_records
+    where exported_at is null
+    order by created_at, id
+"""
+
+READONLY_URL_ENV = "DATABASE_URL_READONLY"
+
+
+@dataclass(frozen=True)
+class Waiting:
+    """One approved record that has not left yet."""
+
+    record_id: str
+    candidate_id: str
+    approved_by: str
+    approved_at: datetime
+
+
+@dataclass(frozen=True)
+class Backlog:
+    """Everything approved and not yet exported, oldest approval first, at one reading of the clock.
+
+    `as_of` is the database's `now()` and not the host's, read in the same transaction as
+    the rows, so the age below is the age of these records and not of a list taken a moment
+    earlier against a clock that may not agree.
+    """
+
+    records: tuple[Waiting, ...]
+    as_of: datetime
+
+    @property
+    def count(self) -> int:
+        return len(self.records)
+
+    @property
+    def oldest(self) -> Waiting | None:
+        """The record that has waited longest, or None when nothing is waiting.
+
+        None rather than a sentinel: an empty backlog has no oldest record, and the two
+        callers both have something different to say about that case.
+        """
+        return self.records[0] if self.records else None
+
+    @property
+    def age_days(self) -> float:
+        """How long the oldest record has waited. Nought when nothing is waiting.
+
+        **This is `ExportBacklogAgeDays`**, the metric the `${project}-export-backlog-age`
+        alarm in `infra/terraform/observability.tf` is declared against: custom namespace
+        `var.metric_namespace`, statistic Maximum, alarming above
+        `var.alarm_thresholds.export_backlog_days`. Nothing publishes it yet. When
+        `monitor/health/metrics.py` is written it should call PutMetricData with this
+        number, read on a `monitor_readonly` connection, and no threshold belongs on this
+        side: the comparison is the alarm's and lives in the Terraform, so a second copy
+        of seven in a .py file would be a second place to change it (rule 6).
+        """
+        if not self.records:
+            return 0.0
+        return (self.as_of - self.records[0].approved_at).total_seconds() / 86400
+
+
+def backlog(conn: psycopg.Connection) -> Backlog:
+    """What is waiting to leave, oldest first. Reads; writes nothing."""
+    as_of = conn.execute("select now()").fetchone()[0]
+    return Backlog(
+        records=tuple(Waiting(*row) for row in conn.execute(SELECT_BACKLOG).fetchall()),
+        as_of=as_of,
+    )
+
+
+def render_backlog(waiting: Backlog) -> str:
+    """The export backlog as `monitor status` prints it. Plain text, read in a terminal."""
+    if waiting.oldest is None:
+        return "export backlog: nothing waiting, every approved record has been exported (ExportBacklogAgeDays 0.0)"
+
+    oldest = waiting.oldest
+    return (
+        f"export backlog: {waiting.count} approved record{'' if waiting.count == 1 else 's'} waiting, "
+        f"oldest {oldest.record_id} approved {waiting.age_days:.1f} days ago "
+        f"({oldest.approved_at:%Y-%m-%d}, {oldest.approved_by})\n"
+        f"                ExportBacklogAgeDays {waiting.age_days:.1f} — the number the export-backlog-age "
+        "alarm in infra/terraform/observability.tf reads, which nothing publishes yet"
+    )
+
+
+def reporting_connection() -> psycopg.Connection:
+    """A `monitor_readonly` connection, for reading the backlog from outside the review app.
+
+    `monitor status` runs as the pipeline, and `migrations/002_roles.sql` revokes all on
+    `approved_records` from `monitor_pipeline`, so the backlog cannot be read on that
+    command's own connection — and connecting the pipeline as `monitor_review` to get at it
+    is precisely what rule 11 calls blocking. `monitor_readonly` is the role that exists for
+    reporting: select on everything, and nothing else, ever.
+
+    It is opened here rather than through `db.connect` because that factory offers the two
+    runtime roles and says in its own docstring that reporting does not come through it. If
+    a third role is added there this function becomes `db.connect("readonly")` and nothing
+    else changes.
+    """
+    url = os.environ.get(READONLY_URL_ENV)
+    if not url:
+        raise RuntimeError(
+            f"{READONLY_URL_ENV} is not set; copy .env.example to .env and fill it in. "
+            "The export backlog lives in approved_records, which the pipeline role cannot read."
+        )
+    return psycopg.connect(url)
+
+
+# --- the batches that have been produced, and reissuing one of them --------------
+
+SELECT_BATCH = """
+    select batch_id, created_at, operator, row_count, range_from, range_to,
+           file_path, manifest_path, sha256
+    from export_batches
+    where batch_id = %s
+"""
+
+SELECT_BATCHES = """
+    select batch_id, created_at, operator, row_count, range_from, range_to,
+           file_path, manifest_path, sha256
+    from export_batches
+    order by batch_id desc
+    limit %s
+"""
+
+SELECT_BATCH_RECORDS = """
+    select id, candidate_id, record, approved_by
+    from approved_records
+    where export_batch = %s
+    order by id
+"""
+
+# The listing's ceiling. The pilot produces roughly one batch a week for fourteen
+# weeks, so this is every batch it will ever have and then some; it is here so the
+# page has a bound at all rather than because fifty is a meaningful number.
+BATCH_LIST_LIMIT = 50
+
+
+@dataclass(frozen=True)
+class Batch:
+    """One row of `export_batches`: a batch that was produced, and where its file went."""
+
+    batch_id: str
+    created_at: datetime
+    operator: str
+    row_count: int
+    range_from: datetime
+    range_to: datetime
+    file_path: str
+    manifest_path: str
+    sha256: str
+
+    @property
+    def on_disk(self) -> bool:
+        """Whether the CSV this row names is still where it was written.
+
+        The batch row is the fact and the file is what can go missing — deleted, moved, or
+        on a host that was replaced — so this is checked against the recorded path rather
+        than against the current `MONITOR_EXPORT_DIR`. It is what the operator needs before
+        deciding whether a re-export is a reissue or a no-op.
+        """
+        return Path(self.file_path).exists()
+
+
+def load_batch(conn: psycopg.Connection, batch_id: str) -> Batch | None:
+    """One batch by id, or None when there is no such batch."""
+    row = conn.execute(SELECT_BATCH, (batch_id,)).fetchone()
+    return Batch(*row) if row else None
+
+
+def list_batches(conn: psycopg.Connection, limit: int = BATCH_LIST_LIMIT) -> list[Batch]:
+    """Every batch produced, newest first. Batch ids are issued in order, so the id sorts."""
+    return [Batch(*row) for row in conn.execute(SELECT_BATCHES, (limit,)).fetchall()]
+
+
+@dataclass(frozen=True)
+class ReExport:
+    """What a re-export did. `rewritten` is False when the file was already in place."""
+
+    batch_id: str
+    row_count: int
+    sha256: str
+    csv_path: Path
+    manifest_path: Path
+    rewritten: bool
+
+
+def batch_directory(batch: Batch) -> Path:
+    """The export directory the batch row names, checked against this module's own layout.
+
+    Taken from the recorded `file_path` and not from `MONITOR_EXPORT_DIR`, because
+    `monitor_review` has insert and no update on `export_batches`: the row cannot be
+    corrected, so the file has to go back where the row says it went. A row whose path is
+    not `<directory>/<batch_id>/<batch_id>.csv` was written by something other than this
+    module and is not reissued by guessing.
+    """
+    recorded = Path(batch.file_path)
+    directory = recorded.parent.parent
+    expected, _ = batch_paths(directory, batch.batch_id)
+    if expected != recorded:
+        raise ExportRefused(
+            f"{batch.batch_id} records its CSV at {recorded}, which is not the "
+            f"{expected.parent.name}/{expected.name} layout this exporter writes; "
+            "reissue it by hand from the manifest rather than from here"
+        )
+    return directory
+
+
+def re_export(batch_id: str, operator: str) -> ReExport:
+    """Write a batch that has already left out to disk again. Returns what it did.
+
+    This is the separate explicit call step 11 left for later, and what it must not do is
+    the whole design. A batch id is a record's statement of which file it left in, so:
+
+      - no new batch id is issued and no `export_batches` row is inserted. A second row for
+        the same records would make two batches claim them and the first file's provenance
+        would be gone;
+      - no stamp is written, cleared or refreshed. `exported_at` is when the record left,
+        which already happened, and `export_batch` still names the file this call reissues.
+        Clearing either to "export it again" would put a record that BD has already imported
+        back in the backlog as if it were new;
+      - the file's bytes are rebuilt and checked against the sha256 the manifest recorded. A
+        re-export reissues the file that left; it never produces a different one under the
+        same name. If the column list in `config/record_defaults.yaml` has moved since, the
+        rebuild does not match and this refuses rather than quietly reissuing a batch whose
+        header is not the header BD mapped;
+      - a published batch directory is never overwritten. Either the bytes on disk are the
+        batch, in which case there is nothing to do, or they are not, in which case a person
+        looks at them.
+
+    So the only thing this writes is the pair of files, and only when they are missing, plus
+    one `re_exported` event naming who asked. The operator on the manifest stays the person
+    who produced the batch; the person reissuing it is in the event and not in the file,
+    because the file is a copy of what left and not a new statement.
+    """
+    operator = (operator or "").strip()
+    if not operator:
+        raise ExportRefused("an operator name is required: a re-export is recorded against the person who asked")
+
+    with db.connect("review") as conn, conn.transaction():
+        batch = load_batch(conn, batch_id)
+        if batch is None:
+            raise ExportRefused(f"there is no batch {batch_id!r}; a batch id is issued by an export, not chosen")
+
+        rows = conn.execute(SELECT_BATCH_RECORDS, (batch.batch_id,)).fetchall()
+        if len(rows) != batch.row_count:
+            raise ExportRefused(
+                f"{batch.batch_id} was written with {batch.row_count} record(s) and {len(rows)} are stamped "
+                "with it now; the batch row and the table disagree, so nothing is reissued"
+            )
+
+        data = csv_bytes(rows, batch.batch_id)
+        sha256 = hashlib.sha256(data).hexdigest()
+        if sha256 != batch.sha256:
+            raise ExportRefused(
+                f"{batch.batch_id} rebuilds to a different file: the batch recorded {batch.sha256} and these "
+                f"records render as {sha256}. The column list in config/record_defaults.yaml has changed since "
+                "the batch was produced. A re-export reissues the file that left, so this one is refused; "
+                "export the affected records in a new batch instead."
+            )
+
+        directory = batch_directory(batch)
+        csv_path, manifest_path = batch_paths(directory, batch.batch_id)
+        published = csv_path.parent
+
+        if not published.exists():
+            write_batch_files(
+                directory,
+                batch.batch_id,
+                data,
+                manifest_for(
+                    batch.batch_id, batch.created_at, batch.operator, rows, batch.range_from, batch.range_to, sha256
+                ),
+            )
+            rewritten = True
+        elif csv_path.exists() and manifest_path.exists() and csv_path.read_bytes() == data:
+            rewritten = False
+        else:
+            raise ExportRefused(
+                f"{published} already exists and is not {batch.batch_id} as it left: the CSV is missing, its "
+                "manifest is missing, or its bytes are not the ones the batch recorded. Move the directory aside "
+                "and ask for the re-export again; a published batch is never overwritten in place."
+            )
+
+        write_event(
+            conn,
+            "export_batch",
+            batch.batch_id,
+            "re_exported",
+            operator,
+            "",
+            f"{batch.batch_id}: {'rewritten' if rewritten else 'verified in place'}, {len(rows)} row(s), "
+            f"sha256 {sha256}",
+        )
+
+    log.info(
+        "export_batch_reissued",
+        batch_id=batch.batch_id,
+        row_count=len(rows),
+        operator=operator,
+        sha256=sha256,
+        rewritten=rewritten,
+        csv_path=str(csv_path),
+    )
+    return ReExport(
+        batch_id=batch.batch_id,
+        row_count=len(rows),
+        sha256=sha256,
+        csv_path=csv_path,
+        manifest_path=manifest_path,
+        rewritten=rewritten,
+    )
+
+
+# --- the column specification, generated so it cannot drift ----------------------
+
+SPEC_PATH = Path(__file__).resolve().parent.parent / "docs" / "export_spec.md"
+
+# Appendix E's three categories, in the order the appendix lists them. The wording is
+# the appendix's, held here because this is the document generator and nothing reads
+# it as configuration; the categories themselves come from record_defaults.yaml, and a
+# column carrying one that is not in this table raises rather than being left out of
+# the legend (rule 4).
+CATEGORY_MEANINGS = {
+    "D": "Derived from the notice or candidate, written with confidence",
+    "S": "A heuristic suggestion; the reviewer sees it in the record preview and edits it before approving",
+    "B": "BD judgement only: the exporter writes the placeholder the CRM already shows for an unfilled field, "
+    "and never guesses",
+}
+
+
+def spec_markdown() -> str:
+    """`docs/export_spec.md`, rendered from `config/record_defaults.yaml`.
+
+    Generated rather than written because a hand-kept column list is a list that drifts:
+    the header row is the contract with Zoho's import mapper, and a document that says the
+    export has 73 columns while the config says 74 is worse than no document. The test in
+    `tests/review/test_export.py` renders this and compares it with the file, so a column
+    added to the config and not regenerated here is a failing test.
+
+    **Nothing dated or hashed goes in the page.** A "generated on" line would differ from
+    the file on disk the day after it was written and the test would fail for a reason that
+    is not a drift, which would train someone to regenerate without reading the diff.
+    """
+    defaults = record_defaults()
+    spec = defaults["columns"]
+
+    unknown = sorted({column["category"] for column in spec} - set(CATEGORY_MEANINGS))
+    if unknown:
+        raise ExportRefused(
+            f"config/record_defaults.yaml uses categor{'y' if len(unknown) == 1 else 'ies'} {unknown}, which "
+            "appendix E does not define; add it to CATEGORY_MEANINGS in review/export.py with its meaning"
+        )
+
+    counts = {category: sum(1 for column in spec if column["category"] == category) for category in CATEGORY_MEANINGS}
+    legend = "\n".join(
+        f"| {category} | {meaning} | {counts[category]} |" for category, meaning in CATEGORY_MEANINGS.items()
+    )
+    table = "\n".join(
+        f"| {position} | {column['name']} | {column['category']} |" for position, column in enumerate(spec, start=1)
+    )
+
+    return f"""# Export column specification
+
+**Generated from `config/record_defaults.yaml`. Do not edit by hand.**
+`review.export.spec_markdown` renders it, `scripts/generate_export_spec.py` writes it, and
+`tests/review/test_export.py` fails when this file and the config disagree. That is the only reason
+this document is generated: a column added to the config and not to this page would otherwise be a
+column BD reads about nowhere, and the header row is the contract.
+
+Regenerate with:
+
+    uv run python scripts/generate_export_spec.py
+
+## What this specifies
+
+Architecture v0.4 appendix E. `monitor/stage/record.py` builds every approved record with exactly
+these keys and `review/export.py` writes them as the CSV header row in exactly this order, because
+Zoho's import mapper matches on headers: the order and the spelling are the contract, and nothing
+else invents a field.
+
+- One directory per batch under the export directory: `B0001/B0001.csv` beside
+  `B0001/B0001.manifest.json`, published by a single rename so the pair appears together or not at
+  all. The manifest carries the row count, the approval range, the reviewers who approved the
+  records and the sha256 of the CSV as written.
+- UTF-8 **with a byte order mark**. Without it Excel and Zoho's import mapper read the file as the
+  local codepage and an accented buyer name — "Ministère de l'Économie" — arrives mangled.
+- RFC 4180 as those two read it: quoted where needed, CRLF rows, one header row.
+- Every column is present in every row. A record missing one is refused at export rather than
+  exported with a blank, because a blank column is indistinguishable from a field nobody filled in.
+- The export is one way and it is a file (D31, rules 15 to 18). Nothing here talks to a CRM, nothing
+  is sent anywhere, there is no import path back into this database, and a named person imports the
+  file by hand. Account resolution happens at import, using Zoho's own matching; the exporter
+  proposes the buyer name as text and nothing more.
+
+## Categories
+
+| Category | Meaning | Columns |
+| --- | --- | --- |
+{legend}
+
+{len(spec)} columns in total.
+
+## Columns
+
+| # | Column | Category |
+| --- | --- | --- |
+{table}
+"""
 
 
 def main() -> int:

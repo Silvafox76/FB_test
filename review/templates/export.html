@@ -9,14 +9,29 @@
 </p>
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if note %}<p class="summary">{{ note }}</p>{% endif %}
 
 <section>
   <h2>Waiting to leave</h2>
-  {% if waiting %}
+  {% if backlog.count %}
     <p>
-      <strong>{{ waiting }}</strong> approved record{{ 's' if waiting != 1 }} not yet exported,
-      approved between {{ oldest.strftime('%Y-%m-%d') }} and {{ newest.strftime('%Y-%m-%d') }}.
+      <strong>{{ backlog.count }}</strong> approved record{{ 's' if backlog.count != 1 }} not yet exported.
+      The oldest has waited <strong>{{ '%.1f'|format(backlog.age_days) }} days</strong>.
     </p>
+    {# Oldest first: the backlog is read as "what has been waiting longest", not as a list of the newest work. #}
+    <table>
+      <thead><tr><th>Approved</th><th>Record</th><th>Candidate</th><th>Reviewer</th></tr></thead>
+      <tbody>
+      {% for waiting in backlog.records %}
+        <tr>
+          <td>{{ waiting.approved_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><span class="id">{{ waiting.record_id }}</span></td>
+          <td><a href="/candidate/{{ waiting.candidate_id }}">{{ waiting.candidate_id }}</a></td>
+          <td>{{ waiting.approved_by }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   {% else %}
     <p class="empty">Nothing is waiting. Every approved record has been exported.</p>
   {% endif %}
@@ -54,17 +69,20 @@
 
 {% if batch %}
 <section>
-  <h2>{{ batch[0] }}</h2>
+  <h2>{{ batch.batch_id }}</h2>
   <section class="facts">
     <dl>
-      <dt>Produced</dt><dd>{{ batch[1].strftime('%Y-%m-%d %H:%M %Z') }}</dd>
-      <dt>Operator</dt><dd>{{ batch[2] }}</dd>
-      <dt>Rows</dt><dd>{{ batch[3] }}</dd>
+      <dt>Produced</dt><dd>{{ batch.created_at.strftime('%Y-%m-%d %H:%M %Z') }}</dd>
+      <dt>Operator</dt><dd>{{ batch.operator }}</dd>
+      <dt>Rows</dt><dd>{{ batch.row_count }}</dd>
       <dt>Approval range</dt>
-      <dd>{{ batch[4].strftime('%Y-%m-%d %H:%M %Z') }} to {{ batch[5].strftime('%Y-%m-%d %H:%M %Z') }} (exclusive)</dd>
-      <dt>CSV</dt><dd><code>{{ batch[6] }}</code></dd>
-      <dt>Manifest</dt><dd><code>{{ batch[7] }}</code></dd>
-      <dt>sha256</dt><dd><code>{{ batch[8] }}</code></dd>
+      <dd>
+        {{ batch.range_from.strftime('%Y-%m-%d %H:%M %Z') }} to
+        {{ batch.range_to.strftime('%Y-%m-%d %H:%M %Z') }} (exclusive)
+      </dd>
+      <dt>CSV</dt><dd><code>{{ batch.file_path }}</code></dd>
+      <dt>Manifest</dt><dd><code>{{ batch.manifest_path }}</code></dd>
+      <dt>sha256</dt><dd><code>{{ batch.sha256 }}</code></dd>
     </dl>
   </section>
   <p class="muted">
@@ -76,4 +94,57 @@
   </p>
 </section>
 {% endif %}
+
+<section>
+  <h2>Batches produced</h2>
+  {% if not batches %}
+    <p class="empty">No batch has been produced yet.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr><th>Batch</th><th>Produced</th><th>Operator</th><th>Rows</th><th>File</th><th>sha256</th></tr>
+    </thead>
+    <tbody>
+    {% for b in batches %}
+      <tr>
+        <td><a href="/export?batch={{ b.batch_id }}">{{ b.batch_id }}</a></td>
+        <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ b.operator }}</td>
+        <td class="num">{{ b.row_count }}</td>
+        <td>{{ 'on disk' if b.on_disk else 'missing' }}</td>
+        <td><code>{{ b.sha256[:12] }}</code></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Re-export a batch</h3>
+  <p class="muted">
+    Writes a batch that has already left out to disk again, under the same batch id and at the
+    path the batch row records. It issues no new batch id, changes no record's stamp and produces
+    no new batch: the records in it left once and stay left. The file is rebuilt from those
+    records and refused unless it hashes to the sha256 the batch recorded, so what comes back is
+    the file that left and not a new file wearing its name. A batch whose file is still on disk is
+    checked and left alone.
+  </p>
+  <form method="post" action="/export/re-export">
+    <label class="reviewer">
+      Batch
+      <select name="batch" required>
+        {% for b in batches %}
+          <option value="{{ b.batch_id }}">
+            {{ b.batch_id }} — {{ b.row_count }} row{{ 's' if b.row_count != 1 }},
+            {{ 'on disk' if b.on_disk else 'file missing' }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="reviewer">
+      Operator (the person asking for it; it goes in the audit log, not in the file)
+      <input type="text" name="operator" placeholder="Full name" required>
+    </label>
+    <button type="submit">Re-export</button>
+  </form>
+  {% endif %}
+</section>
 {% endblock %}

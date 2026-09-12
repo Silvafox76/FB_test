@@ -379,12 +379,24 @@ def run_full_pass() -> int:
 
 
 def run_status() -> int:
-    """Source health and the filter's arithmetic, per source."""
+    """Source health and the filter's arithmetic per source, then the export backlog."""
     from monitor.db import connect
     from monitor.health.status import collect, render
+    from review.export import backlog, render_backlog, reporting_connection
 
     with connect("pipeline") as conn:
         print(render(collect(conn)))
+
+    # On a second connection, as monitor_readonly, because the backlog lives in
+    # `approved_records` and `migrations/002_roles.sql` revokes all on that table from
+    # monitor_pipeline: the connection above cannot read it, and connecting this command
+    # as monitor_review to get at it is rule 11's blocking case. Reporting is what the
+    # readonly role is for. It is not wrapped in a try: a status command that silently
+    # drops the one number BUILD_ORDER step 16 asks it to show would be worse than one
+    # that says the URL is missing (rule 4).
+    with reporting_connection() as conn:
+        print()
+        print(render_backlog(backlog(conn)))
     return 0
 
 

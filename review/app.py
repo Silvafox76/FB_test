@@ -16,9 +16,10 @@ Three properties, all of them deliberate:
     through the SSM tunnel or not at all. Do not change the host in the Makefile
     without changing rule 17 first.
   - **It writes through `review/decisions.py` and `review/export.py` and nowhere
-    else** (rule 12). Every query in this file is a select. The three POST handlers
-    call `approve`, `reject` and `export`, and none of them touches a table itself.
-    The export's POST produces a file on disk and a batch row; it sends nothing
+    else** (rule 12). Every query in this file is a select. The four POST handlers
+    call `approve`, `reject`, `export` and `re_export`, and none of them touches a
+    table itself. The export's POST produces a file on disk and a batch row and the
+    re-export's puts a file that has already left back on disk; both send nothing
     anywhere, because there is nowhere to send it (rules 15 to 18).
 
 Every request opens a connection and closes it. That is not a pool and does not need
@@ -52,7 +53,7 @@ from review.decisions import (
     review_config,
 )
 from review.decisions import reject as reject_candidate
-from review.export import ExportRefused, day_range, export
+from review.export import ExportRefused, backlog, day_range, export, list_batches, load_batch, re_export
 
 log = structlog.get_logger(__name__)
 
@@ -107,19 +108,6 @@ AUDIT = """
     limit 300
 """
 
-BACKLOG = """
-    select count(*), min(created_at), max(created_at)
-    from approved_records
-    where exported_at is null
-"""
-
-BATCH = """
-    select batch_id, created_at, operator, row_count, range_from, range_to,
-           file_path, manifest_path, sha256
-    from export_batches
-    where batch_id = %s
-"""
-
 CANDIDATE = """
     select c.id, c.score, c.status, c.title_en, c.buyer, c.country, c.region, c.language,
            c.admin_level, c.summary_en, c.matched_functions, c.system_names,
@@ -147,9 +135,15 @@ def rows(conn: psycopg.Connection, sql: str, params: tuple = ()) -> list[tuple]:
 
 @app.get("/", response_class=HTMLResponse)
 def queue(request: Request, region: str = "") -> HTMLResponse:
-    """The work. Everything pending_review, highest score first."""
+    """The work. Everything pending_review, highest score first, and what is waiting to leave.
+
+    The backlog is on this page because this is the page the reviewer opens: an approved
+    record that has not been exported is work they have already done that nobody can act
+    on, and nothing notifies them of it (rule 18).
+    """
     with db.connect("review") as conn:
         pending = rows(conn, QUEUE)
+        waiting = backlog(conn)
 
     regions = sorted({row[5] for row in pending})
     shown = [row for row in pending if not region or row[5] == region]
@@ -164,6 +158,7 @@ def queue(request: Request, region: str = "") -> HTMLResponse:
             "region": region,
             "total": len(pending),
             "minutes": minutes,
+            "backlog": waiting,
         },
     )
 
@@ -291,29 +286,36 @@ def audit(request: Request, entity_type: str = "") -> HTMLResponse:
 
 
 @app.get("/export", response_class=HTMLResponse)
-def export_page(request: Request, batch: str = "", error: str = "") -> HTMLResponse:
-    """The backlog waiting to leave, the form that produces a batch, and the last one produced.
+def export_page(request: Request, batch: str = "", error: str = "", note: str = "") -> HTMLResponse:
+    """What is waiting to leave, the form that produces a batch, and every batch produced.
 
     The range defaults to the backlog's own window — the day of the oldest approved record
     that has not been exported, through today — so the operator can press the button
     without first working out which records are still waiting.
+
+    The listing is here because a batch's file can go missing — deleted, or on a host that
+    was replaced — and the manifest's sha256 is how a copy is checked. Each row says whether
+    its file is still where the batch row put it, which is what makes re-exporting a
+    decision rather than a reflex.
     """
     with db.connect("review") as conn:
-        waiting, oldest, newest = conn.execute(BACKLOG).fetchone()
-        produced = conn.execute(BATCH, (batch,)).fetchone() if batch else None
+        waiting = backlog(conn)
+        batches = list_batches(conn)
+        produced = load_batch(conn, batch) if batch else None
 
     today = datetime.now(UTC).date()
+    oldest = waiting.oldest
     return templates.TemplateResponse(
         request,
         "export.html",
         {
-            "waiting": waiting,
-            "oldest": oldest,
-            "newest": newest,
-            "range_from": (oldest.date() if oldest else today).isoformat(),
+            "backlog": waiting,
+            "batches": batches,
+            "range_from": (oldest.approved_at.date() if oldest else today).isoformat(),
             "range_to": today.isoformat(),
             "batch": produced,
             "error": error,
+            "note": note,
         },
     )
 
@@ -333,3 +335,25 @@ def export_form(
 
     log.info("export_from_form", batch_id=batch_id, operator=operator)
     return RedirectResponse(f"/export?batch={batch_id}", status_code=303)
+
+
+@app.post("/export/re-export")
+def re_export_form(
+    batch: Annotated[str, Form()] = "",
+    operator: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    """Write a named batch's file out again. A separate button because it is a separate act.
+
+    It cannot produce a batch: `re_export` refuses anything but an existing batch id, issues
+    no new one and touches no stamp, so pressing this can only ever put back the file that
+    already left. The outcome is carried back as a note rather than an error, because
+    "the file was already there and its bytes match" is an answer and not a failure.
+    """
+    try:
+        reissued = re_export(batch, operator)
+    except ExportRefused as refused:
+        return RedirectResponse(f"/export?error={refused}", status_code=303)
+
+    log.info("re_export_from_form", batch_id=reissued.batch_id, operator=operator, rewritten=reissued.rewritten)
+    outcome = "written again" if reissued.rewritten else "already on disk, and its bytes match the manifest"
+    return RedirectResponse(f"/export?batch={reissued.batch_id}&note={reissued.batch_id} {outcome}", status_code=303)
