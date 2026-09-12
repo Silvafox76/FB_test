@@ -289,8 +289,23 @@ def test_a_run_that_staged_nothing_does_not_divide_by_zero():
 
 
 def test_the_threshold_comes_from_config():
-    """Precision is measured at the threshold that decides what a reviewer sees."""
-    assert stage_threshold() == 60
+    """Precision is measured at the threshold that decides what a reviewer sees.
+
+    Asserted against the YAML rather than against a literal. This test used to read
+    `== 60` and failed the day the threshold moved to 25 - which is a test copying a
+    tunable number into a .py file, the thing rule 6 exists to stop, wearing the
+    costume of a test that enforces rule 6. What has to hold is that the value is
+    READ from config and is a usable threshold, not that it is any particular number.
+    """
+    import yaml
+
+    from monitor.registry.load import CONFIG_DIR
+
+    configured = yaml.safe_load((CONFIG_DIR / "thresholds.yaml").read_text(encoding="utf-8"))
+
+    assert stage_threshold() == configured["stage_threshold"]
+    assert isinstance(stage_threshold(), int)
+    assert 0 < stage_threshold() <= 100
 
 
 # --- the history -------------------------------------------------------------

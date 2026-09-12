@@ -2,8 +2,38 @@
 # a CPV prefix hardcoded in a .py file is a finding (rule 6). Changing one of these
 # is a config change with a version history, never a deployment.
 
-# A candidate below this never reaches the review queue. 60 in shadow mode.
-stage_threshold: 60
+# A candidate below this never reaches the review queue.
+#
+# LOWERED FROM 60 TO 25 ON 2026-09-12, deliberately, to put borderline work in front of a
+# person instead of discarding it. The reason it can be lowered safely is the lexicon change
+# made the same day: most of what used to arrive in the 5-to-28 band was not marginal PFM, it
+# was waste disposal and vehicle repair passing the free filter on a bare word like
+# `compliance` or `transfer`. With those gone, a low score means "adjacent" rather than
+# "unrelated", and adjacency is a judgement for a person, not for a threshold.
+#
+# 60 could not simply be nudged. Swept across all 143 candidates, EVERY value from 43 to 68
+# stages exactly the same 12, so the old setting sat mid-plateau and any move inside that
+# range was a change with no effect (decision 39). The scores take only 18 distinct values
+# and pile on round ones - 58 notices at exactly 5, 38 at 15, 10 at 72 - because the scorer
+# behaves as a five-or-six-way classifier wearing a 0-100 scale. A threshold can only ever
+# land between two of its buckets, so the question is which bucket edge, not which number.
+#
+# 25 is the edge that admits the adjacent work and stops before the noise. At 25 the queue
+# gains: payroll outsourcing (Sweden), a payroll tool (France), financial audit of university
+# annual accounts (Spain), internal audit framework (Norway), an asset management solution
+# (Nouvelle-Aquitaine), financial accounting and reporting services (Romania), a World Bank
+# development policy operation in The Gambia and an ESF instrument in North Macedonia - the
+# last two being the only two candidates anywhere in priority geography outside the single
+# West African one already staged. The next step down, 15, is where LAN infrastructure and
+# market consultations begin, so it is not taken.
+#
+# Expected queue depth is 26 candidates against 12 today - measured on the current
+# candidates table restricted to those the new lexicon still passes, not estimated. That is
+# more than double, and it is a total queue rather than a daily arrival, so it is a
+# first-pass reading job rather than a standing load. per_source_daily_cap below still
+# bounds a bad day. Revisit at the week 14 gate with the golden set labelled, because
+# precision at 25 is exactly the number nobody can compute yet.
+stage_threshold: 25
 
 # At most this many candidates from one source reach the queue in one day, counted
 # on the primary notice's source. It bounds reviewer load when a portal publishes a
@@ -12,7 +42,13 @@ per_source_daily_cap: 15
 
 # Scores in this band are re-scored on a larger model at step 20. The band is the
 # region where the small model's own confidence is worth a second opinion.
-rescore_band: [40, 70]
+#
+# The floor follows stage_threshold down from 40 to 25 and must keep following it. The band
+# exists so that a candidate a reviewer will actually see has had the larger model's opinion
+# first; a floor above the staging threshold would mean the newly admitted 25-to-40 band
+# reached a person on the small model's word alone, which is the opposite of the reason for
+# admitting them. Measured cost of the extra span: four to six notices per pass.
+rescore_band: [25, 70]
 
 # Multiplies the model's relevance for the country the notice was published in.
 # West Africa is the pilot's priority market, the Balkans and Ukraine are the

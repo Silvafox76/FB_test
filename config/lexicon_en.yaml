@@ -3,6 +3,45 @@
 # before any model call, so a missing phrase is a missed opportunity and an over-broad
 # one is a wasted call. Seeded from the prototype's per-function keyword lists and the
 # system-name list in CLAUDE.md; tuned against real notices at step 19.
+#
+# FOUR BARE WORDS WERE REMOVED ON 2026-09-12 AND THE MEASUREMENT IS THE REASON.
+# `compliance`, `establishment`, `transfer` and `recruitment` were each, on their own, the
+# only reason dozens of notices survived the filter: 26, 14, 20 and 15 notices respectively,
+# out of the 151 that passed on a single phrase. They were not catching PFM. `compliance`
+# sits in the administrative boilerplate of nearly every European notice; `establishment` is
+# the ordinary gerund, as in "Establishment of a framework agreement"; `transfer` was data
+# transfer and waste transfer stations; and `recruitment` matches inside the TED CPV-79
+# heading "law, marketing, consulting, recruitment, printing and security", which TED
+# prepends to the title of every notice in that class regardless of what is being bought.
+# Across all four, the scorer's mean relevance was 11 to 19 out of 100.
+#
+# Three of them had, between them, caught two notices that scored 72 - and reading those two
+# is what decided the shape of this change. `compliance` caught Finland's "Internal
+# Accounting and Financial Management Software"; `establishment` caught Spain's framework
+# for a municipal system covering "tax management, and assets, accounting and invoice
+# registration". Both were accidents: the generic word appeared somewhere in the text while
+# the actual PFM content sat in words the lexicon did not have. So they were not deleted,
+# they were REPLACED - `financial management software`, `tax management` and
+# `invoice registration` now catch those two notices deliberately, on their merits.
+#
+# Measured over the 1,703 notices the filter has read: 173 passed before, 101 after. Nothing
+# that the scorer rated 60 or above is lost, and nothing in the 40-70 rescore band either;
+# the highest-scoring notice that stops passing scored 35.
+#
+# WHAT WAS DELIBERATELY NOT REMOVED, because it is the same argument in the other direction.
+# `risk management`, `asset management`, `purchasing`, `appointment`, `self-service` and
+# `e-procurement` are all bare-ish words with poor sole matches too - but 3 to 5 notices
+# each, not 14 to 26. At that volume the cost of keeping them is a couple of cents a pass,
+# and each is genuine PFM vocabulary that would catch a real system tender. A false positive
+# costs one cheap scorer call; a false negative loses an opportunity nobody ever sees. The
+# bar for removal is therefore high, and low-volume noise does not clear it.
+#
+# The additions below marked as breadth exist for the opposite reason: `audit services`,
+# `accounting services`, `financial audit`, `debt management`, `enterprise resource planning`
+# and `ERP system` bring in public-sector audit and government ERP work that the lexicon was
+# blind to - 16 notices on the current corpus, including Spain's audits of public sector
+# entities and Latvia's EU fund certification. They are adjacent rather than core, which is
+# what the lower staging threshold in thresholds.yaml is now there to let a person judge.
 language: en
 functions:
   policy_management:
@@ -19,6 +58,7 @@ functions:
   - fiscal rules
   - budget calendar
   - macro-fiscal
+  - planning and reporting
   public_accounts_management:
   - government accounting standards
   - chart of accounts
@@ -29,6 +69,9 @@ functions:
   - open budget
   - citizens budget
   - budget portal
+  - accounting software
+  - accounting services
+  - financial reporting
   performance_structures_implementation:
   - performance budgeting
   - chart of goals
@@ -54,13 +97,19 @@ functions:
   - budget adjustment
   - in-year reallocation
   - RACHAD
+  - expenditure management
   compliance_and_governance:
   - internal control
   - segregation of duties
   - workflow approval
-  - compliance
   - internal audit
   - governance structure
+  - regulatory compliance
+  - compliance monitoring
+  - compliance audit
+  - compliance management
+  - audit services
+  - financial audit
   treasury_accounting:
   - treasury
   - general ledger
@@ -75,6 +124,11 @@ functions:
   - KFMIS
   - SIGIF
   - SIGFiP
+  - treasury system
+  - financial management software
+  - financial information system
+  - enterprise resource planning
+  - ERP system
   cost_accounting:
   - cost accounting
   - project accounting
@@ -86,6 +140,7 @@ functions:
   - asset management
   - inventory management
   - depreciation
+  - invoice registration
   progressive_activation:
   - progressive activation
   - accounting basis migration
@@ -104,6 +159,7 @@ functions:
   - debt sustainability
   - sovereign investment
   - debt instrument
+  - debt management
   risk_management:
   - fiscal risk
   - risk management
@@ -118,6 +174,7 @@ functions:
   - tender management
   - public procurement system
   - SIGMAP
+  - public procurement management
   social_benefits_management:
   - social benefits
   - employment insurance
@@ -143,6 +200,7 @@ functions:
   - customer information
   - IRMIS
   - revenue mobilization
+  - revenue management
   non_tax_revenue:
   - non-tax revenue
   - fees and charges
@@ -157,6 +215,8 @@ functions:
   - tax filing
   - customs
   - ISFU
+  - tax management
+  - tax administration system
   civil_service_planning:
   - civil service regulations
   - establishment control
@@ -175,15 +235,23 @@ functions:
   - human resource management information system
   - HRMIS
   - HRMS
-  - establishment
   - position management
   - salary scale
+  - staff establishment
+  - establishment register
+  - establishment of posts
+  - wage bill
   civil_service_movement:
-  - recruitment
   - civil service movement
-  - transfer
   - secondment
   - appointment
+  - staff transfer
+  - employee transfer
+  - transfer of staff
+  - recruitment management
+  - e-recruitment
+  - civil service recruitment
+  - applicant tracking
   civil_service_performance:
   - workforce competency
   - skills gap

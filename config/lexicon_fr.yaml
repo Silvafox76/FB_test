@@ -3,6 +3,17 @@
 # francophone, so a gap here costs more than a gap in the English file. Seeded from the
 # prototype; every miss found at step 19 becomes a case in filter_cases.yaml before it
 # becomes a phrase here.
+#
+# `conformité` WAS REMOVED ON 2026-09-12. It was the single worst phrase in either lexicon:
+# 14 of the 15 notices it matched passed on it alone, and every one was "mise en conformité"
+# - French for bringing a building up to code. Fire safety at Beuvry, the filtration system
+# of the Rambervillers swimming pool, accessibility works at the MUDAAC, drinking water at
+# Aurillac. None is remotely PFM and the scorer agreed: best relevance 25, mean 8.
+#
+# `conformité réglementaire`, `contrôle de conformité` and `audit de conformité` replace it
+# and carry the regulatory sense the function actually means. `SIRH` is added because it is
+# the standard French acronym for an HR information system and it catches two real HRMIS
+# tenders the lexicon was missing entirely.
 language: fr
 functions:
   policy_management:
@@ -25,6 +36,8 @@ functions:
   - transparence budgétaire
   - budget citoyen
   - portail budgétaire
+  - services comptables
+  - reporting financier
   performance_structures_implementation:
   - budget de performance
   - budgétisation axée sur les résultats
@@ -49,7 +62,9 @@ functions:
   - séparation des tâches
   - audit interne
   - gouvernance
-  - conformité
+  - conformité réglementaire
+  - contrôle de conformité
+  - audit de conformité
   treasury_accounting:
   - trésor
   - grand livre
@@ -83,6 +98,7 @@ functions:
   - dette publique
   - soutenabilité de la dette
   - instruments de dette
+  - gestion de la dette publique
   risk_management:
   - risque budgétaire
   - gestion des risques
@@ -144,6 +160,8 @@ functions:
   - HRMS
   - gestion des effectifs
   - grille salariale
+  - SIRH
+  - système de gestion des ressources humaines
   civil_service_movement:
   - recrutement
   - mouvement du personnel
