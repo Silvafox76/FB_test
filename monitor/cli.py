@@ -37,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
     translate.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
     score = subparsers.add_parser("score", help="score every notice that survived the filter")
     score.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = all)")
+    rescore = subparsers.add_parser("rescore", help="escalate in-band scores to the larger model for a second opinion")
+    # Defaulting to 0 would match `score` above and would be wrong here. Each row is a paid
+    # Sonnet call, and `monitor/score/run.py`'s `rescore()` is explicit that sizing the run is
+    # a person's job rather than a default. So this asks for the number out loud.
+    rescore.add_argument("--limit", type=int, default=0, help="stop after this many notices (0 = the whole band)")
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("run", help="one full pass: fetch all, filter, score, dedupe, stage")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
@@ -313,6 +318,30 @@ def run_score(limit: int) -> int:
     return 0
 
 
+def run_rescore(limit: int) -> int:
+    """Give the in-band scores a second opinion on the larger model.
+
+    Deliberately its own command rather than a stage of `monitor run`. The escalation
+    has existed and been tested since step 20 and had no caller outside the tests until
+    now, so nothing in the running pipeline has ever taken a second opinion on anything -
+    which the comment in `config/thresholds.yaml` wrongly claimed otherwise until today.
+    Making it reachable is separable from making it automatic, and the second is a
+    decision about money that belongs to a person (decision 47).
+    """
+    from monitor.db import connect
+    from monitor.score.run import rescore, rescore_band
+
+    low, high = rescore_band()
+    client = model_client()
+    with connect("pipeline") as conn:
+        counts = rescore(conn, client, limit=limit)
+
+    print(f"band {low}-{high}: {counts.in_band} in band, {counts.escalated} escalated")
+    print(f"{counts.replaced} replaced by the larger model, {counts.held} held, {counts.abandoned} abandoned")
+    print(f"cost USD {counts.cost_usd:.4f}, prompt_version {counts.prompt_version}")
+    return 0
+
+
 def run_golden(export_only: bool) -> int:
     """Export the set for labelling, or measure against the labels a person wrote."""
     from monitor.db import connect
@@ -448,6 +477,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_score(args.limit)
     if args.command == "golden":
         return run_golden(args.export)
+    if args.command == "rescore":
+        return run_rescore(args.limit)
     if args.command == "stage":
         return run_stage()
     if args.command == "run":

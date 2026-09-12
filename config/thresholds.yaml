@@ -43,11 +43,25 @@ per_source_daily_cap: 15
 # Scores in this band are re-scored on a larger model at step 20. The band is the
 # region where the small model's own confidence is worth a second opinion.
 #
-# The floor follows stage_threshold down from 40 to 25 and must keep following it. The band
-# exists so that a candidate a reviewer will actually see has had the larger model's opinion
-# first; a floor above the staging threshold would mean the newly admitted 25-to-40 band
-# reached a person on the small model's word alone, which is the opposite of the reason for
-# admitting them. Measured cost of the extra span: four to six notices per pass.
+# The floor follows stage_threshold down from 40 to 25 and must keep following it, so that
+# the band covers everything a reviewer can now see rather than only the top of it.
+#
+# READ THE NEXT PARAGRAPH BEFORE RELYING ON THIS. An earlier version of this comment said the
+# band means "a candidate a reviewer will actually see has had the larger model's opinion
+# first". THAT IS NOT TRUE TODAY and it was wrong to write it. `monitor/score/run.py` builds
+# and tests the escalation, but nothing in the scheduled pipeline calls it: `run_full_pass()`
+# is fetch, filter, score, stage, and until 2026-09-12 `rescore()` had no caller anywhere
+# outside `tests/unit/test_rescore.py`. Every candidate in the queue today reached it on
+# Haiku's word alone, at 60 as much as at 25.
+#
+# It is now reachable as `monitor rescore` / `make rescore`, and it is deliberately NOT a
+# stage of `monitor run`. That is the module's own decision, not an oversight: `rescore()`'s
+# docstring says its `limit` "is not a convenience... a run is something a person sizes before
+# starting", because each row is a paid Sonnet call at roughly USD 0.022 for the first and a
+# third of that afterwards. Whether it should become automatic is decision 47.
+#
+# Measured depth of the widened band: 25 notices against 4 at the old floor of 40, so the
+# widening costs about USD 0.5 to clear the current backlog and a few cents a pass after.
 rescore_band: [25, 70]
 
 # Multiplies the model's relevance for the country the notice was published in.

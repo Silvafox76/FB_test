@@ -10,7 +10,8 @@ English corpus is 996 notices, not the 170 that are natively English. A phrase m
 wrong way looks like it matches nothing when it matches the highest-scoring notice we hold.
 
 Reports, per phrase: how many notices it matches, the best and mean scorer relevance among
-them, and how many would clear the staging threshold of 60. A replacement that reports 0
+them, and how many would clear the staging threshold, which is read from config rather
+than written here. A replacement that reports 0
 stagers where the phrase it replaces had 1 is a recall regression.
 """
 
@@ -22,6 +23,7 @@ import sys
 import psycopg
 
 from monitor.filter.lexicon import _pattern, canonical
+from monitor.stage.stager import stage_threshold
 
 ROWS = """
  with rendering as (select distinct on (t.notice_id) t.notice_id, t.title_en, t.body_en
@@ -51,7 +53,7 @@ def main(lang, *phrases):
         pat = _pattern(p)
         hits = [(r, t) for hay, r, t in pool if pat.search(hay)]
         scored = [r for r, _ in hits if r is not None]
-        stagers = [(r, t) for r, t in hits if r is not None and r >= 60]
+        stagers = [(r, t) for r, t in hits if r is not None and r >= stage_threshold()]
         best = max(scored) if scored else None
         mean = round(sum(scored) / len(scored)) if scored else None
         print(f"{p!r}: {len(hits)} hits, best={best}, mean={mean}, would-stage={len(stagers)}")

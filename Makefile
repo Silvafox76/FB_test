@@ -7,7 +7,7 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs migrate seed filter translate score stage golden-export test lint fmt fetch run status golden metrics review export
+.PHONY: help up down logs migrate seed filter translate score rescore stage golden-export test lint fmt fetch run status golden metrics review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -68,6 +68,13 @@ run: ## One full pass: fetch all, filter, score, dedupe, stage
 
 status: ## Source health, today's calls and cost, queue depth, export backlog
 	uv run python -m monitor.cli status
+
+# Not a step of `run`, and that is deliberate rather than an omission: each row is a
+# paid call on the larger model, and monitor/score/run.py is explicit that sizing the
+# run is a person's job. Until 2026-09-12 this path had no caller outside its tests, so
+# nothing in the pipeline had ever taken a second opinion on anything.
+rescore: ## Second opinion on in-band scores from the larger model: make rescore [LIMIT=N]
+	uv run python -m monitor.cli rescore $(if $(LIMIT),--limit $(LIMIT),)
 
 golden: ## Precision, recall and schema validity for the current prompt version
 	uv run python -m monitor.cli golden

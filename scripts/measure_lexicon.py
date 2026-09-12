@@ -44,6 +44,8 @@ import psycopg
 import yaml
 
 from monitor.filter.lexicon import _pattern, canonical
+from monitor.score.run import rescore_band
+from monitor.stage.stager import stage_threshold
 
 ROWS = """
     with rendering as (
@@ -110,18 +112,30 @@ def main(before_en, before_fr, after_en, after_fr):
     print(f"pass AFTER:  {after}    ({after - before:+d})")
     print(f"  lost {len(lost)}, gained {len(gained)}\n")
 
+    # Both read from config/thresholds.yaml rather than being written here. The first
+    # version of this script hardcoded 60 and 40, and they were stale within the hour:
+    # the same change this script was written to measure moved the threshold to 25.
+    threshold = stage_threshold()
+    band_low, band_high = rescore_band()
+
     scored_lost = [x for x in lost if x[0] is not None]
-    high = [x for x in scored_lost if x[0] >= 60]
-    band = [x for x in scored_lost if 40 <= x[0] < 60]
+    high = [x for x in scored_lost if x[0] >= threshold]
+    band = [x for x in scored_lost if band_low <= x[0] < threshold]
     print("=== REGRESSION CHECK: scored notices that would now be dropped ===")
-    print(f"  scored >= 60 (would have been staged): {len(high)}   <-- must be 0")
-    print(f"  scored 40-59 (rescore band):           {len(band)}")
+    print(f"  scored >= {threshold} (would have been staged): {len(high)}   <-- must be 0")
+    if band_low < threshold:
+        print(f"  scored {band_low}-{threshold - 1} (in the rescore band, below staging): {len(band)}")
+    else:
+        # The band floor sits at or above the staging threshold, so there is no span of
+        # scores that earns a second opinion without also reaching the queue. Saying so
+        # beats printing an empty range like "25-24" and calling it a measurement.
+        print(f"  rescore band is {band_low}-{band_high}, at or above the threshold: no separate band to lose")
     for r, t, u, p in sorted(scored_lost, key=lambda x: -x[0])[:10]:
         print(f"    score {r:3} [{u}] {t}\n              kept by {p}")
 
-    kept_high = [x for x in gained if x[0] is not None and x[0] >= 60]
+    kept_high = [x for x in gained if x[0] is not None and x[0] >= threshold]
     if kept_high:
-        print(f"\n  newly caught, scored >= 60: {len(kept_high)}")
+        print(f"\n  newly caught, scored >= {threshold}: {len(kept_high)}")
         for r, t, u, p in kept_high:
             print(f"    score {r:3} [{u}] {t}\n              now caught by {p}")
 
