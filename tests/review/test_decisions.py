@@ -112,6 +112,22 @@ def test_approve_writes_both_events(review, staged):
     assert record_events[0][1] == "system (post-approval, as Ryan Dear)"
 
 
+def test_approving_a_candidate_carrying_a_decimal_amount_does_not_raise(review, staged):
+    """`estimated_value` is `numeric(18,2)`, so Postgres hands it back as `Decimal`.
+
+    `json.dumps` does not know that type, and until `decisions.json_safe` existed
+    this raised `TypeError` inside the approval transaction for every candidate
+    with a published value — which, since migration 012/013, is every candidate
+    `conftest.staged` builds. This asserts the specific failure mode rather than
+    only relying on the other tests happening to exercise the same row.
+    """
+    record_id = approve(review, staged, "Ryan Dear")
+
+    record = review.execute("select record from approved_records where id = %s", (record_id,)).fetchone()[0]
+    assert record["Currency"] == "USD"
+    assert record["Total Opportunity Amount"] == 4200000
+
+
 def test_the_donor_source_in_the_cluster_reaches_the_record(review, staged):
     """Not a record-builder test: proof the cluster query feeds it the second source."""
     approve(review, staged, "Ryan Dear")

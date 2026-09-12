@@ -11,12 +11,13 @@ IFMIS function and a World Bank source in its cluster.
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 import yaml
 
 from monitor.registry.load import CONFIG_DIR, load_function_map
-from monitor.stage.record import ClusterSource, RecordCandidate, build_record
+from monitor.stage.record import ClusterSource, RecordCandidate, RecordDefaultsError, build_record
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +50,15 @@ def candidate(**overrides) -> RecordCandidate:
         "matched_function_ids": (),
         "system_names": ("IFMIS", "GIFMIS"),
         "procurement_type": "system",
+        # Published natively in USD, so the identity rate: this is what a
+        # dollar-denominated notice actually looks like after migration 012/013,
+        # and it keeps every pre-existing test's assumption ("the value is
+        # 4,200,000") true under the default value_basis, "published".
+        "estimated_value": Decimal("4200000.00"),
+        "value_currency": "USD",
         "estimated_value_usd": 4_200_000,
+        "value_rate": Decimal("1.0"),
+        "value_rate_date": date(2026, 9, 1),
         "eligibility_flags": (),
         "deadline_at": date(2026, 11, 30),
         "finance_project_id": "P123456",
@@ -221,9 +230,13 @@ def test_a_candidate_with_no_deadline_gets_the_placeholder(defaults, function_ma
 
 def test_an_unstated_value_is_zero_not_blank(defaults, function_map):
     """appendix E's default for Total Opportunity Amount is 0, matching the CRM."""
-    record = record_for(candidate(estimated_value_usd=None), [TED], function_map, defaults)
+    no_value = candidate(
+        estimated_value=None, value_currency=None, estimated_value_usd=None, value_rate=None, value_rate_date=None
+    )
+    record = record_for(no_value, [TED], function_map, defaults)
 
     assert record["Total Opportunity Amount"] == 0
+    assert record["Currency"] == "USD", "the suggested default, since nothing was published to read a currency from"
     assert "not stated" in record["Pricing Notes"]
 
 
@@ -251,6 +264,100 @@ def test_level_of_government_maps_from_admin_level(admin_level, expected, defaul
     record = record_for(candidate(admin_level=admin_level), [TED], function_map, defaults)
 
     assert record["Level of Government"] == expected
+
+
+# --- value_basis: the CRM's one amount column, and where the derivation goes ---
+
+
+UAH_VALUE = {
+    "estimated_value": Decimal("4428444.00"),
+    "value_currency": "UAH",
+    "estimated_value_usd": 99_408,
+    "value_rate": Decimal("44.5483"),
+    "value_rate_date": date(2026, 9, 14),
+}
+
+NGN_VALUE = {
+    "estimated_value": Decimal("5000000.00"),
+    "value_currency": "NGN",
+    "estimated_value_usd": None,
+    "value_rate": None,
+    "value_rate_date": None,
+}
+
+NO_VALUE = {
+    "estimated_value": None,
+    "value_currency": None,
+    "estimated_value_usd": None,
+    "value_rate": None,
+    "value_rate_date": None,
+}
+
+
+def test_published_basis_keeps_the_published_currency_and_amount(defaults, function_map):
+    """The default. Rule 9 all the way to the CSV: the export never converts on its own."""
+    assert defaults["value_basis"] == "published", "the acceptance below assumes the config default"
+
+    record = record_for(candidate(**UAH_VALUE), [TED], function_map, defaults)
+
+    assert record["Currency"] == "UAH"
+    assert record["Total Opportunity Amount"] == Decimal("4428444.00")
+    assert "99,408" in record["Pricing Notes"]
+    assert "44.5483" in record["Pricing Notes"]
+    assert "2026-09-14" in record["Pricing Notes"]
+
+
+def test_published_basis_with_no_usd_rate_says_so_and_never_writes_zero(defaults, function_map):
+    """A documented absence (no fx_rates row for NGN), never an error and never a converted number."""
+    record = record_for(candidate(**NGN_VALUE), [TED], function_map, defaults)
+
+    assert record["Currency"] == "NGN"
+    assert record["Total Opportunity Amount"] == Decimal("5000000.00")
+    assert record["Total Opportunity Amount"] != 0, "a real published value is never replaced by the zero placeholder"
+    assert "no USD rate held for NGN" in record["Pricing Notes"]
+
+
+def test_published_basis_with_no_value_uses_the_zero_placeholder(defaults, function_map):
+    record = record_for(candidate(**NO_VALUE), [TED], function_map, defaults)
+
+    assert record["Currency"] == "USD", "the suggested default: nothing was published to read a currency from"
+    assert record["Total Opportunity Amount"] == 0
+    assert "not stated" in record["Pricing Notes"]
+
+
+def test_usd_basis_converts_and_puts_the_published_figure_in_pricing_notes(defaults, function_map):
+    usd_defaults = {**defaults, "value_basis": "usd"}
+    record = record_for(candidate(**UAH_VALUE), [TED], function_map, usd_defaults)
+
+    assert record["Currency"] == "USD"
+    assert record["Total Opportunity Amount"] == 99_408
+    assert "UAH 4,428,444" in record["Pricing Notes"]
+    assert "44.5483" in record["Pricing Notes"]
+
+
+def test_usd_basis_falls_back_to_published_when_no_rate_covers_the_currency(defaults, function_map):
+    """Never 'USD 0' for a contract whose value is real but not convertible today."""
+    usd_defaults = {**defaults, "value_basis": "usd"}
+    record = record_for(candidate(**NGN_VALUE), [TED], function_map, usd_defaults)
+
+    assert record["Currency"] == "NGN"
+    assert record["Total Opportunity Amount"] == Decimal("5000000.00")
+    assert "no USD rate held for NGN" in record["Pricing Notes"]
+
+
+def test_usd_basis_with_no_value_uses_the_zero_placeholder_too(defaults, function_map):
+    usd_defaults = {**defaults, "value_basis": "usd"}
+    record = record_for(candidate(**NO_VALUE), [TED], function_map, usd_defaults)
+
+    assert record["Currency"] == "USD"
+    assert record["Total Opportunity Amount"] == 0
+
+
+def test_an_unrecognised_value_basis_raises(defaults, function_map):
+    bad_defaults = {**defaults, "value_basis": "eur"}
+
+    with pytest.raises(RecordDefaultsError, match="value_basis"):
+        record_for(candidate(), [TED], function_map, bad_defaults)
 
 
 def test_the_builder_touches_no_database_and_no_model():

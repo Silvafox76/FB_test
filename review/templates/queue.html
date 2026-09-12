@@ -34,7 +34,7 @@
   <thead>
     <tr>
       <th>Score</th><th>Candidate</th><th>Buyer</th><th>Country</th>
-      <th>Region</th><th>Deadline</th><th>Value (USD)</th><th>Sources</th>
+      <th>Region</th><th>Deadline</th><th>Value</th><th>Sources</th>
     </tr>
   </thead>
   <tbody>
@@ -43,13 +43,15 @@
       <td class="score">{{ c[1] }}</td>
       <td><a href="/candidate/{{ c[0] }}">{{ c[2] }}</a>
           <span class="id">{{ c[0] }}</span>
-          {% if c[9] %}<span class="tags">{{ c[9]|join(', ') }}</span>{% endif %}</td>
+          {% if c[13] %}<span class="tags">{{ c[13]|join(', ') }}</span>{% endif %}</td>
       <td>{{ c[3] or '—' }}</td>
       <td>{{ c[4] }}</td>
       <td>{{ c[5] }}</td>
       <td>{{ c[7].date() if c[7] else '—' }}</td>
-      <td class="num">{{ '{:,}'.format(c[8]) if c[8] is not none else '—' }}</td>
-      <td>{{ c[11] }}</td>
+      {# c[16] is value_narrative's sentence, appended in review/app.py's queue()
+         handler: the currency comes from the row, never a literal in this template. #}
+      <td class="num">{{ c[16] }}</td>
+      <td>{{ c[15] }}</td>
     </tr>
   {% endfor %}
   </tbody>

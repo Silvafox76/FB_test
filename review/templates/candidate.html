@@ -14,10 +14,13 @@
     <dt>Level of government</dt><dd>{{ c[8] }}</dd>
     <dt>Language</dt><dd>{{ c[7] }}</dd>
     <dt>Procurement type</dt><dd>{{ c[12] }}</dd>
-    <dt>Deadline</dt><dd>{{ c[15].strftime('%Y-%m-%d %H:%M %Z') if c[15] else 'not stated in the notice' }}</dd>
-    <dt>Estimated value</dt><dd>{{ 'USD {:,}'.format(c[13]) if c[13] is not none else 'not stated' }}</dd>
+    <dt>Deadline</dt><dd>{{ c[19].strftime('%Y-%m-%d %H:%M %Z') if c[19] else 'not stated in the notice' }}</dd>
+    {# value_text is computed in review/app.py by monitor.stage.record.value_narrative,
+       the one sentence shared with the queue list and the export's Pricing Notes.
+       Never a bare number and never "USD" as a literal: the currency comes from the row. #}
+    <dt>Estimated value</dt><dd>{{ value_text }}</dd>
     <dt>System names</dt><dd>{{ c[11]|join(', ') if c[11] else '—' }}</dd>
-    <dt>Eligibility flags</dt><dd>{{ c[14]|join(', ') if c[14] else 'none detected' }}</dd>
+    <dt>Eligibility flags</dt><dd>{{ c[18]|join(', ') if c[18] else 'none detected' }}</dd>
   </dl>
 </section>
 
@@ -74,8 +77,8 @@
 {% if c[2] != 'pending_review' %}
   <section class="decided-already">
     <h2>Already decided</h2>
-    <p>{{ c[2] }} by {{ c[16] }}{% if c[17] %} — {{ c[17] }}{% endif %}
-       {% if c[18] %}(record {{ c[18] }}){% endif %}</p>
+    <p>{{ c[2] }} by {{ c[20] }}{% if c[21] %} — {{ c[21] }}{% endif %}
+       {% if c[22] %}(record {{ c[22] }}){% endif %}</p>
   </section>
 {% else %}
 

@@ -19,12 +19,24 @@ The three rules appendix E exists to enforce, and none of them is optional:
   - **Account resolution happens at import, not here.** The builder proposes the
     buyer name as text and nothing more. The pipeline never creates, guesses or
     looks up an Account link, and under D31 it has no CRM scope with which to try.
+
+A fourth rule arrived with migration 012/013: **the published amount is the
+record, and USD is a derivation stamped with the rate that produced it.** A
+notice's value now travels as `estimated_value` and `value_currency`, exactly as
+the publisher stated it, with `estimated_value_usd` present only when a rate
+covers that currency (`value_rate`, units of `value_currency` per one USD, and
+`value_rate_date`, the day the rate is from). Which of the two is honest to put
+in the export's single amount column is `value_basis` in
+`config/record_defaults.yaml`, and this module decides nothing on its own: it
+reads that key, defaults to `published` when the key is absent, and raises on
+anything else (rule 6 all the way down to a typo in the config).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 
 @dataclass(frozen=True)
@@ -58,10 +70,33 @@ class RecordCandidate:
     matched_function_ids: tuple[str, ...]
     system_names: tuple[str, ...]
     procurement_type: str
+    # The amount exactly as published, and in which currency. Both None together
+    # when the notice states no value (the DB enforces that pairing; this module
+    # trusts it rather than re-checking it).
+    estimated_value: Decimal | int | None
+    value_currency: str | None
+    # Derived at staging: None exactly when no fx_rates row covers value_currency,
+    # which is a documented absence and not an error.
     estimated_value_usd: int | None
+    # Units of value_currency per ONE USD. estimated_value / value_rate reproduces
+    # estimated_value_usd exactly, which is why it is carried at all: a reviewer
+    # can check the arithmetic instead of trusting it.
+    value_rate: Decimal | float | None
+    value_rate_date: date | None
     eligibility_flags: tuple[str, ...]
     deadline_at: date | None
     finance_project_id: str = ""
+
+
+class RecordDefaultsError(ValueError):
+    """`config/record_defaults.yaml` holds a value this module does not recognise."""
+
+
+# The two honest choices for the export's single amount column. Appendix E has one
+# amount column and one currency column; which figure belongs there is a mapping
+# decision, not a fact this module infers, so it lives in config (rule 6) and
+# nothing outside these two values is accepted.
+VALUE_BASES = frozenset({"published", "usd"})
 
 
 def build_record(
@@ -78,10 +113,17 @@ def build_record(
     suggested = defaults["suggested"]
     sentences = defaults["sentences"]
 
+    value_basis = defaults.get("value_basis", "published")
+    if value_basis not in VALUE_BASES:
+        raise RecordDefaultsError(
+            f"config/record_defaults.yaml: value_basis is {value_basis!r}, must be one of {sorted(VALUE_BASES)}"
+        )
+
     donors = [source for source in sources if source.is_donor]
     products, gaps = products_and_gaps(candidate.matched_function_ids, function_map)
     funding = funding_source(sources, defaults)
-    value = candidate.estimated_value_usd
+    currency, amount = value_for_basis(candidate, value_basis, suggested, placeholders)
+    pricing_value = pricing_value_note(candidate, value_basis, sentences)
 
     derived = {
         "Opportunity Name": candidate.title_en,
@@ -95,7 +137,7 @@ def build_record(
         "Funding Source": funding,
         "Eligibility Requirements Comments": eligibility_comment(candidate.eligibility_flags, sentences),
         "Partner Required Comments": ", ".join(source.name for source in donors),
-        "Pricing Notes": pricing_note(funding, candidate.finance_project_id, value, sentences),
+        "Pricing Notes": pricing_note(funding, candidate.finance_project_id, pricing_value, sentences),
         "FreeBalance Products Required": "; ".join(products),
         "Product Gaps": "; ".join(gaps),
         # Zoho sets Created By to the import operator. The reviewer's name travels in
@@ -116,7 +158,7 @@ def build_record(
         "Proposal Type": suggested["proposal_type_default"],
         "Lead Source": suggested["lead_source"],
         "Pipeline": suggested["pipeline"],
-        "Currency": suggested["currency"],
+        "Currency": currency,
         "Deal Tier": deal_tier(candidate.score, defaults),
         "Delivery Model": (
             suggested["delivery_model_partner_supported"] if donors else suggested["delivery_model_default"]
@@ -126,7 +168,7 @@ def build_record(
         "Partner Required?": "Yes" if donors else placeholders["unknown"],
         "Expected Release of RFP/EOI?": deadline_for(candidate, "pipeline", placeholders),
         "Do we need to register our interest?": register_interest(candidate.eligibility_flags, defaults),
-        "Total Opportunity Amount": value if value is not None else placeholders["zero"],
+        "Total Opportunity Amount": amount,
         "Probability (%)": suggested["probability_pct"],
         "Standard or Custom Product Required?": suggested["standard_or_custom"],
     }
@@ -218,12 +260,92 @@ def eligibility_comment(flags: tuple[str, ...], sentences: dict) -> str:
     return "Detected in the notice text: " + ", ".join(flag.replace("_", " ") for flag in flags) + "."
 
 
-def pricing_note(funding: str, project_id: str, value: int | None, sentences: dict) -> str:
+def pricing_note(funding: str, project_id: str, value_note: str, sentences: dict) -> str:
     return sentences["pricing_notes"].format(
         funding_source=funding,
         project_id=f", project {project_id}" if project_id else "",
-        value=f"USD {value:,}" if value is not None else "not stated",
+        value=value_note,
     )
+
+
+def value_narrative(
+    currency: str | None,
+    amount: Decimal | int | None,
+    usd: int | None,
+    rate: Decimal | float | None,
+    rate_date: date | None,
+    sentences: dict,
+) -> str:
+    """The one honest sentence describing a value, wherever it is shown.
+
+    Three cases, matched to what a reviewer must be able to tell apart at a
+    glance: no value in the notice at all; a value with no USD figure because no
+    `fx_rates` row covers the currency (a documented absence, not an error); and
+    a value with the USD figure and the exact rate that produced it, so a
+    reviewer can check the arithmetic rather than trust it. The candidate page,
+    the queue list and (through `pricing_value_note`) the export's Pricing Notes
+    all read this, so the three cannot say three different things about the same
+    candidate (rule 1). Never "USD" as a literal anywhere else: the currency
+    always comes from the row.
+    """
+    if amount is None:
+        return sentences["value_not_stated"]
+    if usd is None:
+        return sentences["value_no_usd"].format(currency=currency, amount=amount)
+    return sentences["value_with_usd"].format(
+        currency=currency,
+        amount=amount,
+        usd=usd,
+        rate=rate,
+        rate_date=rate_date.isoformat() if rate_date is not None else "",
+    )
+
+
+def pricing_value_note(candidate: RecordCandidate, value_basis: str, sentences: dict) -> str:
+    """What Pricing Notes says about the value, matching the `value_basis` mapping decision.
+
+    `published` (the default): the derivation used in `value_narrative` — the
+    USD equivalent and its rate when one exists, or a plain statement that no
+    rate covers the currency, or "not stated". `usd`: the export's amount column
+    already holds the converted figure, so this carries the published amount and
+    its rate instead — unless there is no USD figure to convert with, in which
+    case there is nothing to hold back and this reads exactly as `published`
+    would, which is also what keeps `usd` from ever implying "USD 0" for a
+    contract that has a real, just un-convertible, value.
+    """
+    if value_basis == "usd" and candidate.estimated_value is not None and candidate.estimated_value_usd is not None:
+        return sentences["value_usd_basis"].format(
+            currency=candidate.value_currency,
+            amount=candidate.estimated_value,
+            rate=candidate.value_rate,
+            rate_date=candidate.value_rate_date.isoformat() if candidate.value_rate_date is not None else "",
+        )
+    return value_narrative(
+        candidate.value_currency,
+        candidate.estimated_value,
+        candidate.estimated_value_usd,
+        candidate.value_rate,
+        candidate.value_rate_date,
+        sentences,
+    )
+
+
+def value_for_basis(
+    candidate: RecordCandidate, value_basis: str, suggested: dict, placeholders: dict
+) -> tuple[str, Decimal | int]:
+    """The (Currency, Total Opportunity Amount) pair appendix E's mapping decision produces.
+
+    `published`: the amount and currency exactly as stated (rule 9, all the way
+    to the CSV). `usd`: the converted figure with Currency "USD" — unless no
+    rate covers the currency, in which case there is nothing to convert and this
+    falls back to `published` rather than inventing a number or writing "USD 0"
+    for a contract whose value is real but not convertible today.
+    """
+    if candidate.estimated_value is None:
+        return suggested["currency"], placeholders["zero"]
+    if value_basis == "usd" and candidate.estimated_value_usd is not None:
+        return "USD", candidate.estimated_value_usd
+    return candidate.value_currency, candidate.estimated_value
 
 
 def deal_tier(score: int, defaults: dict) -> str:

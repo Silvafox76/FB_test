@@ -44,10 +44,11 @@ from fastapi.templating import Jinja2Templates
 from monitor import db
 from monitor.health.metrics import latest
 from monitor.registry.load import load_function_map
-from monitor.stage.record import build_record
+from monitor.stage.record import build_record, value_narrative
 from review.decisions import (
     DecisionRefused,
     approve,
+    json_safe,
     load_candidate,
     load_cluster_sources,
     record_defaults,
@@ -61,6 +62,12 @@ log = structlog.get_logger(__name__)
 
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HERE / "templates"))
+# The candidate page's raw-JSON preview runs the proposed payload through Jinja's
+# `tojson` filter, and `estimated_value` and `value_rate` reach it as `Decimal`
+# (a Postgres numeric), which the stdlib encoder does not know how to write. Same
+# fix as `review/decisions.py`'s approval insert, and the same function, so a page
+# preview and a stored record cannot disagree about what "JSON-safe" means here.
+templates.env.policies["json.dumps_kwargs"] = {"default": json_safe}
 
 app = FastAPI(title="PFM Opportunity Monitor", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
@@ -133,7 +140,8 @@ def function_names() -> dict[str, str]:
 
 QUEUE = """
     select c.id, c.score, c.title_en, c.buyer, c.country, c.region, c.language,
-           c.deadline_at, c.estimated_value_usd, c.system_names, n.source_id,
+           c.deadline_at, c.estimated_value, c.value_currency, c.estimated_value_usd,
+           c.value_rate, c.value_rate_date, c.system_names, n.source_id,
            count(cn.notice_id) as notices
     from candidates c
     join notices n on n.id = c.primary_notice_id
@@ -173,7 +181,8 @@ AUDIT = """
 CANDIDATE = """
     select c.id, c.score, c.status, c.title_en, c.buyer, c.country, c.region, c.language,
            c.admin_level, c.summary_en, c.matched_functions, c.system_names,
-           c.procurement_type, c.estimated_value_usd, c.eligibility_flags, c.deadline_at,
+           c.procurement_type, c.estimated_value, c.value_currency, c.estimated_value_usd,
+           c.value_rate, c.value_rate_date, c.eligibility_flags, c.deadline_at,
            c.reviewer, c.rejection_reason, c.approved_record_id
     from candidates c
     where c.id = %s
@@ -206,6 +215,14 @@ def queue(request: Request, region: str = "") -> HTMLResponse:
     with db.connect("review") as conn:
         pending = rows(conn, QUEUE)
         waiting = backlog(conn)
+
+    # Appended rather than selected in SQL: one sentence, shared with the candidate
+    # page and the export's Pricing Notes through monitor.stage.record.value_narrative,
+    # so the queue list, the candidate page and the CSV cannot say three different
+    # things about the same candidate's value (rule 1). Never "USD" as a literal here:
+    # the currency comes from the row, per column 9.
+    sentences = record_defaults()["sentences"]
+    pending = [row + (value_narrative(row[9], row[8], row[10], row[11], row[12], sentences),) for row in pending]
 
     regions = sorted({row[5] for row in pending})
     shown = [row for row in pending if not region or row[5] == region]
@@ -245,11 +262,18 @@ def candidate(request: Request, candidate_id: str, error: str = "") -> HTMLRespo
         for entry in matched
     ]
 
+    # Columns 13-17 are estimated_value, value_currency, estimated_value_usd, value_rate,
+    # value_rate_date. One sentence, shared with the queue list and the export's Pricing
+    # Notes through monitor.stage.record.value_narrative, so a reviewer reading the
+    # candidate page and BD reading the CSV are never told two different things (rule 1).
+    value_text = value_narrative(row[14], row[13], row[15], row[16], row[17], record_defaults()["sentences"])
+
     return templates.TemplateResponse(
         request,
         "candidate.html",
         {
             "c": row,
+            "value_text": value_text,
             "functions": functions,
             "cluster": cluster,
             "payload": proposed_payload(candidate_id),

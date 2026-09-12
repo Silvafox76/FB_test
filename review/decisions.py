@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import psycopg
 import structlog
@@ -51,6 +52,31 @@ class DecisionRefused(Exception):
     """The decision is not valid and nothing was written. The message is shown to the reviewer."""
 
 
+def json_safe(value):
+    """The one type-widening JSON serialisation of a built record needs (rule 4).
+
+    `estimated_value` and `value_rate` arrive from Postgres as `Decimal` (numeric
+    columns), which the standard library's JSON encoder does not know how to write.
+    This is what keeps a real published amount from raising `TypeError` inside the
+    approval transaction, which is not a hypothetical: every candidate the pipeline
+    stages now carries one. `review/app.py` uses this too, as the `tojson` filter's
+    default for the same reason on the same shape of dict, so the two do not
+    diverge on what "JSON-safe" means for a candidate's record.
+
+    A whole-currency-unit amount becomes a plain `int` rather than a `float` with a
+    trailing ".0" — `4200000`, not `4200000.0` — because "a bare number, no
+    thousands separators" is the export's own rule for this column and a bare
+    number is what a person typed when the notice stated a round figure. Anything
+    with real cents still becomes a `float`. Anything else reaching this function
+    is a type `build_record` was never meant to produce, so it raises rather than
+    being coerced silently.
+    """
+    if isinstance(value, Decimal):
+        whole = value.to_integral_value()
+        return int(whole) if value == whole else float(value)
+    raise TypeError(f"object of type {type(value).__name__} is not JSON serializable")
+
+
 def review_config() -> dict:
     return yaml.safe_load((CONFIG_DIR / "review.yaml").read_text(encoding="utf-8"))
 
@@ -67,7 +93,8 @@ def rejection_reasons() -> list[str]:
 SELECT_CANDIDATE = """
     select c.id, c.title_en, c.buyer, c.country, c.region, c.admin_level, c.score,
            c.summary_en, c.matched_functions, c.system_names, c.procurement_type,
-           c.estimated_value_usd, c.eligibility_flags, c.deadline_at, c.status
+           c.estimated_value, c.value_currency, c.estimated_value_usd, c.value_rate,
+           c.value_rate_date, c.eligibility_flags, c.deadline_at, c.status
     from candidates c
     where c.id = %s
 """
@@ -89,7 +116,7 @@ def load_candidate(conn: psycopg.Connection, candidate_id: str) -> tuple[RecordC
         raise DecisionRefused(f"candidate {candidate_id} does not exist")
 
     matched = row[8] if isinstance(row[8], list) else json.loads(row[8])
-    deadline = row[13].date() if row[13] is not None else None
+    deadline = row[17].date() if row[17] is not None else None
 
     candidate = RecordCandidate(
         id=row[0],
@@ -104,11 +131,15 @@ def load_candidate(conn: psycopg.Connection, candidate_id: str) -> tuple[RecordC
         matched_function_ids=tuple(entry["function_id"] for entry in matched),
         system_names=tuple(row[9] or ()),
         procurement_type=row[10],
-        estimated_value_usd=row[11],
-        eligibility_flags=tuple(row[12] or ()),
+        estimated_value=row[11],
+        value_currency=row[12],
+        estimated_value_usd=row[13],
+        value_rate=row[14],
+        value_rate_date=row[15],
+        eligibility_flags=tuple(row[16] or ()),
         deadline_at=deadline,
     )
-    return candidate, row[14]
+    return candidate, row[18]
 
 
 def load_cluster_sources(conn: psycopg.Connection, candidate_id: str) -> list[ClusterSource]:
@@ -213,7 +244,7 @@ def approve(conn: psycopg.Connection, candidate_id: str, reviewer: str, edits: d
             insert into approved_records (id, candidate_id, record, approved_by, edited)
             values (%s, %s, %s::jsonb, %s, %s)
             """,
-            (record_id, candidate_id, json.dumps(record), reviewer, edited),
+            (record_id, candidate_id, json.dumps(record, default=json_safe), reviewer, edited),
         )
         conn.execute(
             """

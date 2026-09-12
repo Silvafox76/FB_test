@@ -18,8 +18,31 @@ placeholders:
   dash: "-"
   zero: 0
 
+# Which figure goes in appendix E's single amount column. Migration 012/013 made
+# the published amount and its currency the record (rule 9) and the USD figure a
+# derivation stamped with the rate that produced it; appendix E has one amount
+# column and one currency column, and Zoho's Opportunities module handles
+# multi-currency records natively, so this is the one place that decision is made.
+#
+#   published (the default): Currency is the notice's own currency and Total
+#     Opportunity Amount is the published figure, exactly as stated, all the way
+#     to the CSV. Pricing Notes carries the USD derivation when one exists
+#     ("... at 44.5483 UAH/USD, rate dated ...") or says plainly that no USD rate
+#     covers the currency.
+#   usd: Total Opportunity Amount is the converted figure with Currency "USD",
+#     and Pricing Notes carries the published amount and its rate instead. Falls
+#     back to `published` behaviour when no rate covers the currency, rather than
+#     ever writing "USD 0" for a contract whose value is real but unconverted.
+#
+# monitor/stage/record.py validates this on every call and raises on anything
+# else; it is a config choice for BD to make after a conversation, not a branch
+# the code takes on its own (rule 1).
+value_basis: published
+
 # S fields: fixed defaults for every Monitor record, editable by the reviewer.
 suggested:
+  # Used only when the notice states no value at all, and when value_basis is
+  # "usd" but no fx_rates row covers the currency (see value_for_basis).
   currency: "USD"
   probability_pct: 10
   pipeline: "Standard (Sales Opportunity)"
@@ -76,6 +99,19 @@ funding_source_by_stream:
 sentences:
   eligibility_none_detected: "No eligibility barriers detected in the notice text."
   pricing_notes: "{funding_source}{project_id}; estimated value {value}. Monitor-estimated, unverified."
+  # The three value cases a reviewer must be able to tell apart at a glance, read
+  # by monitor/stage/record.py's value_narrative for the candidate page, the
+  # queue list and (via pricing_value_note) Pricing Notes, so the three never say
+  # three different things about the same candidate. amount and usd are bare
+  # numbers formatted with thousands separators here only because these are
+  # prose, not the CSV's amount column, which never carries one (rule 9).
+  value_not_stated: "not stated"
+  value_no_usd: "{currency} {amount:,.0f} (no USD rate held for {currency})"
+  value_with_usd: "{currency} {amount:,.0f} ≈ USD {usd:,} at {rate:.4f} {currency}/USD, rate dated {rate_date}"
+  # Used only when value_basis is "usd" and a USD figure exists: the amount
+  # column already holds the conversion, so this carries the published figure
+  # and its rate instead of restating the same USD number twice.
+  value_usd_basis: "published as {currency} {amount:,.0f} at {rate:.4f} {currency}/USD, rate dated {rate_date}"
   next_steps: >-
     Approved by {reviewer} on {date}. Validate opportunity details; confirm the Account link;
     confirm funding source; register interest if required.
