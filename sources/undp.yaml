@@ -1,0 +1,234 @@
+# UNDP country-office procurement, the donor feed named in BUILD_ORDER step 15.
+# admin_level is donor: UNDP finances the programme and runs the procurement itself
+# through a country office, so a UNDP notice and a national notice for the same
+# programme can land in one candidate cluster. Same shape as sources/worldbank.yaml
+# and sources/mcc.yaml.
+#
+# NOT BUILT, BECAUSE procurement-notices.undp.org DISALLOWS EVERY ROBOT ON EVERY
+# PATH. There is no monitor/connectors/undp.py, no monitor/normalise/undp.py, no
+# tests/contract/fixtures/undp.* and no contract test.
+#
+# This is a different finding from sources/mcc.yaml's and it is worth keeping the
+# two apart. MCC publishes no notices, so there is nothing on the host to read.
+# UNDP publishes a great many notices, they are public, they are exactly the
+# West African PFM and public-administration work this pilot exists to see - and
+# rule 21's first clause, respect robots.txt, forbids reading them. The blocker is
+# permission, not capability and not a credential.
+#
+# NOTHING ON THE NOTICES HOST WAS FETCHED EXCEPT /robots.txt. That file is the one
+# request you have to make in order to obey it. No listing page, no notice page, no
+# feed, no search endpoint. Everything below about what the site contains comes
+# either from a host whose robots.txt permits reading (measurements 5 to 7) or from
+# a search engine's index, and measurement 4 says plainly which is which.
+# scripts/record_undp_fixture.py re-runs the whole probe and prints the table.
+#
+# THE MEASUREMENT, taken 2026-09-12.
+#
+#   1. https://procurement-notices.undp.org/robots.txt -> HTTP 200, 76 bytes,
+#      text/plain, CRLF line endings, in full:
+#
+#          User-Agent: *
+#          Disallow: /
+#
+#          User-Agent: MS Search 6.0 Robot
+#          Disallow: /
+#
+#      Blanket and unconditional. No Allow line, no Sitemap line, no crawl-delay,
+#      no named agent that is treated differently. It covers every path on the
+#      host, the RSS feed of measurement 4 included.
+#
+#      It is the origin's own file and not a proxy artefact, which matters because
+#      this whole entry turns on it. Served over HTTP/2 with `x-azure-ref` and
+#      `x-cache: CONFIG_NOCACHE`, i.e. from UNDP's Azure Front Door with caching
+#      explicitly off. Read twice, byte-identical. And the egress proxy does not
+#      fabricate robots files: https://search.worldbank.org/robots.txt through the
+#      same path returns that origin's own `{"statusCode": 404}` JSON rather than a
+#      disallow.
+#
+#   2. https://public-components.undp.org/robots.txt -> HTTP 200, 76 bytes,
+#      BYTE-IDENTICAL to measurement 1. This host matters because it is where UNDP
+#      documents the "Procurement Notices Listing" embed widget (measurement 4), so
+#      the one route UNDP offers for reusing these notices elsewhere is disallowed
+#      on its own origin too.
+#
+#   3. https://jobs.undp.org/robots.txt -> HTTP 200, 76 bytes, BYTE-IDENTICAL
+#      again. Three hosts, one file. This is a deliberate estate-wide policy on
+#      UNDP's legacy ColdFusion applications, not a stale file someone forgot on
+#      one host - and the "MS Search 6.0 Robot" stanza dates it to that estate.
+#      Probed precisely so the blanket disallow could not be dismissed as an
+#      accident, because if it were an accident this entry would be wrong.
+#
+#   4. WHAT THE HOST IS ADVERTISED TO SERVE, AND WHY IT IS STILL NOT READ. UNDP's
+#      own pages advertise a syndication route: an RSS feed at
+#      /proc_notices_rss_feed.cfm, a feed document at /rss_feeds/rss.xml, per
+#      country-office feeds "that can be inserted directly into an HTML page", and
+#      an embeddable listing component documented at
+#      public-components.undp.org/help/howto/proc_notices.cfm.
+#
+#      THESE URLS COME FROM A SEARCH ENGINE'S INDEX. NOT ONE OF THEM WAS FETCHED
+#      AND NOT ONE OF THEM IS VERIFIED. They are recorded here as the thing a
+#      person has to decide about, never as a route to build on - CLAUDE.md is
+#      explicit that a connector is built against a real response and not against
+#      documentation memory, and a search snippet is weaker than documentation.
+#
+#      The conflict is real and it is the whole of this entry: a publisher offering
+#      feeds for syndication while its robots.txt disallows every robot on every
+#      path. Reading the invitation as consent and the disallow as legacy cruft is
+#      a defensible position. It is also a terms-of-use judgement about someone
+#      else's site, which is a decision a named person takes and not a branch the
+#      code takes (rule 1). `tos_status` below is the field that carries the
+#      verdict, and today the verdict is restricted.
+#
+#   5. www.undp.org - PERMISSIVE ROBOTS, AND NO NOTICES ON IT ANYWAY. Its
+#      robots.txt is the Drupal default (2,075 bytes, disallowing only /core/,
+#      /profiles/ and /README.md), so the modern site would be readable. Two
+#      independent reasons it is not this source:
+#
+#        a. Its 116,983 sitemap URLs (6 of 7 sitemap pages read; page 5 cut the
+#           connection mid-transfer and was not retried, rule 2) contain no
+#           per-notice node of any kind. 328 URLs match
+#           procurement|tender|notice|bid, and they decompose into 101 country
+#           office `/{office}/procurement` landing pages, 17 static
+#           `/procurement/*` guidance pages, and a tail of blog, news and event
+#           articles about procurement policy. A landing page points at
+#           procurement-notices.undp.org; it is not a listing.
+#        b. Akamai answers this client HTTP 403 on every HTML path tried - `/`,
+#           `/procurement`, `/procurement/resources-suppliers` - while letting
+#           /robots.txt and /sitemap.xml through at 200. The body is Akamai's own
+#           ("Access Denied", errors.edgesuite.net reference). Getting past a bot
+#           wall needs a user agent that disguises the client, which rule 21
+#           forbids outright. So even the guidance pages are unreadable, and the
+#           sitemap is the only reason (a) could be measured at all.
+#
+#   6. https://data.undp.org/robots.txt -> HTTP 200, 2,124 bytes, the same
+#      permissive Drupal default. Its sitemap is 48 URLs and not one is
+#      procurement. Checked because it was the last UNDP origin that might have
+#      carried this data openly. It does not.
+#
+#   7. https://undp.org/robots.txt -> HTTP 301 to www. No separate policy.
+#
+# WHERE THIS COVERAGE ACTUALLY COMES FROM, AND IT IS ALREADY IN STEP 15. UNDP
+# publishes its notices on the UN Global Marketplace as well as on its own portal,
+# and www.ungm.org/robots.txt is permissive: it disallows /Styles/, /Scripts/,
+# /Images/, /Content/, /Views/, the /UNUser/Documents/ tree and some bot-specific
+# paths, and says nothing about /Public/Notice. BUILD_ORDER step 15 already lists
+# monitor/connectors/ungm.py as a separate source with its own agent, so the
+# pilot's sight of UNDP procurement is not lost by this file being disabled - it
+# moves to the connector whose host permits reading. Two things for whoever builds
+# that one: confirm from real responses that UNDP notices are actually in UNGM's
+# public listing and how completely, because this entry asserts only that UNGM's
+# robots.txt permits looking; and expect the UNDP rows there to be the same tenders
+# this source would have produced, which is a dedupe question and not a reason to
+# read both.
+#
+# WHAT A PERSON WOULD HAVE TO DO TO UNBLOCK IT. Three options, and none of them is
+# this file's to take:
+#
+#   a. Ask UNDP. The contact address in MONITOR_USER_AGENT exists for exactly this,
+#      and the ask is small and specific: written confirmation that the advertised
+#      procurement RSS feed may be read on a daily schedule by an identified
+#      client, notwithstanding the site-wide robots.txt. Written permission from
+#      the publisher is what turns tos_status to reviewed_ok, and it is the only
+#      option that ends with this source enabled as written. Cheapest in
+#      engineering and slowest in calendar time.
+#   b. Take the coverage through UNGM instead, and treat this file as the record of
+#      why. Nothing more to build here; it is step 15's ungm.py doing its job. This
+#      is what happens if nobody decides, and it is the option this entry
+#      recommends.
+#   c. A named person reviews the robots.txt-versus-advertised-feed conflict and
+#      records a decision that the feed is in scope. That decision has to be
+#      written down somewhere a reviewer can find it, because it is the one place
+#      in this pipeline where a rule in CLAUDE.md would be read down rather than
+#      followed, and design-cop checks rule 21 on every commit.
+#
+# Under none of a, b or c does a connector get written before the decision exists.
+# A connector pointed at a disallowed host is a rule 21 finding on the day it is
+# committed, whatever it parses.
+id: undp
+name: UNDP procurement notices
+country: multi
+# The pilot's 19 priority countries, from config/thresholds.yaml's geography keys -
+# the same set as sources/worldbank.yaml, and for the same reason: a donor that
+# procures nearly everywhere is filtered to the geography the pilot scores, not
+# read whole.
+#
+# NOT A MEASURED LIST OF UNDP COUNTRY OFFICES. Which of these UNDP actually posts
+# notices for, and in what volume, is exactly what is unmeasurable from behind the
+# robots wall. What can be said from the permitted www.undp.org sitemap
+# (measurement 5) is only that country offices exist across this geography: the
+# English site carries /gambia, /ghana, /liberia, /nigeria, /sierra-leone,
+# /ukraine, /albania, /kosovo, /montenegro, /north-macedonia and
+# /bosnia-herzegovina procurement landing pages, and the francophone West African
+# offices sit under /fr/ - /fr/benin, /fr/burkina-faso, /fr/mali, /fr/mauritania,
+# /fr/niger, /fr/senegal, /fr/togo - which is why they have no English landing
+# page. Their absence from the English list is a language split in the CMS and not
+# evidence that an office does not procure.
+covers: ['BJ', 'BF', 'CI', 'GM', 'GH', 'LR', 'ML', 'MR', 'NE', 'NG', 'SN', 'SL', 'TG',
+         'UA', 'AL', 'BA', 'XK', 'ME', 'MK']
+# UNDP's working language for procurement, and unverified like everything else
+# about the content here. The francophone West African offices under /fr/ are a
+# concrete reason to expect French notices too, which would reach step 14's
+# translator the way Prozorro's Ukrainian and the World Bank's French third do.
+# Per-notice language is the normaliser's to read from the notice anyway (rule 9);
+# this field is the source's own.
+language: en
+admin_level: donor
+# portal / public_listing / PageConnector is what this source looks like from
+# outside the robots wall, and it is the conservative reading rather than the
+# accurate one, because no accurate one is available. Writing feed / rss /
+# FeedConnector would record an endpoint this probe was forbidden to verify, and a
+# later session would build against it (measurement 4).
+#
+# If option (a) or (c) ever unblocks the host, the first request to make is the
+# advertised RSS feed. If it is live and it carries the notices, these three lines
+# become feed / rss / FeedConnector and this is cheap connector work in the shape
+# of monitor/connectors/fts.py. If it is dead - and four of the five feeds MCC
+# advertised were 404 leftovers, so this is not a remote possibility - then the
+# listing is HTML and this is step 17 PageConnector work. Neither base class is
+# brought forward here to find out; tests/unit/test_registry.py already allows a
+# disabled PageConnector row precisely so onboarding can record an assessment
+# ahead of the build.
+stream: portal
+access: public_listing
+connector: PageConnector
+wave: 1
+# 07:30 UTC daily, provisional and unused while enabled is false. Chosen only to
+# collide with nothing already in sources/ (boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, worldbank 08:00, simap and worldbank_pipeline 08:30,
+# place 09:00, mcc Monday 09:30).
+schedule: '30 7 * * *'
+# The portal root, because Source requires a list_url or an api_url and this is
+# where the source is. IT IS DISALLOWED BY ITS OWN robots.txt AND MUST NOT BE
+# FETCHED while tos_status is reviewed_restricted. The advertised feed URLs from
+# measurement 4 are deliberately NOT recorded in this file, for the same reason
+# sources/mcc.yaml keeps the dgMarket URL out of its registry entry: a URL sitting
+# in the registry gets trusted by a later session, and an unverified URL on a
+# disallowed host would be trusted twice over.
+list_url: https://procurement-notices.undp.org/
+# Reviewed, and the answer is that the notices are public and reading them is
+# disallowed by the publisher. reviewed_restricted rather than pending, because the
+# review happened and produced an answer; rather than reviewed_ok, because
+# reviewed_ok would read as "ready to enable" on a host that forbids every robot.
+#
+# This is the one value in this file that a single piece of evidence would change.
+# Written permission from UNDP (option a) makes it reviewed_ok and the rest of the
+# entry becomes a build. Nothing else does: not the advertised feed, not the fact
+# that the notices are public, not that other UN systems publish the same tenders
+# openly.
+tos_status: reviewed_restricted
+# Not a flag the orchestrator flips after a live fetch, which is what separates this
+# file from sources/simap.yaml and sources/doe.yaml. There is no connector to run,
+# and running one against this host is the thing rule 21 forbids. A commit that
+# flips this needs decision (a) or (c) recorded by a named person first, and then
+# the connector, the fixture and the contract test that decision implies.
+enabled: false
+health:
+  # UNMEASURED, and unmeasurable while the host may not be read, so these are
+  # placeholders and not observations. Stated because Source requires them. The
+  # upper bound is a paging and request ceiling in every connector in this
+  # repository and not only a health band, so whoever builds this replaces both
+  # numbers from real runs before enabled becomes true. The minimum is 1 rather
+  # than 0 so a silent run can never read as a healthy one (rule 4).
+  expected_items_per_run: [1, 200]
+  max_consecutive_failures: 3
+owner: ryan.dear
