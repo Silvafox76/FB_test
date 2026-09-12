@@ -37,6 +37,11 @@ Note the rule that module carries: zero yield is counted on `items_seen` and not
 `items_new`. This drill exercises the other counter - a parse failure is a *failed* run,
 not a zero-yield one - and the two are separate on purpose.
 
+**Why it refuses to run next to a real fetch.** It restores the health row it read at the
+start, so a scheduled run that updated that same row in between would have its update
+written over by the restore. That is small damage, but it is damage, so the drill checks
+for a pipeline connection first and does nothing if it finds one.
+
 **What it changes and how it puts it back.** It writes three `fetch_runs` rows and moves
 `source_health` for one source. On the way out, whether it passed or failed, it deletes
 exactly the `fetch_runs` rows it created and restores the source's health row to the
@@ -55,7 +60,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import NamedTuple
 
-from _drill import Drill, DrillCannotRun, connection, owner, run
+from _drill import Drill, DrillCannotRun, connection, owner, require_quiet_pipeline, run
 
 from monitor.fetch import fetch_source
 from monitor.health.source_health import WATCH_THRESHOLD
@@ -174,6 +179,7 @@ def main() -> int:
     keep_loopback_direct()
 
     with owner() as owner_conn, connection("DATABASE_URL_READONLY") as reader:
+        require_quiet_pipeline(reader)
         health_before = health_rows(reader)
         runs_before = run_ids(reader)
         notices_before = reader.execute("select count(*) from notices where source_id = %s", (SOURCE_ID,)).fetchone()[0]

@@ -91,7 +91,7 @@ def main() -> int:
         3,
         "the daily call cap stops the run at the call over the line",
         "rule 22: the cap is checked before every model call, and the run stops rather than trimming",
-        f"DAILY_CALL_CAP={DRILL_CAP} with {DRILL_CAP} calls recorded: the next call never happens, exit non-zero",
+        f"DAILY_CALL_CAP={DRILL_CAP}, or today's count where that is higher: the next call never happens",
     )
 
     with owner() as owner_conn, filtered_in_notice(owner_conn) as notice_id:
