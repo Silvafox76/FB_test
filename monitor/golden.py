@@ -1,8 +1,8 @@
 """The golden set: what says whether a prompt change helped or hurt.
 
-Thirty notices with a human label, re-scored on demand. It answers one question
-that nothing else in the pipeline can: did the last change to the prompt, the
-lexicon or the thresholds make the scorer better or worse?
+A hundred and fifty notices with a human label, re-scored on demand. It answers one
+question that nothing else in the pipeline can: did the last change to the prompt,
+the lexicon or the thresholds make the scorer better or worse?
 
 Two rules about this file that are not style preferences.
 
@@ -46,26 +46,82 @@ GOLDEN_DIR = REPO / "tests" / "golden"
 GOLDEN_CSV = GOLDEN_DIR / "golden.csv"
 HISTORY_CSV = GOLDEN_DIR / "history.csv"
 
-# BUILD_ORDER step 7 names the first three. `url` is added because a person
-# labelling thirty notices from a title alone is being asked to guess, and the
-# whole value of the set is that the label is considered.
-COLUMNS = ("notice_id", "title", "url", "label")
+# BUILD_ORDER step 7 names notice_id, title and label. The other three are added.
+#
+# `url` because a person labelling a hundred and fifty notices from a title alone is
+# being asked to guess, and the whole value of the set is that the label is considered.
+#
+# `source_id` and `language` because the set's coverage is a property worth checking
+# and, without them, checking it means querying the database the file was drawn from.
+# That matters beyond convenience: on 2026-09-12 a leftover row from a `tests/roles`
+# fixture - source `test-fb5a50ae`, committed by a fixture whose setup had aborted
+# partway - was drawn into the set, and was *guaranteed* to be drawn, because the
+# stratifier gives every source at least one seat. Nothing in the file said so. With
+# these two columns the contamination is visible in the artefact and a test can refuse
+# it. They also give the labeller context they would otherwise have to go and find.
+COLUMNS = ("notice_id", "source_id", "language", "title", "url", "label")
 REQUIRED_COLUMNS = ("notice_id", "title", "label")
 
 RELEVANT = "relevant"
 NOT_RELEVANT = "not"
 VALID_LABELS = (RELEVANT, NOT_RELEVANT)
 
-SET_SIZE = 30
 
-# The notices worth labelling are the ones the scorer will actually be given:
-# everything the free filter passed, whether or not it has been scored yet.
-SELECT_FOR_EXPORT = """
-    select n.id, n.title, n.url, coalesce(t.title_en, '')
-    from notices n
-    left join translations t on t.notice_id = n.id
-    where n.source_id = %s and n.status in ('filtered_in', 'scored')
-    order by n.fetched_at
+# One row per notice. `translations` is keyed on (notice_id, prompt_version), so a
+# TED notice carries both its own rendering and the machine translation, and a plain
+# join returns it twice - the same defect found in the scorer and the stager on
+# 2026-09-12, and this was its third instance. The old 30-row set escaped it only
+# because it took the oldest rows, which predate the translator. At 150 it would not.
+#
+# Stratified, not "the oldest N". `order by n.fetched_at limit N` took one correlated
+# slice - the first notices fetched, from one source, before the translator had run.
+# A set drawn that way cannot say anything about the sources, languages or score
+# bands it happens to exclude. These bucket by source and take a deterministic sample
+# within each, so every source is represented in proportion and the selection is
+# reproducible without storing a seed.
+SELECT_PASSED = """
+    with rendering as (
+        select distinct on (t.notice_id) t.notice_id, t.title_en
+        from translations t
+        order by t.notice_id, t.created_at desc, t.prompt_version
+    ),
+    ranked as (
+        select n.id, n.source_id, n.language, n.title, n.url,
+               coalesce(r.title_en, '') as title_en,
+               row_number() over (partition by n.source_id order by md5(n.id::text)) as seat,
+               count(*) over (partition by n.source_id) as in_source,
+               count(*) over () as pool
+        from notices n
+        left join rendering r on r.notice_id = n.id
+        where n.status in ('filtered_in', 'scored')
+    )
+    select id, source_id, language, title, url, title_en
+    from ranked
+    where seat <= greatest(1, ceil(%s::numeric * in_source / pool))
+    order by md5(id::text)
+    limit %s
+"""
+
+SELECT_DROPPED = """
+    with rendering as (
+        select distinct on (t.notice_id) t.notice_id, t.title_en
+        from translations t
+        order by t.notice_id, t.created_at desc, t.prompt_version
+    ),
+    ranked as (
+        select n.id, n.source_id, n.language, n.title, n.url,
+               coalesce(r.title_en, '') as title_en,
+               row_number() over (partition by n.source_id order by md5(n.id::text)) as seat,
+               count(*) over (partition by n.source_id) as in_source,
+               count(*) over () as pool
+        from notices n
+        left join rendering r on r.notice_id = n.id
+        where n.status = 'filtered_out'
+    )
+    select id, source_id, language, title, url, title_en
+    from ranked
+    where seat <= greatest(1, ceil(%s::numeric * in_source / pool))
+    order by md5(id::text)
     limit %s
 """
 
@@ -109,25 +165,104 @@ class GoldenResult:
         return self.cost_usd / self.scored if self.scored else 0.0
 
 
+def _thresholds() -> dict:
+    return yaml.safe_load((CONFIG_DIR / "thresholds.yaml").read_text(encoding="utf-8"))
+
+
 def stage_threshold() -> int:
-    thresholds = yaml.safe_load((CONFIG_DIR / "thresholds.yaml").read_text(encoding="utf-8"))
-    return int(thresholds["stage_threshold"])
+    return int(_thresholds()["stage_threshold"])
 
 
-def export(conn: psycopg.Connection, source_id: str = "ted", size: int = SET_SIZE) -> int:
-    """Write the unlabelled golden set and stop. The label column is left empty."""
-    rows = conn.execute(SELECT_FOR_EXPORT, (source_id, size)).fetchall()
-    if not rows:
+def set_size() -> int:
+    """How many notices a person is asked to label. 150 at step 21, 30 before it."""
+    return int(_thresholds()["golden_set_size"])
+
+
+def passed_share() -> int:
+    """How many of the set come from notices the free filter let through.
+
+    The rest are drawn from `filtered_out`, and that is the point of the split rather
+    than a detail of it: a set drawn only from survivors measures the scorer and can
+    say nothing about the filter, because a relevant notice the filter wrongly dropped
+    is not eligible to appear in it. See config/thresholds.yaml for the measurement
+    that made this necessary.
+    """
+    return int(_thresholds()["golden_passed_share"])
+
+
+def dropped_share() -> int:
+    return set_size() - passed_share()
+
+
+def _refuse_to_discard_labels() -> None:
+    """Never overwrite a set somebody has started labelling.
+
+    `export` opens the file with "w". Before this check, running `monitor golden
+    --export` on a labelled set destroyed it without a word - and that is the one
+    irreplaceable thing in the repository. Every other artefact here can be rebuilt
+    from the database or the registry; the labels are hours of a named person's
+    judgement and exist nowhere else. At 30 rows that was an afternoon's annoyance.
+    At 150 it is the measurement the week 14 gate depends on.
+
+    It refuses on the first label rather than on a majority, because a half-labelled
+    set is exactly the state a person is in when they are most likely to re-run the
+    export to "refresh" it. Moving the file is the deliberate act; there is no --force
+    (rule 1), because a flag that destroys the labels is the same defect with a
+    confirmation step in front of it.
+    """
+    if not GOLDEN_CSV.exists():
+        return
+
+    with GOLDEN_CSV.open(encoding="utf-8", newline="") as handle:
+        labelled = [row for row in csv.DictReader(handle) if (row.get("label") or "").strip()]
+
+    if labelled:
         raise RuntimeError(
-            f"no notices at filtered_in or scored for {source_id!r}; run 'make fetch' and 'make filter' first"
+            f"{GOLDEN_CSV} already has {len(labelled)} label(s) and exporting "
+            "would overwrite them. Those labels are a person's work and are not reproducible. "
+            "Move the file somewhere safe first if you really do want a fresh draw."
+        )
+
+
+def export(conn: psycopg.Connection, size: int | None = None) -> int:
+    """Write the unlabelled golden set and stop. The label column is left empty.
+
+    No `source_id` argument any more, and that is the substantive change. It defaulted
+    to "ted", so the set measured the scorer on European above-threshold notices and
+    said nothing about the donor feeds, the French and Ukrainian corpus, or any West
+    African source. A golden set that covers one source measures one source.
+
+    Two draws, straddling the free filter, proportional to each source's share of its
+    side. See `golden_passed_share` in config/thresholds.yaml for why the dropped side
+    is in here at all.
+    """
+    _refuse_to_discard_labels()
+
+    size = set_size() if size is None else size
+    passed_target = round(size * passed_share() / set_size())
+    dropped_target = size - passed_target
+
+    passed = conn.execute(SELECT_PASSED, (passed_target, passed_target)).fetchall()
+    dropped = conn.execute(SELECT_DROPPED, (dropped_target, dropped_target)).fetchall()
+    rows = list(passed) + list(dropped)
+
+    if not passed:
+        raise RuntimeError("no notices at filtered_in or scored; run 'make fetch' and 'make filter' first")
+    if len(rows) < size:
+        # Loud rather than silently short (rule 4). A set smaller than asked for still
+        # produces a precision number, and nothing downstream would say it was thin.
+        raise RuntimeError(
+            f"asked for {size} notices and the corpus yielded {len(rows)} "
+            f"({len(passed)} passed the filter, {len(dropped)} dropped). "
+            "Fetch more before exporting, or pass a smaller size deliberately."
         )
 
     GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
     with GOLDEN_CSV.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle)
         writer.writerow(COLUMNS)
-        for notice_id, title, url, title_en in rows:
-            writer.writerow([str(notice_id), title_en or title, url, ""])
+        for notice_id, source_id, language, title, url, title_en in rows:
+            writer.writerow([str(notice_id), source_id, language, title_en or title, url, ""])
 
     log.info("golden_exported", path=str(GOLDEN_CSV.relative_to(REPO)), rows=len(rows))
     return len(rows)

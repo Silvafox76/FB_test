@@ -200,3 +200,27 @@ translate_body_chars: 12000
 # sent to Textract and billed for nothing. The route taken is recorded per bulletin,
 # so which way it errs is measurable rather than a matter of opinion.
 pdf_text_layer_min_chars: 2000
+
+# The golden set: how many notices a person is asked to label, and how the draw is
+# split across the free filter. Here rather than in monitor/golden.py because both
+# numbers decide what the precision and recall figures at the week 14 gate actually
+# measure, and changing either should carry a version history like every other
+# threshold in this file (rule 6).
+#
+# `golden_set_size` is BUILD_ORDER step 21's 150, up from 30.
+#
+# `golden_passed_share` is how many of those come from notices the free filter LET
+# THROUGH; the remainder are drawn from `filtered_out`. That split is the reason the
+# set exists in its current form. Drawing only from survivors measures the scorer and
+# is structurally blind to the filter: a relevant notice wrongly dropped on a CPV code
+# or a missing lexicon phrase could never appear in the set and could never be counted
+# as a miss. 1,904 of the 2,083 notices held on 2026-09-12 went that way - 91% of the
+# corpus, unexamined. A label of `relevant` on the dropped side is a FILTER miss, a
+# different defect with a different fix from a scorer miss, and a set that cannot tell
+# the two apart can only ever find one of them.
+#
+# Do not read 90/60 as step 21's "60 relevant, 90 not". Those are label counts, which
+# the labeller produces and nobody can set in advance; these are filter-status counts,
+# which the draw sets. The numbers coincide and the axes do not.
+golden_set_size: 150
+golden_passed_share: 90
