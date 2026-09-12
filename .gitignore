@@ -15,13 +15,18 @@ venv/
 .ruff_cache/
 uv.lock.bak
 
-# Runtime output
-logs/
+# Runtime output. The directories themselves are tracked, via a .gitkeep, because
+# docker-compose.yml bind-mounts them and Docker would otherwise create them
+# root-owned on a clean clone. Only their contents are ignored.
+logs/*
+!logs/.gitkeep
 *.log
-exports/
+exports/*
+!exports/.gitkeep
 reports/*.csv
 reports/*.json
-storage/
+storage/*
+!storage/.gitkeep
 
 # Editors and OS
 .DS_Store

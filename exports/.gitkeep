@@ -1,0 +1,7 @@
+# This directory has to exist in a clean clone.
+#
+# docker-compose.yml bind-mounts it into the container. Docker creates a missing
+# bind-mount target itself, as root, and then neither the container user nor the
+# person who cloned the repository can write to it - which surfaces later as a
+# permission error from whichever stage first tries. Its contents are gitignored;
+# the directory is not.

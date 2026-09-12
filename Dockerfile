@@ -9,8 +9,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-RUN uv sync --no-dev --no-install-project
+# uv.lock is copied and --frozen is passed so the image installs the versions that
+# were tested rather than re-resolving. Without the lock, `uv sync` resolves fresh at
+# build time and the image can quietly carry different dependency versions from the
+# ones the suite ran against - which is the whole point of committing a lock file.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY monitor/ ./monitor/
 COPY review/ ./review/
