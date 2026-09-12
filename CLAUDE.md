@@ -112,8 +112,10 @@ The main session owns everything else: Terraform, migrations and the roles, norm
 make up            # docker compose up -d postgres; apply migrations
 make test          # ruff check . && pytest -q
 make fetch S=ted   # run one connector once
-make run           # fetch all, score, stage (one full pass)
+make run           # fetch all, filter, score, dedupe, stage (one full pass)
 make status        # source health, today's calls and cost, queue depth, export backlog
+make metrics       # the week's numbers, stored as the row the review app's metrics page reads
+make rescore       # second opinion on in-band scores from the larger model; sized by hand, not part of `run`
 make golden        # precision, recall, schema validity per prompt_version
 make review        # start the review app on 127.0.0.1:8080
 make export        # produce a CSV batch and its manifest from approved, unexported records
@@ -125,7 +127,7 @@ make export        # produce a CSV batch and its manifest from approved, unexpor
 - System names that add signal: IFMIS, GIFMIS, IPPIS, TSA, HRMIS, ITAS, e-procurement, SIGIF, SIGFiP, AGFIS, ISFU, SIGMAP, RACHAD, KFMIS.
 - Priority geography: West Africa 1.0 (BJ BF CI GM GH LR ML MR NE NG SN SL TG); Ukraine and Western Balkans 0.8 (UA AL BA XK ME MK); EU, EEA, UK, CH 0.6. From `config/thresholds.yaml`.
 - CPV top-level codes that pass the free filter: 48 (software), 72 (IT services), 79 (business and consultancy). Everything else with a CPV code is dropped before any model call.
-- Staging threshold: 60 in shadow mode. Per-source daily staging cap: 15.
+- Staging threshold: 25. Per-source daily staging cap: 15. Lowered from 60 on 2026-09-12, deliberately, to put borderline work in front of a reviewer rather than discard it. 60 could not be nudged: every value from 43 to 68 staged the same 12 candidates, because the scores take only 18 distinct values and pile on round ones, so a threshold can only land between two buckets (decision 39). What made 25 safe was the lexicon change made the same day — most of what used to arrive scoring 5 to 28 was not marginal PFM, it was waste disposal and vehicle repair passing the free filter on a bare word (decision 44). `config/thresholds.yaml` is authoritative and carries the reasoning; this line is a summary and will go stale before that file does.
 - Kosovo uses ISO code XK.
 
 ## Export target: the CRM's Opportunity columns, not a lead
