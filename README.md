@@ -104,7 +104,7 @@ review queue. Nothing has been approved or exported: the pilot has not entered s
 | --- | --- |
 | 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
 | 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
-| 17 to 19, West Africa | Built, **partly met**. Ten of ten West African portals have no recorded fixture; five have no terms page to clear at all. |
+| 17 to 19, West Africa | Built, **partly met**. Three of ten West African portals have a recorded fixture and a passing contract test (Burkina Faso, Liberia, Sierra Leone); the other seven have a registry entry and nothing behind it, and five of those have no terms page to clear at all. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
 | 21, golden set and metrics | Metrics half met; golden half **not met** — see below. |
 | 22, security review | Met. Eleven findings, two closed early, two deferred with an owner and a date. |
