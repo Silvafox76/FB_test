@@ -1,0 +1,170 @@
+# The Gambia Public Procurement Authority (GPPA), the country's national
+# procurement regulator under the Public Procurement Act. Both candidate entry
+# points named in the onboarding brief were checked live on 2026-09-12, one
+# reachable and one not, and the unreachable one does not block this file:
+#
+#   1. https://gppa.gm -> HTTPS 200, valid Let's Encrypt cert (CN=gppa.gm, expires
+#      2026-10-27), http:// redirects 301 to https://. This is the live, official
+#      site and it names itself as the tender publisher in its own meta description
+#      ("Access tenders, register as a supplier..."), so it is the correct body to
+#      onboard, not a guess or a re-publisher.
+#   2. https://mofea.gm and https://www.mofea.gm -> could not be reached through the
+#      session's egress proxy: CONNECT failed with "gateway answered 502 (policy
+#      denial or upstream failure)" on both hosts (proxy status log, 2026-09-12,
+#      kind connect_rejected). The proxy's own README says a 502 at CONNECT is
+#      ambiguous between an organisation policy denial and the destination being
+#      genuinely unreachable, and this agent cannot tell which from inside the
+#      sandbox. This is recorded rather than worked around (no second network path
+#      was tried) and does not matter for this file: GPPA, not the ministry, is
+#      Gambia's statutory procurement regulator and the body gppa.gm's own copy
+#      says publishes tenders, so MOFEA was never the route to build even if it had
+#      answered. A person with a route past the proxy (or a different network) could
+#      confirm MOFEA is silent on procurement too, but nothing here depends on it.
+#
+# ROBOTS.TXT, fetched 2026-09-12, verbatim:
+#   User-Agent: *
+#   Allow: /
+#   Disallow: /api/
+#   Disallow: /admin/
+#
+#   Sitemap: https://gppa.gm/sitemap.xml
+# No crawl-delay is stated. /tenders/notices (the listing used below) is under
+# neither Disallow line, so reading it is permitted. /api/ is disallowed, which
+# matters below: this site calls a backend to fill the listing, and that backend
+# was not probed for a path, both because guessing at it is the documentation-
+# memory shortcut CLAUDE.md forbids and because a same-host /api/ path would fall
+# under this exact Disallow if it were found.
+#
+# WHAT THE PAGE ACTUALLY SERVES, AND WHY THIS IS A BrowserConnector.
+# gppa.gm is a Next.js site (React Server Components streaming, not a static
+# export). The shell HTML is genuinely server-rendered - unlike a bare SPA mount
+# point, the nav, footer and page chrome are all present in the raw response - but
+# the three listing views that matter (Tender Notices, Awarded Contracts, Annual
+# Procurement Plans) each render their content area as a grid of Tailwind
+# `animate-pulse` skeleton cards in the document `curl` receives, e.g. verbatim from
+# /tenders/notices:
+#   <div class="bg-white rounded-xl border border-slate-200 p-6 animate-pulse h-80">
+#     <div class="h-4 bg-slate-200 rounded w-24 mb-4"></div> ...
+# repeated for every card slot, on all three listing pages, fetched separately
+# (2026-09-12). This is a loading placeholder, not data: the notice grid is a client
+# component whose real fetch happens after hydration, so a plain HTTP GET - which is
+# all `monitor/connectors/base.py`'s FeedConnector or a PageConnector built the same
+# way can do - receives the pre-fetch skeleton state forever and would report a
+# permanently loading page as a healthy read of nothing, which is worse than not
+# onboarding it (rule 4).
+#
+# THE "Showing 0 tender notices" TEXT VISIBLE IN THE RAW HTML IS NOT A REAL COUNT.
+# It sits directly above the skeleton grid quoted above and reads, node for node,
+# `Showing<!-- --> <span class="font-semibold">0</span> <!-- -->tender notices`.
+# That is a counter `useState`'d to 0 before the same client-side fetch that fills
+# the skeleton cards resolves, not a server-confirmed total - the giveaway is that
+# it sits beside loading placeholders rather than an empty-grid message. It cannot
+# be read as "GPPA currently has zero live tenders" any more than the skeleton cards
+# can be read as real notices; both are the pre-JS state. The same is true of
+# /updates, which shows "Active Tenders 0" / "Plans Submitted (2026) 0" beside the
+# same kind of pre-fetch chrome, and of /publications ("Showing 0 publications").
+# None of this is evidence about GPPA's real publication rate - it is evidence that
+# the count widgets, like the listings, are filled after JS runs. No page on this
+# site can be scored for volume from a plain GET, which is why VOLUME below is
+# unmeasured rather than a (misleadingly reassuring) zero.
+#
+# There is a same-origin API this SPA almost certainly calls once hydrated - the
+# site is a "base44" no-code build (meta tags and a Supabase storage bucket under
+# `base44-prod` name the platform) - but no path was guessed at: robots.txt already
+# disallows /api/ on this exact host, and finding the real endpoint without running
+# the page's own JavaScript would be exactly the undocumented-internal-API guess
+# CLAUDE.md's "do not build against documentation memory" forbids. A Playwright
+# connector watching the page's own network calls is how a real endpoint would be
+# found, not URL-guessing here (same conclusion as sources/senegal.yaml reached for
+# achatspublics.sn's api.achatspublics.sn).
+#
+# REGISTRATION: NOT REQUIRED TO READ THE LISTING. /tenders/notices carries no login
+# wall and no paywall; the account system lives on a separate subdomain,
+# gppportal.gppa.gm (a create-react-app shell, itself unreadable without JS), linked
+# from gppa.gm's own header behind a button labelled "Register as Supplier" - i.e.
+# for bidding, not reading. access is therefore `public_listing`, not `registered`,
+# even though the technical route to it needs a browser, the same distinction
+# sources/senegal.yaml draws for APPEL.
+#
+# VOLUME: UNMEASURED, BECAUSE THIS AGENT CANNOT RENDER THE PAGE. No count on this
+# site - tenders, awarded contracts, procurement plans, publications, the "Active
+# Tenders" / "Plans Submitted" widgets on /updates - can be read from a plain GET
+# per the finding above, so there is no 7-day window to report and no lifetime
+# total either (unlike sources/senegal.yaml, which at least had a screenshot in a
+# PDF manual to cite). The site's static pages all carry the same sitemap.xml
+# lastmod, 2026-07-09, consistent with a recent relaunch, but that says nothing
+# about publication rate either. Treat `expected_items_per_run` below as a
+# placeholder, not an observation, and replace it from the first live Playwright
+# fetch - the same discipline sources/mcc.yaml and sources/senegal.yaml use for a
+# route nobody has read with a browser yet. Given the country's size, a handful of
+# notices a month, not a week, is the plausible real rate; this is a guess offered
+# for calibration only and is not what is written into the health band below.
+#
+# LANGUAGE AND CODES. The site declares `<html lang="en">` and every string of UI
+# copy read across all pages fetched (nav, headings, footer, meta description) is
+# English, so `language: en` is confirmed against the chrome. Whether notices carry
+# CPV codes or a national scheme, and whether a notice's supporting documents need a
+# session or are PDFs with or without a text layer, could not be checked: no real
+# notice has been observed to inspect, for the same JS-rendering reason as above.
+# Both are open items for whoever builds the connector, to be resolved against the
+# first real, hydrated notice rather than guessed here.
+#
+# TOS: PENDING, NOT REVIEWED. The footer's "Privacy Policy" and "Terms of Use" links
+# are both literally `href="#"` - dead placeholders, not routes to a page. Direct
+# guesses at a legal-notice path all 404: /terms, /terms-of-use,
+# /terms-and-conditions, /legal, /privacy, /privacy-policy, /tos (all checked
+# 2026-09-12). No terms-of-use, legal notice or acceptable-use page exists anywhere
+# on gppa.gm to quote a clause from. Absent a clause, this is `pending` for legal
+# review, not a guess in either direction, same as sources/senegal.yaml.
+id: gambia
+name: Gambia Public Procurement Authority (GPPA), Tender Notices
+country: GM
+admin_level: national
+language: en
+stream: portal
+access: public_listing
+# See "WHAT THE PAGE ACTUALLY SERVES" above: the listing is a client-fetched grid
+# behind a server-rendered shell, so a plain-GET connector reads a permanent loading
+# skeleton, never data. BrowserConnector is disabled-registry-only until it is
+# built; test_every_enabled_source_is_a_feed_connector scopes to enabled sources
+# only, so this row does not need that test touched (tests/unit/test_registry.py,
+# outside this agent's lane regardless).
+connector: BrowserConnector
+wave: 1
+# 11:30 UTC daily = 11:30 Banjul (Gambia is UTC+0 year-round, no DST). Chosen to
+# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
+# 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, senegal 11:00.
+schedule: '30 11 * * *'
+# The tender listing itself, linked from the home page's Tenders menu. Confirmed
+# live 2026-09-12: HTTP 200, but see above - the document served here carries only
+# loading placeholders without JavaScript, which is the fact a BrowserConnector has
+# to be built against.
+list_url: https://gppa.gm/tenders/notices
+# Best available guess at the row container, NOT verified against a real rendered
+# notice: no live tender has been observed anywhere on the site to inspect (see
+# VOLUME above), only the loading-skeleton card, quoted in full above, which uses
+# this exact wrapper class plus two loading-only utility classes (`animate-pulse`,
+# `h-80`) this selector deliberately excludes. The real card is drawn from the same
+# design system (shadcn/ui-style Tailwind components reused verbatim across
+# /tenders/notices, /tenders/awarded-contracts and /tenders/annual-procurement-plans)
+# so reusing the wrapper class without the loading-only modifiers is the best
+# evidence-based guess available, not a documentation-memory invention - but it is
+# still unconfirmed. Whoever builds this connector must verify it against a real
+# Playwright render of an actual populated notice before writing the contract test,
+# and change this line if the populated card differs.
+row_selector: 'div.bg-white.rounded-xl.border.border-slate-200.p-6'
+tos_status: pending
+enabled: false
+health:
+  # UNVERIFIED PLACEHOLDER. See VOLUME above: no real count could be read from this
+  # site without a browser, so there is no measurement to floor this on. Set to 1
+  # rather than 0 so a silent empty run can never read as a healthy one (rule 4),
+  # same convention as sources/mcc.yaml and sources/senegal.yaml for an unread
+  # route. The upper bound is a guess for a small country's plausible monthly rate,
+  # not an observation, and is also the detail-request ceiling in whatever connector
+  # is built - both numbers must be replaced from a real Playwright fetch before
+  # this source is ever enabled.
+  expected_items_per_run: [1, 10]
+  max_consecutive_failures: 3
+owner: ryan.dear

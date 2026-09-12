@@ -1,0 +1,129 @@
+# Liberia's national public procurement notices, published by the Public
+# Procurement and Concessions Commission (PPCC) through its e-Government
+# Procurement system's OCDS records API - NOT the PPCC website's own
+# "Procurement Notices" listing, and not the Ministry of Finance and Development
+# Planning site. Both of those were checked and ruled out; see ROUTES CONSIDERED.
+#
+# ROUTES CONSIDERED, probed 2026-09-12, in the order CLAUDE.md's procedure asks
+# for (documented API / structured feed before any HTML listing):
+#
+#   1. ppcc.gov.lr/opportunities/opportunities/procurement-notices - the PPCC
+#      Drupal site's own "Procurement Notices" taxonomy listing, server-rendered
+#      (no JS: fetched with plain curl, rows are in the raw HTML). NOT USED. It
+#      carries exactly two rows: a genuine General Procurement Notice (Compact
+#      Development Team Liberia, closing 2027-06-30) and what reads as leftover
+#      test content ("Circular On Enhancing Fair and Transparent Procurement
+#      Processes", closing date 2040-12-31, linking a .docx titled "Content Idea
+#      For EGP 1year anniversary final"). Two rows in total is not a
+#      publication route, it is a page nobody is maintaining now that eGP exists.
+#   2. mfdp.gov.lr - the Ministry of Finance and Development Planning site. NOT
+#      USED, and not because of access: it is a Next.js app, and everything past
+#      the shell (nav, listings, body text) is client-rendered - `curl` on `/`
+#      returns an empty `<body>` and a bundle of `_next/static` script tags, no
+#      procurement content in the raw HTML. It would need a browser even to
+#      confirm it carries any procurement content at all, and PPCC is Liberia's
+#      statutory procurement regulator, not MFDP, so this was not pursued further
+#      once route 3 was found.
+#   3. eprocurement.ppcc.gov.lr - THIS SOURCE. PPCC's e-GP platform (built by
+#      European Dynamics; the same product family as several other national e-GP
+#      systems). Its home page (`/epps/home.do`) links "Access to Liberia OCDS
+#      portal" - a second, separate web app at `/ocds/` titled "OCDS Visualisation"
+#      that implements the Open Contracting Data Standard. That app's Angular
+#      client calls a JSON endpoint, `POST /ocds/record/searchRecords.action`,
+#      with a small body (`page`, `pagesize`, `sortField`, `sortDir`) and gets back
+#      `{"total": 1385, "items": [...]}` - no login, no cookie required (a fresh
+#      request with no prior cookie jar succeeded). Each item's `id` downloads the
+#      full OCDS release at `GET /ocds/record/downloadRecord/{id}/COMPILED.action`
+#      (or `VERSIONED`), also with no login: title, description, procuringEntity,
+#      tenderPeriod, value, procurementMethod, item classification and a
+#      free-text eligibilityCriteria block, all in one response. This is a
+#      documented structured feed by the letter of CLAUDE.md's access-route
+#      order, not an HTML listing, and BUILD_ORDER step 18's line calling Liberia
+#      a "simpler Page connector" is superseded by this: read against the OCDS
+#      API with a FeedConnector, not against either HTML listing above.
+#
+# THE ONE THING BEHIND A LOGIN: a release's `documents[].url` (e.g.
+# `/epps/cft/downloadContractDocument.do?...`) 302s to `/cas/login`. Bidding
+# documents require a session; this source does not fetch them and never will
+# without a named person registering on the portal (rule: never register an
+# account on FreeBalance's behalf). Everything this connector reads - title,
+# description, buyer, dates, value, method, eligibility text - is public without
+# one, so the loss is the attached PDF/Word documents, not the notice itself.
+id: liberia
+name: Liberia PPCC e-GP OCDS records
+country: LR
+language: en
+# Confirmed, not assumed: eprocurement.ppcc.gov.lr's pages declare
+# <html lang="en">, ppcc.gov.lr's declare <html lang="en">, and every document
+# language field read across five sampled OCDS releases was "EN".
+admin_level: national
+# PPCC is the national regulator and most procuring entities seen in the sample
+# are national agencies (Liberia Revenue Authority, Liberia Anti-Corruption
+# Commission, Ministry of Posts and Telecommunications, Liberia Drug Enforcement
+# Agency). PPCC's own site also shows county-level procurement plans (e.g.
+# Maryland County Administration), so a county buyer will appear in this feed
+# eventually; there is no per-notice admin_level signal in the OCDS payload the
+# way DOE's eForms carry buyer-legal-type, so this is the source-level default
+# and a normaliser override would need a buyer-name heuristic, not a feed field.
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+# 11:00 Monrovia. Liberia is GMT year-round (no DST), so this cron figure is both
+# local time and UTC with no conversion. Chosen to miss every slot ebrd.yaml
+# already lists (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts 07:00,
+# undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place 09:00,
+# mcc Mon 09:30, ungm 10:00, ebrd 10:30).
+schedule: '0 11 * * *'
+api_url: https://eprocurement.ppcc.gov.lr/ocds/record/searchRecords.action
+# robots.txt, checked on both hosts this source touches, 2026-09-12:
+#   - eprocurement.ppcc.gov.lr/robots.txt itself 302s to /epps/home.do (the app
+#     redirects any unmapped top-level path into itself), so it is not a robots
+#     file. The real one lives at eprocurement.ppcc.gov.lr/epps/robots.txt and
+#     reads in full:
+#       User-agent: Yandex
+#       Disallow: /
+#       User-Agent: MJ12bot
+#       Crawl-Delay:   30
+#     Nothing there names a generic user agent, our listing path, or any crawl
+#     delay that binds us; only Yandex is disallowed and only MJ12bot is
+#     rate-limited. eprocurement.ppcc.gov.lr/ocds/robots.txt is a 404 (the OCDS
+#     app ships none), which is silence, not a restriction.
+#   - ppcc.gov.lr/robots.txt (the Drupal site, not used as the fetch target but
+#     checked because its "Procurement Notices" page was a candidate route)
+#     disallows /admin/, /search/, /user/*, /core/, /profiles/ and similar
+#     Drupal system paths, and does not touch /opportunities/. Moot for this
+#     source since that page was not chosen as the route, but recorded because
+#     it was fetched once during the assessment (rule 21: one polite pass).
+#
+# Terms of use: no Terms of Use, Disclaimer or Privacy page was found on either
+# host - checked the ppcc.gov.lr home page, footer and main menu (Legal Affairs
+# Division and Legal Documents are procurement-law publications, not a website
+# ToS), ppcc.gov.lr/sitemap.xml (404), and the eGP "Information Area" (its only
+# legal text is a one-line "Copyright (c) European Dynamics" footer). The OCDS
+# release payload itself carries a `publicationPolicy` and `license` field, but
+# both point to `.../viewInfo.do?section=statistics...` - the portal's own
+# statistics page, not a license document, so it is a template default left
+# unconfigured rather than a stated policy either way. Absent any restriction
+# and with the API itself requiring no account (see ROUTES CONSIDERED), this is
+# reviewed_ok on the same basis sources/ebrd.yaml used: a permissive robots.txt
+# plus no login wall on the data actually read, not a quoted license clause,
+# because no clause exists to quote - its absence is the finding.
+tos_status: reviewed_ok
+enabled: false          # step 18: not yet built or fixture-tested; see notes above on the route change from BUILD_ORDER's assumption
+health:
+  # Measured 2026-09-12 against the live corpus (1,385 records total, one
+  # ~256 KB request for the lot - `POST searchRecords.action` with
+  # pagesize=1385 returned everything, so cost is not a reason to window this
+  # tightly). Per-day counts over the last 32 days (2026-08-11 to 2026-09-11)
+  # run 0 to 14 and are bursty: 10 of those 32 calendar days published nothing.
+  # A connector windowed to a single day would legitimately read zero on a
+  # normal day, which is exactly the silent-zero rule 4 exists to catch, so
+  # whatever window monitor/connectors/liberia.py uses should span at least a
+  # week. Rolling 7-day sums across the same 32 days run 8 to 44 (never zero),
+  # which is the basis for the band below: expected_min sits under the
+  # measured floor of 8 rather than at it, the same margin ebrd.yaml keeps, and
+  # expected_max sits above the measured ceiling of 44 for headroom.
+  expected_items_per_run: [3, 60]
+  max_consecutive_failures: 3
+owner: ryan.dear

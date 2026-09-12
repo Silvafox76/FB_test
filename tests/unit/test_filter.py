@@ -155,6 +155,57 @@ def test_an_accented_french_phrase_matches():
     assert verdict.matched
 
 
+# --- apostrophes, which French notices spell two ways --------------------------
+
+
+# `config/lexicon_fr.yaml` writes this one with a typographic apostrophe. Real
+# notices use whichever their publisher's CMS emits, and both forms appear across
+# the corpus and sometimes inside one document (step 19).
+ELIDED = {"public_investment_management": ["gestion de l\u2019investissement public"]}
+
+
+@pytest.mark.parametrize(
+    ("apostrophe", "what"),
+    [
+        ("\u2019", "U+2019, what most CMSes and poppler emit"),
+        ("'", "U+0027, what a person types and what 400 of 584 BOAMP notices carry"),
+        ("\u02bc", "U+02BC, which turns up in text pasted out of other systems"),
+    ],
+)
+def test_a_lexicon_phrase_matches_whichever_apostrophe_the_notice_used(apostrophe, what):
+    """One canonical form, so there is one attempt rather than two spellings (rule 1)."""
+    title = f"Appui a la gestion de l{apostrophe}investissement public au Benin"
+
+    assert lexicon_check(title, "", ELIDED).matched, what
+
+
+def test_the_phrase_reported_back_is_the_one_the_lexicon_wrote():
+    """The reviewer sees the config's own spelling, not the fold's intermediate form."""
+    verdict = lexicon_check("gestion de l'investissement public", "", ELIDED)
+
+    assert verdict.phrases == ["gestion de l\u2019investissement public"]
+
+
+def test_a_notice_carrying_both_forms_matches_on_either():
+    """83 notices in the corpus mix both in one document, measured 2026-09-12.
+
+    Taken from a real BOAMP title, which reads `Marches d'assurances ... jardin
+    d\u2019enfants`: one ASCII apostrophe and one typographic, eleven words apart,
+    written by the same publisher on the same day.
+    """
+    title = "March\u00e9s d'assurances Dommage Ouvrage pour la r\u00e9habilitation du jardin d\u2019enfants"
+    lexicon = {"a": ["march\u00e9s d\u2019assurances"], "b": ["jardin d'enfants"]}
+
+    verdict = lexicon_check(title, "", lexicon)
+
+    assert verdict.functions == ["a", "b"]
+
+
+def test_the_fold_does_not_make_unrelated_phrases_match():
+    """It normalises one character class. It is not fuzzy matching by the back door."""
+    assert not lexicon_check("gestion de la dette publique", "", ELIDED).matched
+
+
 # --- the whole filter --------------------------------------------------------
 
 

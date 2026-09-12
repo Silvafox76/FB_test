@@ -1,0 +1,230 @@
+# Sierra Leone's national procurement publication route, BUILD_ORDER step 19 ("the
+# tenth and final wave-1 West African connector"). Sierra Leone already has two
+# candidates surfaced through the donor feeds (World Bank / UNDP-style financing),
+# so this entry is only about whether the *national* route is readable, not about
+# whether there is PFM activity to find.
+#
+# THREE CANDIDATE ROUTES, because the brief named two hosts and a third turned up
+# while probing the first. Probed 2026-09-12, one polite GET per page (rule 21):
+#
+#   1. https://nppa.gov.sl/bid/ - THIS SOURCE. The National Public Procurement
+#      Authority's own WordPress site, "Bid Opportunities" page: a single
+#      server-rendered TablePress table, 32 rows on 2026-09-12, no pagination, no
+#      login, no CAPTCHA. Confirmed with a plain `curl` (no JS engine involved) that
+#      every row - organisation, date posted, expiration date, description, and the
+#      PDF download link - is already in the HTTP response body. See ACCESS ROUTE
+#      below.
+#   2. https://publicprocurement.gov.sl - NOT REACHABLE, AND NOT THIS SOURCE'S GAP.
+#      Both the apex and `www.` host answer "gateway answered 502 to CONNECT
+#      (policy denial or upstream failure)" through this session's egress proxy -
+#      the same ambiguous failure the proxy also logged that day for several other
+#      West African government hosts (ghaneps.gov.gh, ppa.gov.gh, marchespublics.sn,
+#      dgmp.gov.ml, mofea.gm), so it cannot be told apart from this vantage point
+#      whether the host is down or the proxy declined it. It does not matter here:
+#      nppa.gov.sl is confirmed live, is the domain NPPA's own site, news and the
+#      December 2025 Salone e-GP rollout article all point at, and nothing on
+#      nppa.gov.sl links to publicprocurement.gov.sl or mentions it. Recorded so a
+#      later session does not re-spend a probe on a domain that was already found
+#      dead and unreferenced.
+#   3. https://egp.nppa.gov.sl - THE ACTUAL E-PROCUREMENT SYSTEM ("Salone e-GP",
+#      built by Peragosystems per the page's own footer link), and NOT THIS SOURCE.
+#      Its own robots.txt is permissive on the page shell (`Allow: /`) but disallows
+#      `/api/`, and the page shell carries no notice data at all: `curl` on
+#      `/procurement-notice` returns a 61 KB Next.js document whose only visible
+#      text is nav chrome ("Procurement Notices Plans Contracts Data More Login Sign
+#      Up"); the embedded React Server Component payload (`self.__next_f.push`,
+#      15 chunks inspected) is script wiring, CSS chunk lists and SVG icon paths,
+#      not one notice title or date among them. The listing is fetched client-side
+#      after hydration, from exactly the `/api/` path robots.txt disallows - so
+#      even a browser-driven read of this page would mean the browser itself
+#      issuing a disallowed request, not merely a JS-rendering question. Same
+#      finding for `/data/ocds`, which the nav advertises as "OCDS Data / OCDS
+#      Report / OCDS Download Records": Sierra Leone's e-GP platform does appear to
+#      speak OCDS, which would outrank the HTML bulletin per the access-route order
+#      this pilot follows, but the raw response is the same nav-only shell with the
+#      real OCDS payload behind the same disallowed `/api/`. Nothing here is
+#      unreadable because of JavaScript alone; it is unreadable because the one
+#      route to the data is the one route robots.txt names. Worth a person's
+#      attention later: the December 2025 news post ("Pilot MDAs Receive Hands-On
+#      Training on Salone e-GP Procurement Requisition Module") says this is an
+#      active pilot rollout, so both the JS question and the robots.txt question on
+#      this host may look different in a year, and if `/api/ocds` or an equivalent
+#      ever answers directly outside `/api/`, that is a structured feed and would
+#      replace this source rather than sit beside it (rule 1).
+#
+# robots.txt for the host this source reads, https://nppa.gov.sl/robots.txt,
+# fetched 2026-09-12, in full:
+#
+#     User-agent: *
+#     Disallow: /wp-content/uploads/wc-logs/
+#     Disallow: /wp-content/uploads/woocommerce_transient_files/
+#     Disallow: /wp-content/uploads/woocommerce_uploads/
+#     Disallow: /wp-admin/
+#     Allow: /wp-admin/admin-ajax.php
+#
+#     Sitemap: https://nppa.gov.sl/wp-sitemap.xml
+#
+# /bid/ is not disallowed, nor is /wp-content/uploads/ in general (only three named
+# WooCommerce log/cache subpaths under it are, and the bid PDFs live directly under
+# /wp-content/uploads/<year>/<month>/), so both the listing and its documents are
+# permitted. No crawl-delay is declared. This is a generic WordPress default file (a
+# leftover WooCommerce plugin's disallow lines on a site with no shop in current
+# use - /shop/, /cart/, /checkout/ and /donate/ all sit unused in the sitemap too),
+# not a policy written for this data, but it is the origin's own and it permits.
+#
+# TERMS OF USE: NONE EXISTS ON THIS SITE, CHECKED RATHER THAN ASSUMED. Every page
+# WordPress's own sitemap declares was read as a list (49 URLs, `wp-sitemap-posts-
+# page-1.xml`, fetched 2026-09-12): about, acts-and-regulations, annual-assessment-
+# report, bid, circulars, contract-awards, faq, price-norm, public-procurement-
+# manual, standard-bidding-documents and a tail of e-commerce and donation-theme
+# leftovers (cart, checkout, donate, donor-dashboard, shop) that pair with the
+# robots.txt WooCommerce lines above. None is a terms of use, privacy policy or
+# disclaimer page, and none of the visible nav items on the home or bid page (Home,
+# Legal Instruments, Acts & Regulations, Circulars, Bids & Contracts, OCDS Reports,
+# Publications, About Us, Contact) is one either. The e-GP subdomain has none
+# either: /terms, /terms-of-service, /privacy, /privacy-policy and /legal all 404
+# there. There is consequently no clause to quote for or against automated access,
+# reuse or commercial use - the question this step exists to answer has an answer,
+# and the answer is that NPPA has not written one down anywhere on either host.
+#
+# tos_status is reviewed_ok on the strength of what was actually checked, not a
+# default for silence: robots.txt (quoted above) permits; no registration, account
+# or credential of any kind gates /bid/; there is no CAPTCHA; the page fetches as
+# static HTML with no session cookie, confirmed by fetching a listed PDF cold
+# (Newspaper_Advertisement_National_Stadium_REOI-1.pdf, 216,454 bytes, HTTP 200, no
+# prior request) with the identified user agent and nothing else; and the page
+# states its own purpose in the words a reviewer can check against this file's
+# access pattern: "The National Public Procurement Authority (NPPA) is committed to
+# promoting transparency, fairness, and competition in public procurement. Below is
+# a list of current bid opportunities available to suppliers, contractors, and
+# service providers." Revisit if NPPA ever publishes a terms page - nothing here
+# would need to change except this status and the URL it cites.
+#
+# ACCESS ROUTE, in the order this pilot works down: no documented API (route 3
+# above is the only OCDS mention on either host and it is unreachable); no RSS or
+# ATOM (neither host's `<head>` declares one and none was found at a guessed path);
+# no alert email; a public HTML listing with no registration - this source, and the
+# first route on the list that actually works. `access: api` / `connector:
+# FeedConnector` rather than `public_listing` / `PageConnector` for the same reason
+# sources/ebrd.yaml gives: this is one HTTP GET of a fixed URL returning the whole
+# table in one document, parsed with selectolax, no browser, no session, no
+# listing pages to walk - the field describes the client this needs, and that
+# client is monitor/connectors/ebrd.py's shape, not a paging PageConnector's.
+#
+# CONNECTOR CLASS: FeedConnector, proved rather than assumed. `curl -A
+# "FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com)"
+# https://nppa.gov.sl/bid/` with no browser returns all 32 rows of
+# `table#tablepress-1 tbody tr` in the response body - organisation
+# (`td.column-1`), date posted (`td.column-2`, `DD-MM-YYYY`, two rows carry a stray
+# internal space e.g. "30- 04-2026" and "26 -01-2026"), expiration date
+# (`td.column-3`), description (`td.column-4`), and the bid document link
+# (`td.column-5 a[href]`). BrowserConnector is not justified: nothing here is
+# absent from the served HTML the way sources/mcc.yaml's forecast table is present
+# but egp.nppa.gov.sl's own listing is not. No `row_selector` is set because that
+# field is BrowserConnector-only (monitor/models.py's `Source` validator rejects it
+# on any other class).
+#
+# THERE IS NO SEPARATE NOTICE PAGE TO FETCH, which is a real difference from
+# sources/ebrd.yaml's shape: the table row already carries everything - the "View
+# and Download" link in `column-5` points straight at a static PDF under
+# `/wp-content/uploads/<year>/<month>/`, not at an HTML detail page. Two of the 32
+# rows (WEST AFRICA HOLDING (SL) LIMITED, 16-06-2026; UNIVERSITY OF SIERRA LEONE,
+# 20-04-2026) have an empty `<a>` with no `href` at all - a data-entry gap in the
+# source, not a fetch failure - so the connector reads a document link if the
+# column has one and stores the row's own text if it does not, and neither case
+# raises.
+#
+# DOCUMENTS: PDF, WITH A TEXT LAYER, CHECKED ON THREE. Fetched cold (no session)
+# and run through `pdftotext -layout`: the National Stadium REOI (3 pages) yielded
+# 9,929 characters of laid-out text including its own procurement reference number
+# (MOS/REOI/QCBS/2026/001), the Kono University EPC invitation (2 pages) yielded
+# 4,806, and the July 2026 Ministry of Lands invitation (2 pages) yielded 4,378.
+# All three are native PDFs a text extractor reads directly; none needed OCR. No
+# textract path is implied for this source.
+#
+# CODES: NO CPV, NO OTHER STRUCTURED CLASSIFICATION ON THE LISTING. Each notice
+# carries a free-text, agency-assigned reference number in whatever format that
+# agency uses (MOS/REOI/QCBS/2026/001 above; others differ), not a shared national
+# scheme. The separate /contract-awards/ page (not read by this source; see below)
+# spells out procurement-method abbreviations - ICB (International Competitive
+# Bidding), NCB (National Competitive Bidding), RB (Restricted Bidding), SS (Sole
+# Source), QCBS (Quality and Cost-Based Selection) - which is the closest thing
+# Sierra Leone's procurement system has to a code list, and it is method, not
+# commodity, classification. config/lexicon_en.yaml is what will do the filtering
+# work CPV does for TED-family sources.
+#
+# LANGUAGE: en, confirmed rather than assumed - `<html lang="en-US">` on both the
+# home and bid pages, and every row and every fetched PDF is in English prose.
+#
+# NOTICES ARE PRE-SEPARATED FROM AWARDS BY WHICH PAGE THIS IS, so no
+# `exclude_notice_types` list is needed the way sources/doe.yaml and
+# sources/ebrd.yaml need one. /bid/ is "Bid Opportunities" only; NPPA publishes
+# contract awards on the separate /contract-awards/ page ("a summary of the
+# pertinent portions of these contracts in fulfillment of Section 26 of the Public
+# Procurement Act, 2016"), which this source does not read. Nothing decided is
+# read and then thrown away; the two are different NPPA pages before any fetch.
+#
+# VOLUME, measured 2026-09-12 from the 32 rows on the page (dates DD-MM-YYYY,
+# "Date Posted" column): last 7 days 0, last 14 days 0, last 30 days 2, last 90
+# days 11, last 365 days 28. Span of the whole visible table: 2025-07-19 to
+# 2026-08-27 (404 days), and it is lumpy rather than steady - six postings landed
+# within five weeks in Feb-Mar 2026, then a single 176-day gap follows the four
+# oldest (2025-07) rows before the next one in January 2026. A 7-day or 14-day
+# arrival-rate window on this source reads zero most weeks, honestly, which is
+# unlike sources/ebrd.yaml's 30-day window (there, two years of history showed the
+# rolling count never touching zero, which is what let that entry set
+# `expected_min: 1`). Nothing comparably long is available here to make the same
+# claim, and the table's own 176-day dry spell is direct evidence against it.
+#
+# `expected_items_per_run` below is therefore modelled differently from
+# sources/ebrd.yaml and sources/doe.yaml on purpose, and a person building the
+# connector should read this before picking a window. There is no per-notice detail
+# page to fetch here (see above), so re-reading the whole table on every scheduled
+# run costs nothing extra - unlike EBRD's 4,050-row archive, there is no waste in
+# NOT windowing this source at all. The simplest correct connector (rule 1: one
+# path) reads every row on the page every run and lets the pipeline's content-hash
+# dedup (rule 9's normalise stage) decide what is already known; `notices seen this
+# run` then tracks the size of the table itself, which moves slowly and (on the
+# 404 days observed) never shrank, rather than the volatile week-to-week arrival
+# count. Health is set on that basis: 32 measured on 2026-09-12, floor set below it
+# to allow for NPPA eventually trimming old expired listings (which has not been
+# observed but also cannot be ruled out over a longer run than this one snapshot
+# covers), ceiling set with headroom for the table roughly doubling. A silent drop
+# to near zero is still exactly the redesign/selector failure rule 4 wants caught;
+# a quiet week of zero *new* postings is not, and this framing is what keeps the
+# two apart. Revisit both bounds once real run history exists.
+#
+# NOTHING HERE IS BLOCKED ON A PERSON. No registration, no account, no credential,
+# no local tax or company registration wall sits in front of /bid/ - unlike several
+# other sources in this pilot, this one needed no escalation to reach an enabled-
+# once-tested state. `enabled` is false only because BUILD_ORDER step 19 is
+# connector work not yet done, the same reason sources/doe.yaml and
+# sources/simap.yaml were false before their contract tests passed.
+id: sierra_leone
+name: National Public Procurement Authority (NPPA) Bid Opportunities
+country: SL
+language: en
+admin_level: national
+stream: feed
+wave: 1
+access: api
+connector: FeedConnector
+# 11:00 UTC daily. Sierra Leone (Africa/Freetown) is GMT year-round, no DST, so
+# this is also 11:00 local. Collides with nothing already in sources/ (boamp 04:30,
+# doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00,
+# simap and worldbank_pipeline 08:30, euft and place 09:00, mcc Monday 09:30,
+# ungm 10:00, ebrd 10:30).
+schedule: '0 11 * * *'
+# The Bid Opportunities table itself; see ACCESS ROUTE and CONNECTOR CLASS above
+# for why this is the whole source in one URL with nothing to page through.
+list_url: https://nppa.gov.sl/bid/
+tos_status: reviewed_ok
+enabled: false          # step 19: not yet built. See NOTHING HERE IS BLOCKED ON A PERSON above.
+health:
+  # See VOLUME above for why this models table size, not arrival rate. 32 rows
+  # measured 2026-09-12; floor and ceiling are headroom around that, not a
+  # rolling-window statistic, and both should be replaced once a connector has run
+  # for long enough to measure its own drift rather than one snapshot's.
+  expected_items_per_run: [15, 60]
+  max_consecutive_failures: 3
+owner: ryan.dear

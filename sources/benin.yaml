@@ -1,0 +1,172 @@
+# Benin's national public procurement portal. Four candidate entry points were
+# checked on 2026-09-12 (agent proxy, one polite pass each) and only one of them
+# carries the notice listing:
+#
+#   - https://armp.bj - reachable, HTTPS, valid cert (nginx). This is the Autorité
+#     de Régulation des Marchés Publics, the REGULATOR, not the buyer-facing portal.
+#     It is a WordPress site (armp.bj/wp-sitemap-posts-page-1.xml enumerates every
+#     page) carrying governance content: décisions, recours, liste rouge, a
+#     complaint/appeal form under an "espace privé" account wall (Ultimate Member
+#     plugin, /register/, /login/), and a newsletter signup. Its own /avis/ page,
+#     despite the name, is a cancellation-request form (file upload + reCAPTCHA),
+#     not a tender list. ARMP carries NO notice listing. Its footer links to
+#     marches-publics.bj as "Portail des marchés publics du Bénin" and to SIGMAP
+#     directly, confirming ARMP treats those as the real sources and itself as the
+#     regulator's site, not the publisher.
+#   - https://marches-publics.bj - THIS SOURCE. Reachable, HTTPS, valid cert
+#     (Cloudflare in front of an Express/Node origin). Angular 8 SPA, "Portail des
+#     Marchés Publics du Bénin". This is where "Avis d'appel à concurrence" (calls
+#     for tenders), "Avis d'attribution" (award notices) and the "Journal des
+#     marchés publics" each live as separate routes.
+#   - https://sigmap.marches-publics.bj/Sygmap-WEB - reachable, HTTPS, valid cert
+#     (Cloudflare in front of a JBoss/ZK origin). This is the transactional e-GP
+#     system (bid submission, evaluation). GET on it serves nothing but a ZK
+#     (Java) login form: "Login :" / "Mot de passe :" and no content behind it was
+#     read (rule: never register an account on FreeBalance's behalf). Linked from
+#     both armp.bj and the marches-publics.bj sidebar as "SIGMAP". Not a read route.
+#   - https://archives.marches-publics.bj/Sygmap-WEB/index.zul - the archived/older
+#     SIGMAP instance ARMP itself links to. Returned HTTP 503 on every attempt;
+#     not evaluated further because it does not currently serve anything.
+#   - sygmap.bj - DNS does not resolve. Not the portal; a guessed hostname from the
+#     brief that turned out not to exist.
+#
+# marchespublics.sn and dcmp.sn appeared once in this session's proxy diagnostics
+# as rejected connections; they were never requested by this assessment (Senegal is
+# a separate source) and are noted here only so the entry that follows is not read
+# as having touched them.
+id: benin
+name: Portail des Marchés Publics du Bénin
+country: BJ
+admin_level: national     # one national portal (SIGMAP) for all contracting authorities; no separate sub-national source exists
+language: fr
+stream: portal
+wave: 1
+
+# ROBOTS.TXT, quoted, fetched 2026-09-12:
+#   - armp.bj/robots.txt (real file, text/plain): "User-agent: * / Disallow:
+#     /wp-admin/ / Allow: /wp-admin/admin-ajax.php" plus a Sitemap line. No mention
+#     of the listing path because armp.bj does not carry one. No crawl-delay.
+#   - marches-publics.bj/robots.txt: HTTP 200, content-type text/html, body is the
+#     Angular index.html shell - i.e. there is no dedicated robots.txt resource on
+#     this host; the Express origin serves the SPA's catch-all page for every
+#     unmatched path, /robots.txt included. Same behaviour was confirmed on four
+#     guessed paths (pages/mentions-legales, pages/conditions-utilisation, etc: all
+#     HTTP 200, identical byte size, identical empty SSR shell), so a 200 here
+#     is not evidence a path is real, only that nothing is disallowed. No crawl
+#     directive exists to violate.
+#   - api.marches-publics.bj/robots.txt: HTTP 404. Nothing disallowed.
+#   - sigmap.marches-publics.bj/robots.txt: 302 to /Sygmap-WEB/robots.txt, which is
+#     HTTP 404 (JBoss). Nothing disallowed, moot anyway since it is a login wall.
+# Conclusion: nothing here disallows the listing path. Not a stop.
+access: public_listing
+connector: BrowserConnector
+# THE ROW SELECTOR COULD NOT BE CAPTURED IN THIS ASSESSMENT AND THIS STRING IS A
+# DELIBERATE NON-MATCH, NOT A GUESS. It is a bare tag name with no such element in
+# any HTML spec, chosen so `page.wait_for_selector` and `require_rows`
+# (monitor/connectors/browser_base.py) both raise loudly and name it, rather than a
+# plausible-looking class name that might accidentally match something irrelevant
+# and return a silent zero (rule 4). Why it is missing: this environment's outbound
+# HTTPS goes through an agent proxy, and a real browser's TLS session to this host
+# (tried with both Chromium and Firefox, default launch args, identified user
+# agent) fails every time with the tunnel closing after ~6 seconds having sent a
+# TLS ClientHello and received 39 bytes back - `ws_closed_mid_exchange` in the
+# proxy's own diagnostics, the same failure the proxy's README lists as an
+# unsupported pattern (WebSocket/raw-TLS browser tunnels) and says to report rather
+# than route around. Plain httpx/curl requests to the same host succeed
+# repeatedly and are what every other finding in this file is based on; only a
+# full browser session is blocked, and the same failure was observed against
+# several other West African government hosts in this session, so it reads as an
+# environment limitation, not a fact about marches-publics.bj specifically.
+# BEFORE THIS SOURCE IS ENABLED: someone with a real browser path to
+# marches-publics.bj (this sandbox's proxy is not one) must open
+# https://marches-publics.bj/appels-doffres, let it hydrate, read the actual CSS
+# class or tag naming one row of the tender list, replace this value, and record
+# the fixture from that render. Until then the contract test cannot pass and
+# enabling would violate BUILD_ORDER step 17's own acceptance test (a stale/wrong
+# selector must fail loudly, and an absent one is the same failure).
+row_selector: benin-row-selector-not-yet-captured
+# 11:00 UTC daily, 12:00 WAT (Benin has no DST, UTC+1 year-round). Clear of every
+# slot in sources/ebrd.yaml's collision list (boamp 04:30 through ebrd 10:30 UTC).
+schedule: '0 11 * * *'
+list_url: https://marches-publics.bj/appels-doffres
+# NOT list_url: avis-generaux (general notices, a distinct route) or
+# journal-des-marches-publics (the periodic bulletin, also distinct) - both exist
+# as separate Angular routes on this same portal and were fetched during this
+# assessment (see WHY THIS IS A BROWSERCONNECTOR below); appels-doffres is "Avis
+# d'appel à concurrence", the open-tender list, which is the notice type this
+# pipeline wants. Award notices live at their own route (avis-attributions,
+# pv-attribution-provisoire) that this source does not fetch, so exclude_notice_types
+# is empty by construction - the acquisition-scope decision is which route to ask
+# for, not a filter on a mixed feed (CLAUDE.md rule 5, same reasoning as doe.yaml's
+# exclude_notice_types but resolved by URL instead of by field).
+#
+# WHY THIS IS A BROWSERCONNECTOR, proven by fetching without a browser and showing
+# the listing is absent (three separate routes, all checked 2026-09-12, plain httpx
+# GET, no JavaScript executed):
+#   - /appels-doffres server-renders to: "<h6> aucun Avis d'appel à concurrence en
+#     cours (toutes années confondues)</h6>" - zero tenders, ALL YEARS COMBINED.
+#   - /avis-generaux server-renders its filter panel to "Aucun résultat".
+#   - /journal-des-marches-publics server-renders "(  aucun ) résultat".
+# Benin's national procurement portal being at zero notices across its entire
+# history is not plausible; this is what Angular Universal does when the page
+# shell renders before its data call resolves; and the JS bundle
+# (main-es2015.9bbe3114a6751391ade5.js) confirms the app's HttpClient is configured
+# against a separate live host - `e.URL="https://api.marches-publics.bj/v2/api/"` -
+# that only the browser calls after hydration. curl against that API host's root
+# and robots.txt both 404 without a documented path to ask for instead, so it is
+# not usable as a feed (rule 1: no second, undocumented route in place of the one
+# the portal actually serves through a browser). No RSS route exists either: a
+# leftover dev-only URL in the same bundle
+# (http://127.0.0.1:8080/portail-marches-publics-0.0.2/rss) does not resolve, and
+# its likely production equivalent (https://marches-publics.bj/rss) 200s to the
+# same empty SPA shell as everything else on this host.
+#
+# THIS CONTRADICTS BUILD_ORDER.md step 17, which names Benin as a PageConnector on
+# a "structured listing". That plan predates this measurement. Flagging for Matthew
+# and Ryan rather than silently building to the plan or silently overriding it:
+# either BUILD_ORDER step 17 is corrected to BrowserConnector for Benin, or someone
+# finds a route this assessment missed. I did not find one.
+#
+# TERMS OF USE: NOT FOUND, ANYWHERE, ON EITHER HOST. Checked: armp.bj's WordPress
+# page sitemap (33 pages enumerated, none named anything like mentions-légales,
+# conditions d'utilisation or politique de confidentialité); four guessed slugs for
+# exactly those on armp.bj, each a genuine WordPress 404 (real 404s, unlike the SPA:
+# armp.bj/wp-admin is a normal WordPress install and 404s are real 404s there);
+# marches-publics.bj's rendered footer and nav links (no such link present); the
+# same four guessed slugs against marches-publics.bj, uninformative there because
+# the SPA 200s every path alike. No page stating terms for automated access, reuse
+# or commercial use was found to quote for or against. Per CLAUDE.md's onboarding
+# rule, uncertainty is `pending` and goes to legal, not a guess in either direction;
+# this is not one of the five sources already blocked on an explicit restrictive
+# clause; it is a source with no clause at all found to review.
+tos_status: pending
+enabled: false          # forced regardless of the above; also blocked on row_selector and the ToS review
+health:
+  # NOT MEASURED. The listing could not be read without a browser (see row_selector
+  # above), and this environment's browser sessions to this host do not complete,
+  # so no seven-day count exists to set this from. [1, 50] is a placeholder, wide
+  # enough not to nuisance-alarm and floored at 1 per rule 4 (a national portal
+  # that normally yields something should never read a silent zero as healthy) -
+  # it is not a measurement and must be replaced with a real one from the first
+  # live fixture before this source is enabled. Disabled sources are excluded from
+  # monitor/health/metrics.py's population, so this placeholder affects nothing
+  # while enabled is false.
+  expected_items_per_run: [1, 50]
+  max_consecutive_failures: 3
+owner: ryan.dear
+# FOR THE CONNECTOR BUILDER, beyond row_selector and volume above:
+#   - Registration: reading the tender list needs no account. "Connexion" is a nav
+#     item on marches-publics.bj and a "Créer une alerte" (email alert) feature
+#     exists, but both sit behind /auth/login; submitting a bid needs a SIGMAP
+#     account. Neither was attempted (no account is registered on FreeBalance's
+#     behalf) and neither is needed to read this source's list_url.
+#   - CAPTCHA / bot wall: none encountered on the pages read. Cloudflare fronts
+#     marches-publics.bj and sigmap.marches-publics.bj; whether it challenges a
+#     real (non-sandboxed) headless browser session is unknown and untested here -
+#     test for it explicitly when the fixture is recorded, since it would change
+#     the render approach, not just the selector.
+#   - CPV or a national code system, and document format/session/text-layer: NOT
+#     OBSERVED. No individual notice could be reached because the listing carries
+#     no rows without a browser (the whole reason this is a BrowserConnector), so
+#     nothing is known yet about what a real notice or its documents look like.
+#     Read this from the first real fixture, not from memory of similar portals.

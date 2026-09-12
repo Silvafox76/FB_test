@@ -1,0 +1,303 @@
+# Nigeria's FEDERAL public procurement publication route. State portals are
+# BUILD_ORDER step 18 and are not this file; every entity read here is a federal
+# MDA (Ministry, Department or Agency), which is what makes admin_level: national
+# correct rather than a default.
+#
+# THREE CANDIDATE ENTRY POINTS, EACH CHECKED LIVE ON 2026-09-12 RATHER THAN ASSUMED.
+#
+#   1. https://bpp.gov.ng - the Bureau of Public Procurement's own WordPress site.
+#      Reachable but with a live TLS defect (see REACHABILITY below) and no live
+#      tender listing of any kind: its sitemap (page-sitemap.xml, 68 URLs) has no
+#      tender/notice/journal page, and every candidate menu path checked - MDA
+#      Uploads, ETN Category, Public Procurement Documents, Dept Uploader - is
+#      either an empty WordPress taxonomy archive of circulars or (Dept Uploader)
+#      gated behind "Only email addresses ending in @bpp.gov.ng are accepted",
+#      i.e. an internal staff tool, not a public listing. NOT THIS SOURCE.
+#   2. Federal Tenders Journal - published FROM bpp.gov.ng, at
+#      https://bpp.gov.ng/downloads/, not at a separate host: three plausible
+#      dedicated domains (federaltendersjournal.gov.ng, ftj.bpp.gov.ng,
+#      tendersjournal.bpp.gov.ng) do not resolve. NOT THIS SOURCE either - see
+#      FEDERAL TENDERS JOURNAL below for why the page itself cannot be read as a
+#      listing.
+#   3. https://nocopo.bpp.gov.ng - Nigeria Open Contracting Portal. THIS IS THE
+#      TECHNICAL ROUTE: real OCDS 1.1 data, a genuine unauthenticated per-record
+#      JSON API, no registration, an explicit open-data licence. See NOCOPO below
+#      for the finding that keeps this file at enabled: false anyway: the data is
+#      retrospective procurement disclosure, not a live call-for-bids feed, and
+#      that is a product decision for a person, not something this file can settle.
+#
+# REACHABILITY. bpp.gov.ng answers HTTPS but fails TLS verification with every
+# standard client, curl included: "SSL certificate problem: unable to get local
+# issuer certificate". This is the SITE'S OWN misconfiguration, not this session's
+# proxy - confirmed by fetching the certificate chain directly
+# (openssl s_client -connect bpp.gov.ng:443) and finding the server sends only its
+# leaf cert (CN=*.bpp.gov.ng, issued by "Sectigo Public Server Authentication CA DV
+# R36") and then jumps straight to the ROOT ("Sectigo Public Server Authentication
+# Root R46"), omitting the intermediate entirely. The root is a legitimate public CA
+# already present in this session's trust bundle; fetching the missing intermediate
+# from Sectigo's own AIA URL (http://crt.sectigo.com/
+# SectigoPublicServerAuthenticationCADVR36.crt) and adding just that one certificate
+# makes `openssl verify` return OK. So the chain is genuinely trusted, the server is
+# simply not serving the middle certificate, which is why browsers that do
+# AIA-fetching mostly paper over it silently and curl/httpx do not. Separately, and
+# independent of the chain gap, the leaf certificate itself expires
+# 2026-09-13T23:59:59Z - tomorrow, as of this probe. Neither fact is a reason to add
+# a special trust exception for this host in a connector (rule: never disable TLS
+# verification, and rule 21 forbids routing around a restriction, which this isn't,
+# but a bespoke CA workaround for one misconfigured government host is the same
+# shape of thing to avoid) - it is a reason this host is not the chosen route, on
+# top of REACHABILITY and FEDERAL TENDERS JOURNAL both saying so independently.
+# nocopo.bpp.gov.ng, by contrast, verifies cleanly against the standard trust store
+# with no workaround of any kind - every fetch below to that host used a plain
+# `curl -A "FreeBalance-OpportunityMonitor/0.1 (+contact email)"` with no --cacert
+# override.
+#
+# ROBOTS.TXT, both hosts, fetched 2026-09-12, verbatim.
+#
+#   bpp.gov.ng/robots.txt (fetched with the intermediate cert supplied, since the
+#   host cannot otherwise be reached at all - see REACHABILITY):
+#     User-agent: *
+#     Disallow: /wp-content/uploads/wc-logs/
+#     Disallow: /wp-content/uploads/woocommerce_transient_files/
+#     Disallow: /wp-content/uploads/woocommerce_uploads/
+#     Disallow: /*?add-to-cart=
+#     Disallow: /*?*add-to-cart=
+#     Disallow: /wp-admin/
+#     Allow: /wp-admin/admin-ajax.php
+#     # START YOAST BLOCK
+#     User-agent: *
+#     Disallow:
+#     Sitemap: https://bpp.gov.ng/sitemap_index.xml
+#     # END YOAST BLOCK
+#   The Yoast block's bare "Disallow:" re-permits everything for "User-agent: *"; no
+#   crawl-delay is stated. /downloads/ is not disallowed either way - moot, since
+#   this host is not the chosen route.
+#
+#   nocopo.bpp.gov.ng/robots.txt, a DotNetNuke default, in full:
+#     User-agent: *
+#     Disallow: /*/ctl/          # Googlebot permits *
+#     Disallow: /admin/
+#     Disallow: /App_Browsers/
+#     Disallow: /App_Code/
+#     Disallow: /App_Data/
+#     Disallow: /App_GlobalResources/
+#     Disallow: /bin/
+#     Disallow: /Components/
+#     Disallow: /Config/
+#     Disallow: /contest/
+#     Disallow: /controls/
+#     Disallow: /Documentation/
+#     Disallow: /HttpModules/
+#     Disallow: /Install/
+#     Disallow: /Providers/
+#     Disallow: /Activity-Feed/userId/   # Do not index user profiles
+#   None of these paths overlap /noc/frmcitizendashboard3.aspx, /downloadJson.ashx,
+#   /Terms, /Privacy, /license or /Open-Data - every path this file reads or cites.
+#   No crawl-delay is stated on this host either.
+#
+# FEDERAL TENDERS JOURNAL - why bpp.gov.ng/downloads/ is not a listing a connector
+# can read, on two independent grounds:
+#   a. THE PAGE'S OWN LINKS ARE WRONG. Of roughly 70 download links on the page,
+#      dozens of unrelated titles - "2023 BPP Annual report", "Circular on patronage
+#      of Local Automotive Industry Products", "Procurement Records 2017", "2013
+#      Procurement Plans" among them - all point at the identical file,
+#      Fedral-Tenders-Journal-Vol-4-No-32-p1.cdr_.pdf (note the misspelling
+#      "Fedral" in the filename itself). This is not a handful of stale links; it is
+#      most of the page, which means the link text cannot be trusted to identify
+#      what a given href actually serves. A connector built against this page would
+#      be built against a broken CMS render, not against the journal.
+#   b. WHAT THE JOURNAL FILE ACTUALLY IS HAS NO USABLE TEXT LAYER. The one
+#      correctly-linked copy, "Federal Tenders Journal Vol.4 No 32 p1 - 6" (6 pages,
+#      6.6 MB), decompresses to 25 PDF content streams of which exactly one carries
+#      text-drawing operators (`Tj`), and that one only draws the decorative title
+#      "Federal..." one letter at a time (a CorelDraw export artifact - the file is
+#      literally named `.cdr_.pdf`). The other 12 embedded objects are
+#      `/Subtype/Image` JPEGs (`DCTDecode`), i.e. the journal's actual notice
+#      content is scanned page images with no OCR text layer, the same shape
+#      BUILD_ORDER step 18 already plans Textract for on Burkina Faso's bulletin.
+#   Between a broken link map and an unreadable document format, this route would
+#   need both a link-repair heuristic and an OCR pipeline before it produced a
+#   single trustworthy notice, on a host whose TLS is separately broken. Not this
+#   source.
+#
+# NOCOPO - the technical route, and why it is not enabled anyway.
+#
+#   PLATFORM AND ACCESS. NOCOPO is a DotNetNuke (ASP.NET WebForms) portal. The
+#   public entry point is the Citizens Dashboard,
+#   https://nocopo.bpp.gov.ng/noc/frmcitizendashboard3.aspx, reached with no login,
+#   no cookie and no referer from a plain unauthenticated GET, and the 500-row
+#   result table with real project data is present in that GET's raw HTML - proven
+#   by parsing it with nothing but Python's stdlib regex, no browser and no
+#   JavaScript execution. This is the evidence access: api / connector:
+#   FeedConnector needs: the listing is server-rendered.
+#
+#   THE PORTAL PUBLISHES REAL OCDS. Every row carries an OCID
+#   (e.g. OCDS-GYL66F-0517018034-000001) and a per-row "Download JSON" control.
+#   Reverse-read from the page's own client-side script rather than guessed: the
+#   JSON is served at `GET https://nocopo.bpp.gov.ng/downloadJson.ashx?ty=1&ocid=
+#   <OCID>`, which 302s to a generated `downloads.aspx?file=Exported/JSON/
+#   NocopoJsonNNNNN.json` that returns a complete OCDS 1.1 release package -
+#   `uri`, `version`, `publishedDate`, `releases[]`, `publisher`, `license`,
+#   `publicationPolicy` all present - with no cookie, no login and no referer
+#   required. Confirmed on three separately sampled OCIDs. This is a genuine
+#   structured-feed route, the first-choice access type in the onboarding order,
+#   and better than anything else read in this pilot's West African wave: no PDF,
+#   no OCR, no session.
+#
+#   THE LISTING'S OWN PAGINATION AND SORT, measured because a connector will need
+#   both. `hfStageValues`/`hfStageLabels` (hidden fields already on the first page,
+#   no extra request needed) give an exact, page-provided total:
+#   Contract 2,290 | Implementation 18,366 | Planning 76,175 | Tender 1,157, summing
+#   to the page's own stated "Total Projects 97,988" exactly. The grid pages 500
+#   rows at a time (confirmed: 500 <td> rows on page 1) over 196 pages
+#   (`lblTotalPages`), reached by posting the visible `ButtonNextPage` submit
+#   control back to the same URL with the page's own `__VIEWSTATE` and
+#   `__EVENTVALIDATION` - a plain form POST, not `__doPostBack`, and confirmed
+#   working (page 2 returned a disjoint OCID range from page 1). NEITHER the
+#   default view NOR the per-row `Date Published` field it lacks gives a
+#   newest-first ordering: consecutive rows on one page share an MDA-registration
+#   prefix (e.g. `0517018034` then `111006001`), which reads as MDA-onboarding
+#   order, not publication order, and no column, sort control or `<select>` filter
+#   for date exists anywhere in the served HTML (the "Show Extended Search Options"
+#   checkbox toggles nothing - there is no hidden dropdown behind it in the markup
+#   at all). Whoever builds this connector cannot walk the listing and stop at the
+#   first old row (the same hazard `monitor/connectors/ebrd.py` already documents
+#   and solves by reading the whole archive); here the archive is 196 pages, not
+#   one, so that fix does not carry over directly and a real strategy - most likely
+#   reading each OCDS record's own `date`/`publishedDate` field rather than trusting
+#   listing order - would need to be designed against real data, not assumed here.
+#
+#   THE CONTENT-FIT FINDING THAT KEEPS THIS SOURCE AT enabled: false, AND IT IS A
+#   PRODUCT DECISION, NOT A TOS OR ACCESS ONE. Every row's "Procurement Stage"
+#   column, including the ones labelled "Tender Stage", was expected to mean a
+#   currently open call for bids. It does not, on four separately sampled
+#   Tender-stage OCIDs (OCDS-GYL66F-111006001-000095, -111009001-000063,
+#   -111010001-000141, and one more): every one has `tender.status: "complete"`,
+#   none carries a `tender.tenderPeriod` (no bid-submission window is recorded at
+#   all), and where a milestone due date exists it is either already past (a "Bid
+#   opening" dated 2023-10-18, sampled against a package `publishedDate` of
+#   2025-02-10 - published sixteen months after the bid it describes) or the
+#   portal's own placeholder `2001-01-01T00:00:00Z` for "date not really known" (the
+#   same kind of default-datetime sentinel `monitor/connectors/ebrd.py` already
+#   documents for its portal's `00:00`). One sampled record even carries an award
+#   `date` (2023-05-02) earlier than its own tender's bid-opening milestone
+#   (2023-10-18), which only makes sense if the whole planning-to-award history was
+#   entered after the fact in one batch. This matches what NOCOPO is FOR, stated on
+#   bpp.gov.ng's own downloads page: a "NOCOPO Circular" titled "Circular on 2018
+#   Procurement Plan and Use of NOCOPO" and templates for annual "Procurement
+#   Plans" and "Procurement Records" - NOCOPO is the Bureau's mandated channel for
+#   MDAs to DISCLOSE what they planned and what they already did, not a channel
+#   where a live tender is advertised with a deadline a bidder could still meet.
+#   `Notice.deadline_at` is `Optional` in `monitor/models.py` so a missing deadline
+#   would not break the schema, but a source whose entire corpus is retrospective
+#   disclosure is a different product than the live opportunity feed this pipeline
+#   exists to surface, and every sampled row - not an edge case, four for four -
+#   confirms that is the whole corpus, not a corner of it. A NAMED PERSON needs to
+#   decide whether NOCOPO is still wanted for a different purpose (buyer/MDA
+#   procurement-history intelligence, matched against Architecture v0.4's donor and
+#   incumbency signals the way `monitor/score/prompt.py` already uses financier
+#   names) before a connector is built against this file, the same shape of
+#   decision `sources/mcc.yaml` already left open for its Business Forecast.
+#
+#   VOLUME. The 97,988 / 1,157 "Tender Stage" figures above are a lifetime total
+#   from the page's own counters, not a 7-day rate - no reliable "new since"
+#   signal exists in the served UI (see pagination/sort finding above), so
+#   `expected_items_per_run` below is a placeholder, not a measurement, in the same
+#   spirit as `sources/mcc.yaml` and `sources/senegal.yaml`'s unmeasured bands.
+#
+#   LANGUAGE AND CODES. English throughout every sample read - field labels,
+#   project titles, buyer names, milestone text - and the session sets
+#   `language=en-US`. No CPV code or any national classification code appears
+#   anywhere in a sampled OCDS `items[]` array (just `id`, `description`,
+#   `quantity`); a connector here would fall to the lexicon stage with no free CPV
+#   filter, the same shape as `sources/ebrd.yaml`.
+#
+#   A NAMED-PERSON CONTACT DETAIL WAS FOUND IN RAW OCDS DATA. One sampled record's
+#   `parties[].contactPoint` carries a supplier's personal name, phone number and a
+#   personal e-mail address (a Yahoo address, not a corporate one). Rule 19 keeps
+#   any contact detail out of a model call; whoever builds this connector's
+#   normaliser must drop `contactPoint` before anything reaches the scorer, the same
+#   discipline `monitor/connectors/ebrd.py` already applies to its own detail pages.
+#
+# TOS. Two documents, and they answer different questions.
+#   - https://nocopo.bpp.gov.ng/license, in full: "The Bureau of Public Procurement
+#     publishes the contract data using the ODC Public Domain Dedication and
+#     Licence (ODCPDDL). Under this licence users of the data are allowed to:
+#     Share: To copy, distribute and use the data; Create: To produce works from
+#     the data; and Adapt: To modify, transform and build upon the data." This is
+#     the licence that actually governs the OCDS data this source would read, it is
+#     explicit and it is unambiguous, which is what makes reviewed_ok defensible
+#     here the way an open CC0 licence does for sources/doe.yaml.
+#   - https://nocopo.bpp.gov.ng/Terms ("Terms Of Use") is a generic, unmodified
+#     DotNetNuke default template - its own text sets governing law to "the State
+#     of Washington, U.S.A." with venue in "San Mateo County, California, U.S.A."
+#     and names a personal Yahoo address as the sole SERVICE CONTACT
+#     (bola_saheed@yahoo.com), which is template boilerplate never localised to
+#     Nigeria or to NOCOPO, not a considered legal position. It states no clause
+#     naming scraping, automated access or commercial reuse either way. The one
+#     clause that comes closest, under "NO UNLAWFUL OR PROHIBITED USE": "You may
+#     not obtain or attempt to obtain any materials or information through any
+#     means not intentionally made available or provided for through the NOCOPO Web
+#     Sites" - which does not reach a plain GET of a page NOCOPO serves to anyone
+#     unauthenticated, including the OCDS download control it puts on every row.
+#   tos_status is reviewed_ok on the strength of the licence page, which is the
+#   document actually on point for the data this source would carry; the Terms Of
+#   Use boilerplate is quoted above so nobody mistakes its silence for a gap not
+#   already checked.
+#
+# REGISTRATION. Not required to read the Citizens Dashboard, any listing row, or
+# the per-OCID OCDS JSON - every fetch above succeeded unauthenticated. NOCOPO does
+# have a separate MDA login (linked from bpp.gov.ng as "/mda") for agencies to
+# UPLOAD their records; that is the write side and nobody has registered for it or
+# needs to (rule: never register an account on FreeBalance's behalf) - it plays no
+# part in reading.
+id: nigeria
+name: Nigeria Open Contracting Portal (NOCOPO), Bureau of Public Procurement
+country: NG
+admin_level: national
+language: en
+stream: feed
+# api / FeedConnector on the same reasoning sources/ebrd.yaml and sources/doe.yaml
+# use: the listing is one server-rendered GET (selectolax can read it, no browser),
+# and the per-record detail is a genuine unauthenticated JSON API
+# (downloadJson.ashx), not a scrape of rendered fields. See NOCOPO above for both
+# halves of that evidence.
+access: api
+connector: FeedConnector
+wave: 1
+# 11:30 UTC daily = 12:30 WAT (Nigeria is UTC+1 year-round, no DST). Chosen to
+# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
+# 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, senegal 11:00.
+schedule: '30 11 * * *'
+# The Citizens Dashboard: where every OCID a connector would need is discoverable,
+# confirmed server-rendered with no login. NOT bpp.gov.ng/downloads/ (broken links,
+# scanned PDFs, broken TLS) and NOT a bulk OCDS dump URL, because none was found
+# that did not depend on a search context this session could not reconstruct - see
+# "Download All data" in the NOCOPO comment block above.
+list_url: https://nocopo.bpp.gov.ng/noc/frmcitizendashboard3.aspx
+# reviewed_ok on the ODCPDDL licence at https://nocopo.bpp.gov.ng/license, which is
+# the document on point for the OCDS data this source would carry. See TOS above,
+# including the boilerplate Terms Of Use quoted there for completeness.
+tos_status: reviewed_ok
+# NOT a step the orchestrator flips after a passing fixture, unlike a source that is
+# only unmeasured. See "THE CONTENT-FIT FINDING" above: the technical route works,
+# but every Tender-stage record sampled (4 of 4) is already complete and awarded,
+# with no tender.tenderPeriod and no future-dated milestone anywhere - this is a
+# retrospective procurement-disclosure register, not a feed of live opportunities
+# with a deadline a bidder could still meet. A named person needs to decide whether
+# NOCOPO is wanted for a different purpose (buyer/MDA history as a scoring signal)
+# before anyone builds monitor/connectors/nigeria.py against this file.
+enabled: false
+health:
+  # UNMEASURED. Total Projects 97,988 and "Tender Stage" 1,157 are the page's own
+  # lifetime counters (read from hfStageValues, no extra request needed), not a
+  # 7-day rate - the listing has no reliable publish-date sort or filter (see
+  # NOCOPO above), so no defensible run-rate could be established this session.
+  # Floored at 1 rather than 0 so a silent run can never read as a healthy empty one
+  # (rule 4), the same placeholder discipline sources/mcc.yaml and
+  # sources/senegal.yaml use. Whoever builds this connector - after the content-fit
+  # decision above is made - replaces both numbers from a real fetch.
+  expected_items_per_run: [1, 50]
+  max_consecutive_failures: 3
+owner: ryan.dear

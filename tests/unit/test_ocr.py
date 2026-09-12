@@ -79,10 +79,18 @@ def test_an_ascii_apostrophe_comes_back_as_a_typographic_one():
     bulletin — `d\u2019un`, `l\u2019Etat`, `march\u00e9s d\u2019\u00e9tat` — arrives with a
     character that is not the one anybody types.
 
-    `config/lexicon_fr.yaml` is written with ASCII apostrophes, so a phrase matched
-    against PDF-extracted text would miss on exactly the words French elides most. The
-    fix belongs in the normaliser or the lexicon and not here; this test is what makes
-    the fact a recorded measurement rather than a surprise found later in a miss rate.
+    The first reading of this was wrong and the correction is the useful part. The
+    guess was that the lexicon is ASCII and the PDFs are typographic. Measured: the
+    lexicon writes its two elided phrases with U+2019, and real French notices use
+    *both* forms — 400 of 584 BOAMP notices carry an ASCII apostrophe and 119 carry a
+    typographic one, with 83 notices across the corpus carrying both inside one
+    document. So there is no "correct" side to write the lexicon on.
+
+    The fix is therefore one canonical form folded on both sides before matching, in
+    `monitor/filter/lexicon.py`, rather than a spelling choice in the lexicon. Measured
+    delta on the 707 French notices held today: nought, because neither elided phrase
+    currently matches anything in either form. It is a latent defect fixed before step
+    19 adds the elided phrases that would have hit it, not a miss being repaired.
     """
     extracted = text_layer(DIGITAL)
     assert "\u2019" in extracted

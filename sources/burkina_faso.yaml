@@ -1,0 +1,162 @@
+# Burkina Faso's official public procurement bulletin, published by DGCMEF
+# (Direction generale du controle des marches publics et des engagements
+# financiers, under the Ministry of Finance) at dgcmef.gov.bf. This is a
+# correction of the brief that sent this assessment: the bulletin is called
+# "Quotidien" (daily) and is published on every business day, not weekly.
+# Fifteen issues appeared between 2026-08-21 (n4471) and 2026-09-11 (n4486),
+# one per weekday with one pair of days combined (n4473-4474), which is a
+# business-day cadence, not a weekly one. BUILD_ORDER step 18 and this
+# assessment's own brief both say "weekly PDF bulletin"; the connector and its
+# schedule should be built against what is actually published (daily), not
+# against that description. The archive's own listing goes back to at least
+# 2021-04 (issue n3080) over 73 paginated listing pages.
+#
+# WHICH ROUTE THIS IS. Four candidate entry points were checked 2026-09-12:
+#   1. dgcmef.gov.bf - THIS SOURCE. A Drupal site under the Ministry of
+#      Finance. Its "Revue de marches pour tous" view
+#      (/index.php/fr/revue-de-march-s-pour-tous) lists every "Quotidien"
+#      issue newest-first with a direct PDF link, no login, no JavaScript
+#      needed to see the listing (fetched with plain httpx/curl, no browser,
+#      and the titles and PDF hrefs are present in the first response).
+#   2. arcop.bf (redirects to www.arcop.bf) - NOT THIS SOURCE. ARCOP is the
+#      procurement regulator, and its own "Appels d'offres" page (a WordPress
+#      category archive) publishes ARCOP's OWN purchasing as a contracting
+#      authority, not a national aggregation. One of its own notices cites
+#      "Reference de la publication de l'avis : quotidien n4033 du mardi 17
+#      decembre 2024" - ARCOP itself points back to DGCMEF's Quotidien as the
+#      place of official publication, which is the confirmation that DGCMEF,
+#      not ARCOP, is the official gazette.
+#   3. secop.finances.bf - NOT THIS SOURCE. An Angular single-page app
+#      ("Systeme electronique de delivrance des Pieces Administratives de la
+#      commande publique"); the root document is an empty <app-root> shell
+#      that needs JavaScript, and by its own title it issues administrative
+#      eligibility documents (tax/company clearance certificates) to bidders,
+#      not tender notices. Not investigated further: it is a different system
+#      for a different purpose, not a second route to the same data (rule 1).
+#   4. marches-publics.gov.bf - DOES NOT EXIST. Direct fetch failed with a
+#      proxy CONNECT error, which could have been the sandbox's egress policy
+#      rather than the site, so this was checked against public DNS directly
+#      (https://dns.google/resolve?name=marches-publics.gov.bf&type=A,
+#      2026-09-12): Status 3, NXDOMAIN, answered by the .bf registry's own
+#      nameserver (a.registre.bf). The domain has no DNS record at all. This
+#      is not a live portal to route around or mirror; it is a URL that
+#      should be removed from the inventory.
+#
+# TEXT LAYER, MEASURED, AND IT CONTRADICTS THE BRIEF THIS ASSESSMENT WAS GIVEN.
+# Ten issues were downloaded 2026-09-12 and run through pdftotext and pdffonts
+# (poppler 24.02.0): five recent (n4471, n4483-n4486, Aug-Sep 2026), three from
+# 2021-04/05 (n3080 era: n3087, n3090, and one more), and two mid-archive
+# (n3712, 2023-09; n3963, 2024-09). Every one of the ten carries embedded,
+# subsetted TrueType fonts (pdffonts shows "emb yes" throughout, fonts named
+# things like Calibri, Arial-BoldMT, ArialNarrow-BoldItalic, GoudyOldStyleT-
+# Bold) and pdftotext extracts real prose, not garbage: 124,471 to 631,173
+# characters per issue (issue page counts ran 32 to 150). None of the ten is a
+# scanned image with no text layer. This does not match "some issues are
+# scanned images with no text layer" in this assessment's brief or BUILD_ORDER
+# step 18's premise for this source; it is what was actually measured across
+# the full time range the online archive covers (2021-04 to 2026-09, roughly
+# 1,400 issues, of which 10 were sampled). monitor/normalise/ocr.py's
+# text-layer-length branch should still exist per BUILD_ORDER step 18's
+# design - a future issue could still arrive as a photocopy scan, and the
+# branch is cheap insurance - but nobody should expect it to fire routinely on
+# this source, and no scanned fixture was found here to build step 18's
+# "scanned week" contract-test fixture from. Whoever builds
+# monitor/connectors/burkina_faso.py should either keep sampling the
+# remaining ~1,390 issues for one, or confirm with a person that the
+# acceptance test's premise needs correcting alongside "weekly" above.
+#
+# No CPV code or other numbered code system is carried anywhere in the ten
+# sampled issues (grep for "CPV" case-insensitively: zero hits in all ten).
+# Notices are classified only by French prose section headings - "Marches de
+# fournitures et services courants", "Marches de travaux", "Marches de
+# prestations intellectuelles" - under a buyer heading, never a code.
+id: burkina_faso
+name: Revue des marches publics (DGCMEF Quotidien), Burkina Faso
+country: BF
+admin_level: national
+# Measured on the one issue fully read for structure (n3712, 2023-09-25): the
+# table of contents runs Ministeres, institutions et maitrises d'ouvrage
+# deleguees (pages 3-31, the larger share) then Regions (pages 32-48). So a
+# single issue mixes national and sub-national buyers under one publisher, the
+# same shape sources/doe.yaml documents for Germany. national is the
+# publisher's own level and the default for a notice that cannot be placed
+# more precisely; monitor/normalise/burkina_faso.py should read the section
+# heading a notice falls under and only fall back to this default when it
+# cannot.
+language: fr
+stream: feed
+wave: 1
+# public_listing rather than api: the "API" here is a server-rendered Drupal
+# view with an href per PDF, the same shape sources/boamp.yaml already
+# describes as public_listing, and for the same reason - a dated listing of
+# files is not a documented query surface. The connector fetches the listing
+# then the PDFs, which is a FeedConnector's job (rule from this task's own
+# brief), not a browser's: proven by fetching /index.php/fr/revue-de-march-s-
+# pour-tous with plain httpx and finding every issue title and PDF href
+# already present in the response, no JavaScript executed.
+access: public_listing
+connector: FeedConnector
+# 11:00 UTC, business days only. Burkina Faso is UTC+0 year-round (Africa/
+# Ouagadougou, no DST), so this is also 11:00 local. Chosen to sit clear of
+# every other source's slot (see sources/ebrd.yaml's list, which runs
+# boamp 04:30 through ebrd 10:30) and to give the ministry's site the morning
+# to have posted that day's issue; the actual posting time was not observed
+# across enough days to know it precisely; a person watching the listing for
+# a week before enabling would firm this up. Weekends are skipped because the
+# archive shows nothing is published on them (confirmed: no Saturday or
+# Sunday date appears in any sampled issue title across five years of the
+# listing).
+schedule: '0 11 * * 1-5'
+list_url: https://dgcmef.gov.bf/index.php/fr/revue-de-march-s-pour-tous
+# dgcmef.gov.bf serves HTTPS with a valid certificate (no -k needed); plain
+# HTTP 301-redirects to HTTPS on both the site and the file paths. robots.txt
+# (fetched 2026-09-12) is the stock Drupal boilerplate and names no crawl
+# delay; its Disallow list is /core/, /profiles/, /admin/, /comment/reply/,
+# /filter/tips, /node/add/, /search/, /user/register|password|login|logout
+# and their /index.php/ equivalents. None of that touches
+# /index.php/fr/revue-de-march-s-pour-tous or /sites/default/files/, where the
+# PDFs live, so nothing needed here is disallowed.
+#
+# No terms-of-use or "mentions legales" page exists to quote a clause from:
+# /mentions-legales, /conditions-generales, /conditions-d-utilisation,
+# /politique-de-confidentialite and /cgu all 404 under /index.php/fr/, and no
+# such link appears in the site's own menu or footer. The footer carries only
+# a bare copyright line, "Copyright (c) 2019 DGCMEF. Tout droit reserve", with
+# no clause addressing automated access, scraping or reuse either way. No
+# registration or session is needed to read the listing or download a PDF
+# (checked with a plain unauthenticated GET, no cookie jar). Weighed the same
+# way sources/ebrd.yaml was - permissive robots.txt, no login, no restrictive
+# clause found anywhere the ToS would normally be - against a bare copyright
+# notice that says nothing about automated reading. This is also, by the
+# procurement code's own design, a gazette whose sole purpose is to notify
+# every prospective bidder in the country; publishing it for anyone to read is
+# the point. reviewed_ok on that basis; if a person weighs the bare "tout
+# droit reserve" line differently, the honest fallback is pending, not
+# reviewed_restricted, since nothing found here actually forbids the fetch.
+tos_status: reviewed_ok
+enabled: false
+health:
+  # Not notices yielded by a connector, which does not exist yet - a proxy
+  # measurement, and the acceptance test's real numbers should replace this
+  # once monitor/connectors/burkina_faso.py exists. Counted distinct
+  # dossier-reference strings (pattern n or N degree + 4-digit year + '-' +
+  # digits, e.g. "N2026-016/MEBAPLN/SG/DMP") in pdftotext's plain-text output,
+  # case-folded and de-duplicated within one issue, across ten issues sampled
+  # 2026-09-12 and spanning 2021-04 to 2026-09: 14, 40, 41, 41, 42, 52, 58, 67,
+  # 68, 105. This counts every dossier mentioned in an issue together - a
+  # fresh avis, a results synthesis, a rectificatif on an earlier avis can all
+  # carry the same reference number in the same or a later issue - because an
+  # issue's PDF interleaves these sections on the same pages rather than
+  # separating them at a level this regex can see; the connector's own parser
+  # will produce the true per-notice count and needs to draw the line between
+  # a fresh opportunity and an already-decided result the way
+  # sources/boamp.yaml's exclude_notice_types does. That line is not drawn
+  # here: it needs the connector's actual section parsing to name real
+  # heading strings rather than a regex guess, so exclude_notice_types is left
+  # empty rather than populated with an invented vocabulary.
+  # Bounds sit a little outside the measured 14-105 so a genuinely thin single
+  # issue or a large combined-day catch-up issue is not a false failure, while
+  # zero is still impossible for a healthy business day (rule 4).
+  expected_items_per_run: [10, 160]
+  max_consecutive_failures: 3
+owner: ryan.dear

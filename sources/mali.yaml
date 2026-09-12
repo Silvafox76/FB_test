@@ -1,0 +1,163 @@
+# Mali's national public procurement publication route. All three candidate entry
+# points from the onboarding brief were checked live on 2026-09-12; two are dead or
+# the wrong host, and the live one is not what BUILD_ORDER.md step 18 assumed.
+#
+#   1. https://armds.ml -> 301 to https://www.armds.ml, HTTP 200, valid Let's
+#      Encrypt cert (CN=*.armds.ml, expires 2026-10-16). This is ARMDS (Autorite de
+#      regulation des marches publics et des delegations de service public), the
+#      regulator, and it is a WordPress institutional site: bulletins d'information,
+#      audit reports, CRD (dispute committee) decisions, a blacklist ("liste rouge
+#      des entreprises"), news. Its nav and its own "liens utiles" page were both
+#      read in full and NEITHER links to a live tender listing anywhere, on this
+#      site or off it (liens-utiles links UEMOA's regional portal, the Ministry of
+#      Finance, the Primature, the World Bank and AfDB - not a Mali notice feed).
+#      ARMDS publishes about procurement; it does not publish notices. Not this
+#      source.
+#   2. https://dgmp.gov.ml (DGMP-DSP) -> does not resolve. Confirmed two ways,
+#      independent of each other and of this session's egress proxy: a plain HTTP
+#      request from this sandbox returns `Could not resolve host`, and Google's
+#      public DNS-over-HTTPS resolver (dns.google, queried directly, outside any
+#      proxy this session uses) returns NXDOMAIN (Status 3) for dgmp.gov.ml A and NS
+#      records alike. gov.ml itself has no NS delegation from the .ml registry
+#      either (the NS query for gov.ml returns the .ml zone's own SOA in Authority,
+#      no Answer). The HTTPS attempt through the agent proxy got a 502 on CONNECT,
+#      logged proxy-side as "connect_rejected ... gateway answered 502 (policy
+#      denial or upstream failure)" - ambiguous on its own, but the independent
+#      public-resolver NXDOMAIN settles it: the domain does not exist, this is not a
+#      proxy policy block. DGMP-DSP as a standalone host is gone.
+#   3. https://marchespublics.ml -> THE ACTUAL PORTAL. HTTP 200, valid Let's
+#      Encrypt cert (CN=marchespublics.ml, expires 2026-11-10), page title "Portail
+#      des marches publics du Mali". DNS delegation is to ans0/bns0/cns0/dns0
+#      .agetic.ml (confirmed via a direct NS query against marchespublics.ml, and
+#      again via its SOA record: "ans0.agetic.ml. hostmaster.marchespublics.ml."),
+#      i.e. AGETIC, Mali's state e-governance agency - independent confirmation
+#      this is government infrastructure and not a third-party mirror, not just the
+#      URL the brief happened to name.
+#
+# ROBOTS.TXT: THERE ISN'T ONE. `GET https://marchespublics.ml/robots.txt` answers
+# HTTP 200, Content-Type text/html, and the body is byte-for-byte identical (43,092
+# bytes) to the home page and to every other path tried (/avis-generaux,
+# /appels-offres, /accueil, /sitemap.xml, /assets/i18n/fr.json, /manifest.json all
+# came back as the same 43,092-byte document). This is the Angular app's catch-all
+# route serving its own index.html for anything that isn't a built static asset,
+# not a robots exclusion file - there is no dedicated robots.txt resource on this
+# server to disallow or allow anything, and so no crawl-delay is stated either.
+# Nothing is disallowed because nothing is declared.
+#
+# WHAT THE PAGE ACTUALLY SERVES, AND THE ROUTE THIS ENDS UP BEING.
+# The page itself is a pure client-side-rendered Angular SPA: `<app-root></app-root>`
+# is empty in the served document and the whole listing is injected by JavaScript,
+# same as sources/senegal.yaml's finding for achatspublics.sn - proven the same way,
+# by fetching every route above without a browser and finding no notice, title,
+# date or row anywhere in any of them.
+#
+# UNLIKE senegal.yaml, that is not the end of it. The compiled app bundle
+# (main.28e88effd65a3aa8.js) contains the Angular service class the page itself
+# uses to fetch the listing, with its endpoints as plain strings:
+#   apiUrl: "portail/api/sigmap/dossiers/dossier-sigmap"          (notices - this one)
+#   apiUrlMarche: "portail/api/sigmap/dossiers/marche-sigmap"      (awarded contracts)
+#   apiUrlMarcheParAnneeCourant: ".../marche-sigmap-current"       (awards, current yr)
+#   apiUrlPlan: "portail/api/sigmap/plans/plan-sigmap"             (procurement plans)
+# Fetched directly with curl, no browser, no prior page load, no cookie jar reused
+# across requests: `GET https://marchespublics.ml/portail/api/sigmap/dossiers/
+# dossier-sigmap` answers HTTP 200, Content-Type application/json, real data, no
+# `Set-Cookie` header, `Access-Control-Allow-Headers: *` (wide-open CORS, consistent
+# with a route the SPA calls anonymously from the browser). This is the same public,
+# unauthenticated data the page's own JavaScript reads to render the listing for an
+# anonymous visitor - not a login-gated route reverse-engineered past a credential,
+# and not a second, alternative path invented alongside the browser one (rule 1):
+# it is cheaper and it is what the portal actually serves, the same reasoning
+# monitor/connectors/ebrd.py's docstring gives for calling that source `api` even
+# though its response is HTML. access is `api` and connector is `FeedConnector`,
+# not `BrowserConnector`: one HTTP GET of a fixed JSON URL, parsed with no browser
+# and no session, same shape as sources/doe.yaml's api_url. (Contrast
+# sources/senegal.yaml, where the equivalent same-origin API, api.achatspublics.sn,
+# answers every path with 401 and `WWW-Authenticate: Bearer` - there is no
+# unauthenticated route and that source is rightly a BrowserConnector. Mali's is not
+# gated the same way, measured, not assumed.)
+#
+# `dossier-sigmap` returns only pre-decision notices: every one of the 98 rows in
+# the live fetch has dosStatus 1 and dtpCode either AAO ("Avis d'Appel d'Offres",
+# 52) or AMI ("Avis de Manifestation d'Interet", 46). Award data (titulaireMarche,
+# nifTitulaireMarche, montantMarche) lives only in the separate marche-sigmap /
+# marche-sigmap-current endpoints, which are not read here - the acquisition-scope
+# decision (rule: nothing is read and then thrown away) is which endpoint is
+# queried, not a post-fetch filter. exclude_notice_types is left empty because no
+# post-decision or cancelled type was observed in this endpoint to exclude; the
+# app's own route list names several other avis sub-types (avis-annulation,
+# avis-de-prorogation, avis-de-repport, avis-manifestation-interet with its own
+# listing route) that this 98-row snapshot did not surface a single example of - a
+# connector builder should watch for a dtpCode this file does not yet name rather
+# than assume AAO/AMI is the complete set.
+#
+# REGISTRATION: NOT REQUIRED. Proven directly rather than inferred from a manual:
+# the fetch above that returned real notice data used no account, no token, no
+# cookie and no prior authenticated request of any kind.
+#
+# VOLUME, measured 2026-09-12 from a live fetch of the full dossier-sigmap
+# endpoint (98 rows, mostly 2026 with 8 stray 2017-2018 rows still carrying
+# dosStatus 1 for reasons not investigated further). Notices dated in the trailing
+# 7 days (2026-09-05 through 2026-09-11): 26. Across the ~5-week window the
+# snapshot actually covers (2026-08-06 to 2026-09-11), the trailing 7-day sum
+# ranged from 2 to 28 with daily counts of 0 to 14 - bursty by contracting
+# authority (13 of 26 in the last 7 days are Caisse Malienne de Securite Sociale
+# and Office du Niger issuing several notices the same day), not a steady rate.
+# This is one snapshot, not a longitudinal log, so a 7-day trailing minimum below 2
+# cannot be ruled out from data collected before 2026-08-06.
+#
+# LANGUAGE AND CODES. Every buyer name and notice title read is French (ministries,
+# Primature, Caisse Malienne de Securite Sociale, Office du Niger). No CPV code
+# appears anywhere in the JSON; the platform carries its own national codes:
+# dtpCode for notice type (AAO, AMI) and, on the separate award endpoints,
+# natureMarche/modePassation (FRN, TRV, PI, AOR, AOO, ED and others, not enumerated
+# here since they are not on the notices this source reads). This platform is
+# SIGMAP, the system name already on CLAUDE.md's system-names list.
+#
+# DOCUMENT DOWNLOAD AND PDF TEXT LAYER: NOT CHECKED. The bundle also names
+# `apiUrlDownload: "portail/api/sigmap/dossiers/files/download"` for a dossier's
+# attachments, but no download was attempted - it was out of scope for this
+# assessment (rule: one polite request per page) and is a question for whoever
+# builds the connector, not answered here.
+#
+# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or
+# "mentions legales" route was found: not in the compiled bundle (searched for
+# mentions/cgu/conditions/confidentialite/politique, case-insensitive - nothing),
+# not as a static asset (every guessed path, including config and i18n files that
+# would normally be static JSON, came back as the same SPA shell, meaning there is
+# no static document to find), and not on armds.ml, the regulator's own site, which
+# has no such page either. Absent a clause to quote, this is `pending` for legal
+# review, not a guess in either direction.
+id: mali
+name: Portail des marches publics du Mali (SIGMAP)
+country: ML
+admin_level: national
+language: fr
+stream: feed
+# See "WHAT THE PAGE ACTUALLY SERVES" above: the page needs a browser, the data
+# route it calls does not.
+access: api
+connector: FeedConnector
+wave: 1
+# 11:30 UTC daily = 11:30 Bamako (Mali is UTC+0 year-round, no DST). Chosen to
+# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
+# 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, senegal 11:00.
+schedule: '30 11 * * *'
+# The notices endpoint itself, fetched directly and confirmed live 2026-09-12 (see
+# above): HTTP 200, application/json, no session, no key, no CAPTCHA. The
+# human-facing page for the same data is https://marchespublics.ml/appels-offres,
+# which this connector does not fetch because it renders nothing without a browser.
+api_url: https://marchespublics.ml/portail/api/sigmap/dossiers/dossier-sigmap
+tos_status: pending
+enabled: false          # enabling follows a passing contract test, per the onboarding brief
+health:
+  # Measured 2026-09-12 from one live fetch, not a longitudinal log - see VOLUME
+  # above. Trailing 7-day sums observed over the visible ~5-week window ranged 2 to
+  # 28; floored at 1 rather than 0 so a silent run can never read as a healthy empty
+  # one (rule 4), and the upper bound carries headroom above the observed 28 for a
+  # burst week like the one that produced it. Replace both from a second live
+  # fetch a few weeks apart before enabling, since one snapshot cannot show what a
+  # quiet week looks like.
+  expected_items_per_run: [1, 40]
+  max_consecutive_failures: 3
+owner: ryan.dear
