@@ -29,6 +29,7 @@ from monitor.translate.client import (
     SchemaError,
     TranslationOutput,
     acronyms_in,
+    body_chars,
     dropped_acronyms,
     system_names,
     system_prompt,
@@ -37,7 +38,7 @@ from monitor.translate.client import (
 )
 
 
-def message_response(text: str, *, tokens_in: int = 800, tokens_out: int = 200) -> dict:
+def message_response(text: str, *, tokens_in: int = 800, tokens_out: int = 200, stop_reason: str = "end_turn") -> dict:
     """The shape the Messages API returns, as the SDK expects to parse it."""
     return {
         "id": "msg_test",
@@ -45,10 +46,22 @@ def message_response(text: str, *, tokens_in: int = 800, tokens_out: int = 200) 
         "role": "assistant",
         "model": MODEL,
         "content": [{"type": "text", "text": text}],
-        "stop_reason": "end_turn",
+        "stop_reason": stop_reason,
         "stop_sequence": None,
         "usage": {"input_tokens": tokens_in, "output_tokens": tokens_out},
     }
+
+
+def client_that_runs_out_of_room() -> anthropic.Anthropic:
+    """A response cut off at the token limit: valid prefix, no closing brace."""
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        cut = '{"title_en":"Recruitment of a consultant for the public financial man'
+        return httpx2.Response(200, json=message_response(cut, tokens_out=4096, stop_reason="max_tokens"))
+
+    return anthropic.Anthropic(
+        api_key="test-key-not-real", http_client=httpx2.Client(transport=httpx2.MockTransport(handler))
+    )
 
 
 def client_returning(*bodies: str) -> tuple[anthropic.Anthropic, list[dict]]:
@@ -222,3 +235,47 @@ def test_the_response_schema_rejects_an_invented_field():
 def test_an_empty_title_is_invalid():
     with pytest.raises(ValidationError, match="title_en"):
         TranslationOutput.model_validate({"title_en": "", "body_en": "text"})
+
+
+# --- the body cap and the truncated response --------------------------------
+
+
+def test_the_body_sent_is_cut_to_the_configured_cap():
+    """Rule 6: the number is in config/thresholds.yaml, not here.
+
+    The scorer never reads past its own equal cap, so translating further buys
+    English nobody looks at - and, more to the point, a body long enough to overflow
+    the response comes back as unparseable JSON rather than as a short translation.
+    """
+    cap = body_chars()
+    message = user_message(language="pl", title="Tytul", body="x" * (cap * 4))
+
+    assert message.count("x") == cap
+    assert user_message(language="pl", title="T", body="short").count("short") == 1
+
+
+def test_a_response_cut_off_at_the_token_limit_says_so(db_conn):
+    """Rule 4, and the message is the whole point of this test.
+
+    Left to the validator, a truncated response surfaces as "Invalid JSON: EOF while
+    parsing a string at line 1 column 19371", which reads as a parser bug and sent
+    one reader looking for one. It is a capacity failure and the error has to name
+    the limit, the body size and the fact that retrying cannot help.
+    """
+    client = client_that_runs_out_of_room()
+
+    with pytest.raises(SchemaError, match="token limit and was cut off"):
+        translate(db_conn, client, language="pl", title="Tytul", body="x" * 500, prompt_version="v")
+
+
+def test_a_truncated_response_is_not_retried(db_conn):
+    """The one documented retry (rule 2) is for a model that answered badly. The same
+    input truncating again is not a second chance, it is a second bill."""
+    client = client_that_runs_out_of_room()
+    before = db_conn.execute("select count(*) from model_calls").fetchone()[0]
+
+    with pytest.raises(SchemaError):
+        translate(db_conn, client, language="pl", title="Tytul", body="x" * 500, prompt_version="v")
+
+    after = db_conn.execute("select count(*) from model_calls").fetchone()[0]
+    assert after - before == 1, "one call, not two"

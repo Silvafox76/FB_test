@@ -29,10 +29,12 @@ from functools import lru_cache
 import anthropic
 import psycopg
 import structlog
+import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from monitor import caps
 from monitor.registry import load_system_names
+from monitor.registry.load import CONFIG_DIR
 
 log = structlog.get_logger(__name__)
 
@@ -119,9 +121,25 @@ def dropped_acronyms(original: str, translated: str) -> list[str]:
     return [name for name in acronyms_in(original) if name not in present]
 
 
+@lru_cache(maxsize=1)
+def _thresholds() -> dict:
+    return yaml.safe_load((CONFIG_DIR / "thresholds.yaml").read_text(encoding="utf-8"))
+
+
+def body_chars() -> int:
+    """How much of a body is sent, from config/thresholds.yaml (rule 6)."""
+    return int(_thresholds()["translate_body_chars"])
+
+
 def user_message(*, language: str, title: str, body: str) -> str:
-    """Public notice text and its language. Nothing else ever goes to a model (rule 19)."""
-    return f"Language: {language}\n\nTitle:\n{title}\n\nBody:\n{body}"
+    """Public notice text and its language. Nothing else ever goes to a model (rule 19).
+
+    The body is cut to `translate_body_chars`. The scorer never reads past its own
+    equal cap, so translating further buys English nobody looks at - and a body long
+    enough to overflow the 4,096-token response comes back as JSON cut off mid-string,
+    which fails to parse rather than arriving short.
+    """
+    return f"Language: {language}\n\nTitle:\n{title}\n\nBody:\n{body[: body_chars()]}"
 
 
 def translate(
@@ -160,6 +178,18 @@ def translate(
             tokens_out=response.usage.output_tokens,
             latency_ms=latency_ms,
         )
+
+        # Rule 4: a response that ran out of room is a different failure from a
+        # response that came back malformed, and the message has to say which. Left
+        # to the validator it surfaces as "Invalid JSON: EOF while parsing a string
+        # at column 19371", which sent one reader looking for a parser bug.
+        if response.stop_reason == "max_tokens":
+            raise SchemaError(
+                f"translation response hit the {MAX_TOKENS}-token limit and was cut off mid-JSON; "
+                f"the body sent was {body_chars()} characters. Lower translate_body_chars in "
+                "config/thresholds.yaml or raise MAX_TOKENS, but do not retry: the same input "
+                "will truncate again."
+            )
 
         text = "".join(block.text for block in response.content if block.type == "text")
         try:

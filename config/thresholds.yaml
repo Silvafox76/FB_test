@@ -114,3 +114,16 @@ rate_card:
 # token for Latin scripts and fewer for Cyrillic, so this errs on the side of
 # sending less rather than more.
 score_body_chars: 12000
+
+# How much of a notice body reaches the TRANSLATOR. Deliberately the same number as
+# score_body_chars, and the reason is not symmetry: the scorer never reads past its
+# own cap, so translating further is money spent on English nobody will ever look at.
+#
+# It is also a correctness fix and not only a saving. The translator asks for JSON
+# and caps the response at 4,096 output tokens; a body long enough to need more comes
+# back as a string cut off mid-token, which fails JSON parsing rather than arriving
+# short. Measured on a real call: an 8,160-character body produced 1,947 output
+# tokens, so roughly a quarter of an output token per input character, and the
+# longest body in the database (54,631 characters) would need about 13,000. Capping
+# the input is what keeps the output inside the limit.
+translate_body_chars: 12000
