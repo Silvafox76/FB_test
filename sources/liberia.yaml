@@ -118,8 +118,8 @@ api_url: https://eprocurement.ppcc.gov.lr/ocds/record/searchRecords.action
 # resolves to the same ocds-dwjm7l-<id> records the OCDS API already returns, so
 # building against it would be a second client for one source (rule 1).
 tos_status: reviewed_ok
-# THE NORMALISER GAP THAT USED TO BLOCK THIS SOURCE IS CLOSED; A DIFFERENT ONE
-# NOW BLOCKS IT. As of 2026-09-12, monitor/connectors/liberia.py exists,
+# THE NORMALISER GAP THAT USED TO BLOCK THIS SOURCE IS CLOSED, AND SO IS THE GATE
+# THAT REPLACED IT. As of 2026-09-12, monitor/connectors/liberia.py exists,
 # tests/contract/fixtures/liberia.json exists, and tests/contract/test_liberia.py
 # runs 25 cases against it, all passing. monitor/normalise/liberia.py - the
 # RawNotice -> Notice mapper that used to be the missing piece - was written
@@ -127,31 +127,43 @@ tos_status: reviewed_ok
 # and publication dates parsed and 14 distinct hashes. It also carries
 # `estimated_value_usd`, which no other source can, because Liberia publishes in
 # USD natively - decision 7 records that values in other currencies are dropped
-# rather than converted.
+# rather than converted. Of the 14 releases in the fixture, 11 carry a usable
+# amount, from 500 to 25,000 USD; the other 3 state `0`, which the mapper drops
+# as the publisher's "not stated" rather than carrying a zero into appendix E's
+# Total Opportunity Amount - a district-office construction does not cost
+# nothing.
 #
-# WHAT BLOCKS IT NOW IS A LIVE FETCH THAT COULD NOT BE VERIFIED, not the
-# normaliser and not the connector's fixture. At 17:53 UTC on 2026-09-12,
-# `LiberiaConnector.fetch_raw` against
+# THE LIVE FETCH THAT COULD NOT BE VERIFIED WHEN THIS WAS LAST WRITTEN HAS NOW
+# BEEN VERIFIED, AND THE EARLIER FAILURE STAYS ON THE RECORD RATHER THAN BEING
+# ERASED. At 17:53 UTC on 2026-09-12, `LiberiaConnector.fetch_raw` against
 # https://eprocurement.ppcc.gov.lr/ocds/record/searchRecords.action failed with
 # `ConnectError: [Errno 104] Connection reset by peer`. A single diagnostic
 # request to the same host's home page returned HTTP 200 at the same time, so the
-# host itself is up and the reset was specific to the OCDS endpoint, or transient,
-# or rate limiting - which one is not yet known.
+# host itself was up and the reset was specific to the OCDS endpoint, or
+# transient, or rate limiting. It was NOT RETRIED at the time, deliberately: rule
+# 2 forbids retries outside the two documented cases and rule 21 asks for one
+# polite pass, and a single failure was no more conclusive on its own than the
+# single success that led to enabling EBRD earlier that day and then needing a
+# revert - the same caution applied symmetrically rather than only when it
+# argues for waiting.
 #
-# THIS WAS NOT RETRIED, DELIBERATELY. Rule 2 forbids retries outside the two
-# documented cases and rule 21 asks for one polite pass; a single failure here is
-# no more conclusive on its own than the single success that led to enabling EBRD
-# earlier today and then needing a revert, and the same caution is being applied
-# symmetrically rather than only when it argues for waiting.
+# Fourteen minutes later, at 18:07 UTC, one clean attempt: 14 raw notices from 60
+# page rows, 14 in window - inside this entry's own expected_items_per_run band
+# of 3 to 60 (see health, below). So the 17:53 reset was transient, not a
+# standing block, and that is the gate this entry named as outstanding; it is
+# now cleared. The 17:53 failure is kept here rather than dropped because a host
+# that reset once may reset again, and whoever reads a future failure on this
+# source should know it has happened before and was transient that time.
+# `max_consecutive_failures: 3` below is what will report it if a future streak
+# is not.
 #
-# So the entry needs ONE clean live fetch before enabling, and that is the whole
-# of what stands between it and `enabled: true` - not further connector, fixture
-# or normaliser work. sources/burkina_faso.yaml and sources/sierra_leone.yaml are
-# the pilot's other two West African national sources with cleared terms;
-# sources/sierra_leone.yaml cleared this same live-fetch check today and is now
-# enabled, so Liberia and Burkina Faso are what remain between this source's
-# 1.0-weight priority geography and a fuller set of live national feeds.
-enabled: false
+# This makes Liberia the SECOND West African national source to go live, after
+# sources/sierra_leone.yaml went live earlier this evening (2026-09-12). Before
+# today the pilot's 1.0-weight priority geography (config/thresholds.yaml) had no
+# national feed at all. sources/burkina_faso.yaml is the remaining one of the
+# pilot's three West African national sources with cleared terms not yet
+# enabled.
+enabled: true
 health:
   # Measured 2026-09-12 against the live corpus (1,385 records total, one
   # ~256 KB request for the lot - `POST searchRecords.action` with

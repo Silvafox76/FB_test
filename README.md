@@ -97,8 +97,10 @@ landed at step 2, before any code that might need it, and runs on every commit f
 **Steps 1 to 22 have been worked, and not all of their acceptance tests are met.** Code is not the
 same thing as a passed gate, so the table below says which is which rather than reporting a step as
 done because its files exist. 1,039 tests pass, and the checkpoint test that proves
-`monitor_pipeline` holds no privilege on `approved_records` runs on every commit. The pipeline holds 2,441 notices from 9 enabled sources and 145 candidates, 24 of them in the
-review queue — 4 West Africa, 2 Balkans, the rest Europe. Nothing has been approved or exported:
+`monitor_pipeline` holds no privilege on `approved_records` runs on every commit. The pipeline holds 2,487 notices from 11 enabled sources and 148 candidates, 26 of them in the
+review queue — 6 West Africa, 2 Balkans, the rest Europe. **Sierra Leone and Liberia went live on
+2026-09-12 and are the pilot's first West African national sources**; before them the 1.0-weight
+priority geography had no national feed at all. Nothing has been approved or exported:
 the pilot has not entered shadow mode. These counts move with every pass; `make status` is the
 live reading and this line is a snapshot taken on 2026-09-12.
 

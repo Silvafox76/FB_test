@@ -40,6 +40,7 @@ from monitor.connectors.doe import DoeConnector
 from monitor.connectors.ebrd import EbrdConnector
 from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
+from monitor.connectors.liberia import LiberiaConnector
 from monitor.connectors.prozorro import ProzorroConnector
 from monitor.connectors.sierra_leone import SierraLeoneConnector
 from monitor.connectors.ted import TedConnector
@@ -52,6 +53,7 @@ from monitor.normalise import doe as doe_normalise
 from monitor.normalise import ebrd as ebrd_normalise
 from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
+from monitor.normalise import liberia as liberia_normalise
 from monitor.normalise import prozorro as prozorro_normalise
 from monitor.normalise import sierra_leone as sierra_leone_normalise
 from monitor.normalise import ted as ted_normalise
@@ -79,6 +81,7 @@ CONNECTORS = {
     "boamp": (BoampConnector, boamp_normalise.map_notice),
     "ebrd": (EbrdConnector, ebrd_normalise.map_notice),
     "sierra_leone": (SierraLeoneConnector, sierra_leone_normalise.map_notice),
+    "liberia": (LiberiaConnector, liberia_normalise.map_notice),
 }
 
 # Built, fixture-tested, and deliberately absent from the table above. Listed here
@@ -89,23 +92,6 @@ CONNECTORS = {
 #           signature and no file in this repository is one. Wiring it would let
 #           `monitor run` fetch it, so the permission to run is what is withheld;
 #           the connector and its 43 contract tests stay.
-#   liberia THE NORMALISER EXISTS NOW AND THE BLOCKER HAS MOVED. Until 2026-09-12
-#           there was no `monitor/normalise/liberia.py`, so nothing mapped the
-#           `RawNotice` the connector yields to a `Notice`. That module is written
-#           and maps all 14 OCDS releases in the recorded fixture, with 14/14
-#           deadlines and publication dates parsed. It is also the only mapper that
-#           can carry `estimated_value_usd`, because Liberia publishes in USD
-#           natively and no conversion is involved (decision 7).
-#
-#           What blocks it now is one unverified live fetch. At 17:53 UTC on
-#           2026-09-12 `fetch_raw` against the OCDS search endpoint failed with
-#           `ConnectError: [Errno 104] Connection reset by peer`, while a single
-#           request to the same host's home page returned 200 - so the host is up
-#           and the reset was endpoint-specific, transient or rate limiting. It was
-#           NOT retried (rules 2 and 21), and one failure is no more conclusive than
-#           the one success that misled the EBRD enable earlier the same day. One
-#           clean live fetch is the whole of what stands between this and wiring.
-#
 #   burkina_faso
 #           NOT A MISSING NORMALISER, and calling it one was wrong. This connector
 #           yields one `RawNotice` per BULLETIN PDF - base64, `mime:
@@ -125,6 +111,24 @@ CONNECTORS = {
 #           So this is an architectural decision about the acquire stage, not a
 #           module anyone can just add.
 #
+#
+# LIBERIA AND SIERRA LEONE WERE IN THIS LIST UNTIL 2026-09-12, both for the same
+# reason and both now wired. Neither was un-built: each had a connector, a recorded
+# fixture and a passing contract test, and what was missing was the other half of
+# the pair this table wants - a `monitor/normalise/<source>.py` to map the
+# `RawNotice` they yield onto a `Notice`. Both mappers were written that day.
+#
+# Liberia's live fetch failed once on the way in, at 17:53, with a connection reset,
+# and was deliberately not retried then: one failure is no more conclusive than the
+# one success that had misled the EBRD enable a few hours earlier, and the lesson
+# was worth applying in both directions. A single clean attempt at 18:07 returned 14
+# notices from 60 page rows, inside its expected band of 3 to 60, so the reset was
+# transient. The failure stays on the record here because a host that reset once may
+# reset again, and whoever reads the next one should know it has happened before.
+#
+# These two are the pilot's first West African national sources. Before them the
+# 1.0-weight priority geography had no national feed at all: every notice in the
+# database came from Europe or a multi-country donor feed.
 #
 # EBRD WAS IN THIS LIST TWICE ON 2026-09-12 AND IS NOW WIRED, which is worth the
 # space because the second entry was wrong for a better reason than the first.
