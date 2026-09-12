@@ -230,8 +230,43 @@ def country_query(covers: list[str]) -> str:
 
     `^` is the OR separator. An ISO code with no Bank spelling raises: sending 18
     of 19 countries would read as a quiet day in the nineteenth.
+
+    **A name containing an apostrophe is dropped unless it comes first**, which is
+    why the order here is not the registry's. Measured against the live API on
+    2026-09-12, and it is worth stating as counts because the failure is silent:
+
+        Cote d'Ivoire alone          5,996
+        Ghana alone                  4,452
+        "Cote d'Ivoire^Ghana"       10,448   both
+        "Ghana^Cote d'Ivoire"        4,452   Ghana only
+
+    Every other shape joins correctly in any position, including multi-word names
+    and one containing a comma ("Gambia, The"), so this is the apostrophe and not
+    word count or punctuation generally. No escaping works: doubling it, escaping
+    it, quoting the value and substituting a curly apostrophe or the accented
+    "Côte d'Ivoire" all return Ghana alone.
+
+    So the ordering is the workaround, and it was costing the pilot one of its
+    thirteen West African countries on every run - 5,996 notices' worth of corpus,
+    reported as a healthy fetch. The connector's existing guard could not catch it:
+    it checks that nothing UNWANTED comes back, and a country that silently returns
+    nothing is indistinguishable from a country having a quiet day.
+
+    Only one apostrophe can be first, so a second one raises rather than being
+    quietly dropped the way the first was.
     """
-    return "^".join(country_names(covers))
+    names = country_names(covers)
+    with_apostrophe = [name for name in names if "'" in name]
+
+    if len(with_apostrophe) > 1:
+        raise ValueError(
+            f"more than one covered country name contains an apostrophe: {with_apostrophe}. "
+            "Only the first survives this API's OR join, so the rest would yield nothing and "
+            "report a healthy run. Split the query per country in "
+            "monitor/connectors/worldbank.py before adding another."
+        )
+
+    return "^".join(with_apostrophe + [name for name in names if "'" not in name])
 
 
 def country_names(covers: list[str]) -> list[str]:

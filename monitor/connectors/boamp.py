@@ -165,27 +165,19 @@ class BoampConnector(FeedConnector):
         skipped = 0
 
         for day in self.days():
+            if self.at_ceiling(requests, len(raw_notices), day):
+                # Said once, before another day's index is asked for: a run that has
+                # already stopped reading does not go and fetch a listing it will
+                # not use.
+                break
+
             day_url = self.day_url(day)
             listing = client.get(day_url)
             listing.raise_for_status()
             names = listing_names(listing.text, day_url=day_url)
 
             for name in names:
-                if requests >= MAX_NOTICE_REQUESTS:
-                    log.warning(
-                        "boamp_request_ceiling_reached",
-                        requests=requests,
-                        ceiling=MAX_NOTICE_REQUESTS,
-                        day=day.isoformat(),
-                    )
-                    break
-                if len(raw_notices) >= self.source.expected_max:
-                    log.warning(
-                        "boamp_ceiling_reached",
-                        fetched=len(raw_notices),
-                        ceiling=self.source.expected_max,
-                        detail="raise expected_items_per_run in sources/boamp.yaml",
-                    )
+                if self.at_ceiling(requests, len(raw_notices), day):
                     break
 
                 response = client.get(day_url + name)
@@ -214,6 +206,26 @@ class BoampConnector(FeedConnector):
             days=[day.isoformat() for day in self.days()],
         )
         return raw_notices
+
+    def at_ceiling(self, requests: int, fetched: int, day: date) -> bool:
+        """Has this run read as much as it is allowed to? Says which ceiling, once."""
+        if requests >= MAX_NOTICE_REQUESTS:
+            log.warning(
+                "boamp_request_ceiling_reached",
+                requests=requests,
+                ceiling=MAX_NOTICE_REQUESTS,
+                day=day.isoformat(),
+            )
+            return True
+        if fetched >= self.source.expected_max:
+            log.warning(
+                "boamp_ceiling_reached",
+                fetched=fetched,
+                ceiling=self.source.expected_max,
+                detail="raise expected_items_per_run in sources/boamp.yaml",
+            )
+            return True
+        return False
 
 
 def listing_names(html: str, *, day_url: str) -> list[str]:

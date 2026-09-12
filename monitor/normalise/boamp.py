@@ -29,10 +29,11 @@ BOAMP has not published before raises rather than mapping to an empty notice.
 formats in the same `GESTION` management block, and on 414 of 414 files it carries
 `IDWEB`, `NOMORGANISME`, `DATE_PUBLICATION`, `DESCRIPTEURS`, `DEP_PUBLICATION` and
 `RESUME_OBJET`. The first three are read here. `RESUME_OBJET` is deliberately not
-the title: it is BOAMP's index summary and **it is truncated at 200 characters** -
-8 of the 289 tenders recorded end mid-word ("... pour le compte du Crous de"). The
-format's own `intitule` / `Name` / `objet` / `titreMarche` is the title the buyer
-wrote, and it is present on 289 of 289.
+the title: it is BOAMP's index summary and **it is truncated at 200 characters**,
+ellipsis included - 8 of the 289 tenders recorded hit the cap, one of them ending
+"... pour le compte du Crous de...". The format's own `intitule` / `Name` /
+`objet` / `titreMarche` is the title the buyer wrote, and it is present on 289 of
+289.
 
 Six more things the recorded day settled.
 
@@ -159,10 +160,17 @@ FRACTION = re.compile(r"(?<=:\d\d)\.\d+")
 class FormatPaths:
     """Where one BOAMP document format puts the three fields that are not shared.
 
-    `document` is the child of the format element that holds a tender: eForms names
-    it after the notice kind and the three national formats call it `initial`. The
-    connector has already dropped the natures whose document is an `attribution` or
-    a `rectificatif`, so a yielded notice has this child and raises if it does not.
+    `document` maps a notice's NATURE to the child of the format element that holds
+    it. eForms names that child after the notice kind - `ContractNotice` for an
+    APPEL_OFFRE, `PriorInformationNotice` for a PRE-INFORMATION - and the three
+    national formats call it `initial` whatever the nature. A mapping and not a
+    single name because the first live fetch found a nature the recorded day did not
+    contain, and a single name could only have been made to fit it by trying one
+    element and then another, which is the fallback rule 1 forbids.
+
+    A (format, nature) pair that is not here raises. That is the same choice as an
+    unknown format: reading a prior information notice through a contract notice's
+    paths would produce an empty notice and report a healthy run.
 
     `cpv` is a tuple because a notice classifies its main object and its lots'
     additional objects in separate elements, the way TED splits
@@ -170,7 +178,7 @@ class FormatPaths:
     element in its schema at all.
     """
 
-    document: str
+    document: dict[str, str]
     title: str
     description: str
     cpv: tuple[str, ...]
@@ -186,7 +194,14 @@ class FormatPaths:
 # schema: 354 occurrences on the recorded day, all of them under those two.
 FORMATS = {
     "EFORMS": FormatPaths(
-        document="ContractNotice",
+        # PRE-INFORMATION was not in the 414 files of 2026-09-11 and the first live
+        # fetch hit two of them on 2026-09-10, where the run stopped rather than
+        # mapping one wrongly (rule 4). It is a pre-tender signal, the earliest
+        # warning that a procurement is coming, and it is worth having: the two seen
+        # were a vehicle-hire framework and an AMO advisory sourcing notice. It
+        # states no DATE_LIMITE_REPONSE, because there is nothing to close yet, and
+        # the title, description and CPV paths below resolve on it unchanged.
+        document={"APPEL_OFFRE": "ContractNotice", "PRE-INFORMATION": "PriorInformationNotice"},
         title=f"{CAC}ProcurementProject/{CBC}Name",
         description=f"{CAC}ProcurementProject/{CBC}Description",
         # One path: in eForms the main classification and every lot's additional
@@ -194,19 +209,28 @@ FORMATS = {
         cpv=(f".//{CBC}ItemClassificationCode",),
     ),
     "FNSimple": FormatPaths(
-        document="initial",
+        # The national formats put every nature in `initial`. No PRE-INFORMATION has
+        # been seen in one; if one appears it raises here rather than being assumed
+        # to follow the same rule.
+        document={"APPEL_OFFRE": "initial"},
         title="natureMarche/intitule",
         description="natureMarche/description",
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
     ),
     "MAPA": FormatPaths(
-        document="initial",
+        # The national formats put every nature in `initial`. No PRE-INFORMATION has
+        # been seen in one; if one appears it raises here rather than being assumed
+        # to follow the same rule.
+        document={"APPEL_OFFRE": "initial"},
         title="description/objet",
         description="caracteristiques/principales",
         cpv=(),
     ),
     "DSP": FormatPaths(
-        document="initial",
+        # The national formats put every nature in `initial`. No PRE-INFORMATION has
+        # been seen in one; if one appears it raises here rather than being assumed
+        # to follow the same rule.
+        document={"APPEL_OFFRE": "initial"},
         title="descriptionMarche/titreMarche",
         description="descriptionMarche/description",
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
@@ -221,8 +245,9 @@ def map_notice(raw: dict) -> MappedNotice:
     the file came from and the XML as served.
     """
     day = date.fromisoformat(raw["day"])
-    root = parse_document(raw["xml"], reference=raw["day"])
-    idweb = notice_idweb(root, reference=raw["day"])
+    reference = f"published {raw['day']}"
+    root = parse_document(raw["xml"], reference=reference)
+    idweb = notice_idweb(root, reference=reference)
     url = NOTICE_URL.format(idweb=idweb)
 
     paths = format_paths(root, reference=idweb)
@@ -282,17 +307,29 @@ def format_paths(root, *, reference: str) -> FormatPaths:
 
 
 def document_element(root, paths: FormatPaths, *, reference: str):
-    """The element inside the format block that holds the tender.
+    """The element inside the format block that holds this notice.
 
-    Raises where it is absent, which for a yielded notice means the nature in the
-    management block and the document in the data block disagree - an
-    `APPEL_OFFRE` whose body is an `attribution`. The two agreed on all 414
-    recorded files, and the check is here because nothing downstream could tell.
+    Two ways this raises, and both are things nothing downstream could detect.
+
+    A nature this format has no element name for: the pipeline has met a kind of
+    notice nobody has mapped, and guessing which element holds it is how an empty
+    notice gets reported as a healthy run.
+
+    A named element that is not there: the nature in the management block and the
+    document in the data block disagree - an `APPEL_OFFRE` whose body is an
+    `attribution`. The two agreed on all 414 files of the recorded day.
     """
-    element = root.find(f"{FORMAT_BLOCK}/*/{paths.document}")
+    nature = notice_nature(root, reference=reference)
+    name = paths.document.get(nature)
+    if name is None:
+        raise ValueError(
+            f"{reference}: no document element is mapped for nature {nature!r}; "
+            f"add it to FORMATS in monitor/normalise/boamp.py (known: {sorted(paths.document)})"
+        )
+
+    element = root.find(f"{FORMAT_BLOCK}/*/{name}")
     if element is None:
-        nature = notice_nature(root, reference=reference)
-        raise ValueError(f"{reference}: nature is {nature} but the document has no {paths.document!r} element")
+        raise ValueError(f"{reference}: nature is {nature} but the document has no {name!r} element")
     return element
 
 
@@ -319,7 +356,7 @@ def cpv_codes(document, paths: FormatPaths) -> list[str]:
     return extract_codes(*values)
 
 
-def published_at(root, *, day: date, idweb: str, url: str) -> datetime | None:
+def published_at(root, *, day: date, idweb: str, url: str) -> datetime:
     """`DATE_PUBLICATION`, checked against the day directory the file came from.
 
     They agreed on all 414 files of 2026-09-11, and the agreement is what makes the

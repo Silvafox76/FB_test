@@ -296,10 +296,24 @@ def main() -> int:
                 all(batch is None and at is None for _id, batch, at in stamped),
                 "; ".join(f"{record} batch={batch} exported_at={at}" for record, batch, at in stamped),
             )
-            drill.check(
-                "no half-written staging directory was left behind",
-                staging_leftovers(directory) == [],
-                f"leftovers {staging_leftovers(directory) or 'none'}",
+            # NOT a check, and it used to be one. At this kill point the rename has
+            # already happened - the check two screens up proves the files are on disk
+            # before the stamp - so "no .part left behind" is true by construction and
+            # could never fail. A check that cannot fail reads as coverage and is not.
+            #
+            # The window where a .part CAN be orphaned is between the two staging
+            # writes in review/export.py:write_files, and this drill cannot aim at it:
+            # the kill is aimed by holding a row lock so the export blocks on its next
+            # SQL statement, and there is no SQL statement between those two writes. A
+            # timed kill would hit it rarely and prove nothing on the other runs, which
+            # is the thing this drill's design explicitly rejects.
+            #
+            # So it is reported and not asserted, and RUNBOOK.md carries it as a known
+            # uncovered window rather than a covered one.
+            drill.note(
+                f"staging directories now: {staging_leftovers(directory) or 'none'}. "
+                "Not a check: the rename precedes the stamp, so nothing could be left here. "
+                "The window between the two staging writes is not covered by this drill."
             )
 
             # The records are still exportable, which is the whole point of the claim above.

@@ -68,10 +68,7 @@ tos_status: reviewed_ok
 #                  STATUT RECTIFICATIF, and it keeps its deadline. Known gap: a
 #                  national-format deadline change is not tracked in this pilot.
 exclude_notice_types: [ATTRIBUTION, MODIFICATION, RECTIFICATIF]
-# false until a live fetch has run. The fixture and the contract test were built
-# without one, because a scoring and a translation run were live against the same
-# database; the orchestrator flips this after the first real fetch.
-enabled: false
+enabled: true          # step 13: fixture recorded 2026-09-12, 27 contract tests passing, live fetch below
 health:
   # Two completed publication days per run, tenders only. Notice files per day,
   # measured over the eleven days visible on 2026-09-12: 105, 165, 205, 106, 172,

@@ -368,3 +368,39 @@ def test_no_notice_carries_a_cpv_code_or_a_value(rows):
 def test_a_bad_notice_date_raises(rows):
     with pytest.raises(ValueError, match="noticedate"):
         notice_date(dict(rows[0], noticedate="2026-09-10"))
+
+
+# --- the country the OR join was silently dropping -----------------------------
+
+
+def test_a_name_with_an_apostrophe_is_sent_first_because_the_api_drops_it_otherwise(source):
+    """Measured on the live API, 2026-09-12, and silent in both directions.
+
+        Cote d'Ivoire alone      5,996
+        Ghana alone              4,452
+        Cote d'Ivoire^Ghana     10,448   both
+        Ghana^Cote d'Ivoire      4,452   Ghana only
+
+    It cost the pilot one of its thirteen West African countries on every run, and
+    reported a healthy fetch while doing it. The connector's filter guard cannot
+    catch this: it checks nothing UNWANTED comes back, and a country returning
+    nothing looks exactly like a country having a quiet day.
+    """
+    terms = country_query(source.covers).split("^")
+
+    assert "'" in terms[0], f"an apostrophe name must lead the join, got {terms[0]!r}"
+    assert set(terms) == set(country_names(source.covers)), "reordering must not drop or add a country"
+    assert len(terms) == len(source.covers)
+
+
+def test_a_second_apostrophe_name_raises_rather_than_being_dropped_quietly(source):
+    """Only one can be first. The second would repeat the original defect."""
+    from monitor.connectors import worldbank
+
+    names = dict(worldbank.BANK_COUNTRY_NAMES)
+    names["ZZ"] = "Someone's Republic"
+
+    with pytest.raises(ValueError, match="more than one covered country name contains an apostrophe"):
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(worldbank, "BANK_COUNTRY_NAMES", names)
+            country_query(list(source.covers) + ["ZZ"])

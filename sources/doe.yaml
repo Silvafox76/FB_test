@@ -36,7 +36,7 @@ tos_status: reviewed_ok
 # Reversible in config, like TED's: an award names the winner, and Architecture
 # v0.4 counts competitor incumbency as something that changes a score.
 exclude_notice_types: [result, cont-modif, dir-awa-pre]
-enabled: false        # the orchestrator flips this after the first live fetch; this agent recorded the fixture only
+enabled: true          # step 13: contract test passing, live fetch 2026-09-12 yielded 175 notices
 health:
   # Two completed publication days per run. Measured selected notices per day:
   # 143 (Wed 2026-09-09), 96 (Thu 09-10), 90 (Fri 09-11), 70 (Sat 09-05),

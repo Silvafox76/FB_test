@@ -51,9 +51,19 @@ def test_every_registry_file_loads_and_the_weekend_four_are_among_them():
     assert WEEKEND_SOURCES <= sources, f"missing: {sorted(WEEKEND_SOURCES - sources)}"
 
 
-def test_every_source_is_a_feed_connector_this_weekend():
-    """Playwright arrives at step 17 and not before (CLAUDE.md, Stack)."""
-    assert {source.connector_class for source in load_sources()} == {"FeedConnector"}
+def test_every_enabled_source_is_a_feed_connector():
+    """Playwright arrives at step 17 and not before (CLAUDE.md, Stack).
+
+    Scoped to enabled sources. A registry entry may be written ahead of its
+    connector - source-onboarder assesses a source before anyone builds it, and
+    that assessment is the entry - so a disabled `PageConnector` row is the
+    onboarding having happened, not a browser having arrived. What would break the
+    rule is one of those running, and `enabled` is what decides that.
+    """
+    running = {source.connector_class for source in load_sources() if source.enabled}
+
+    assert running == {"FeedConnector"}
+    assert "BrowserConnector" not in {source.connector_class for source in load_sources()}
 
 
 def test_a_misspelled_field_fails_naming_the_field(sources_copy):

@@ -634,17 +634,34 @@ Approves two records, holds a row lock so the export blocks at the stamp, waits 
 
 **Expect, and it is a disjunction because the guarantee is one:** either a complete
 CSV with a manifest whose sha256 matches the file, or no file at all — and in both
-arms no `export_batches` row, no record with `exported_at` or `export_batch` set, and
-no `.part` staging directory left behind. Aimed at the window after the rename, the
-arm that shows up is the orphan: a complete `B00nn/` directory named by no batch row.
+arms no `export_batches` row and no record with `exported_at` or `export_batch` set.
+Aimed at the window after the rename, the arm that shows up is the orphan: a complete
+`B00nn/` directory named by no batch row.
 **That orphan is the residue this design accepts**, and it is the right way round: an
 orphan file is visible, verifiable against its own sha256 and discardable, while a
 record stamped as exported for a file nobody has would be invisible and
 unrecoverable, because that record would never be selected again.
 
+**What this drill does not cover, stated because a check that cannot fail reads as
+coverage.** The drill aims its kill by holding a row lock so the export blocks on its
+next SQL statement, which is the stamp — and the rename that publishes the batch has
+already happened by then. So at that point no `.part` staging directory *could* be
+left behind, and the drill reports that rather than asserting it.
+
+The window where a `.part` can be orphaned is between the two staging writes in
+`review/export.py:write_files`, and there is no SQL statement between them to aim at.
+A timed kill would hit it rarely and prove nothing on the runs where it missed, which
+is exactly what this drill's aiming design rejects. **So an orphaned `.part` directory
+is a known uncovered case.** If one appears in the export directory, it is a crash
+between those two writes; it is safe to delete, because no batch row or stamp can
+exist for it, and `mkdir` without `exist_ok` means the next export of that same batch
+id would refuse rather than write into it.
+
 The drill then exports the same range again to completion, and the new batch id is one
-higher than the killed attempt's. A sequence does not roll back, so **every gap in the
-B-series is an export that did not finish.**
+higher than the killed attempt's. A sequence does not roll back, so **a gap in the
+B-series is an export that did not finish** — including this drill's own two runs,
+which is why the B-series on a database the drills have been run against is not a
+clean count of real exports.
 
 ## Refusals you will meet, and what each one means
 

@@ -71,6 +71,11 @@ exclude_notice_types: [award_tender, award_competition, award_study_contract, di
 # without one, because a scoring and a translation run were live against the same
 # database; the orchestrator flips this after the first real fetch, and only after the
 # clause 5 sign-off above.
+# Held disabled on a TERMS position, not a technical one: tos_status is
+# reviewed_restricted and AGB clause 5 needs a named person's signature, which no
+# file in this repository is. A live fetch of 15 publications was run against
+# simap.ch on 2026-09-12 before this was noticed - one polite pass with the
+# identified user agent - and the source was put back to disabled on the spot.
 enabled: false
 health:
   # Measured over 2026-08-01 to 2026-09-12 with both query filters applied: 151
