@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -317,15 +318,87 @@ def test_cpv_codes_are_read_through_each_formats_own_paths(document, roots, sour
             assert code.isdigit(), f"{name}: {code!r} is not a CPV code"
 
 
-def test_the_value_is_never_converted_from_euros(document, roots, source):
-    """Stated in EUR on 96 of 224 eForms notices. A conversion needs a rate and a date."""
-    excluded = frozenset(source.exclude_notice_types)
+# --- the published value, procedure level only (rule 9) ----------------------
 
-    for name, root in roots.items():
-        if notice_nature(root, reference=name) in excluded:
-            continue
-        assert mapped(document, name).notice.estimated_value is None
-        assert mapped(document, name).notice.value_currency is None
+# The fixture's mappable eForms notices (nature not excluded) that state a
+# procedure-level `EstimatedOverallContractAmount` other than zero, and the
+# amount each carries once mapped. Two more notices state one and are not here:
+# 26-87490.xml states zero, and 26-87483.xml states 23064602 but is an
+# ATTRIBUTION - an excluded nature `map_notice` cannot map at all, value or not.
+PROCEDURE_VALUES = {
+    "26-87482.xml": Decimal("125000.00"),
+    "26-87569.xml": Decimal("245000.00"),
+    "26-87795.xml": Decimal("873000.00"),
+}
+
+
+def test_the_count_of_fixture_notices_carrying_a_procedure_level_value(document, roots, source):
+    """3 of the fixture's mappable notices carry a procedure-level value once
+    mapped. A fourth mappable one states zero (`published_value`'s zero rule),
+    and a fifth states a real value but is an excluded-nature ATTRIBUTION that
+    cannot be mapped at all."""
+    excluded = frozenset(source.exclude_notice_types)
+    carrying = {
+        name
+        for name, root in roots.items()
+        if notice_nature(root, reference=name) not in excluded
+        and mapped(document, name).notice.estimated_value is not None
+    }
+
+    assert carrying == set(PROCEDURE_VALUES)
+
+
+def test_each_procedure_level_value_is_carried_exactly_as_published(document):
+    for name, expected in PROCEDURE_VALUES.items():
+        notice = mapped(document, name).notice
+        assert notice.estimated_value == expected, name
+        assert notice.value_currency == "EUR", name
+
+
+def test_a_notice_with_only_lot_values_carries_no_estimated_value(document):
+    """26-87466.xml states 440000 EUR on one lot and nothing at procedure level.
+    Summing the lot would be this module's own arithmetic, not the published
+    figure (rule 9), so it carries none rather than the lot's amount."""
+    notice = mapped(document, "26-87466.xml").notice
+
+    assert notice.estimated_value is None
+    assert notice.value_currency is None
+
+
+def test_a_procedure_total_that_differs_from_its_lot_sum_carries_the_procedure_total(document):
+    """26-87569.xml states 245000 EUR at procedure level against three lots
+    summing 204166.68; the publisher's own total is carried, not a recomputed one."""
+    notice = mapped(document, "26-87569.xml").notice
+
+    assert notice.estimated_value == Decimal("245000.00")
+    assert notice.value_currency == "EUR"
+
+
+def test_a_stated_zero_maps_to_no_value(document):
+    """26-87490.xml states 0.00, which `published_value` reads as not stated."""
+    notice = mapped(document, "26-87490.xml").notice
+
+    assert notice.estimated_value is None
+    assert notice.value_currency is None
+
+
+def test_every_national_format_notice_carries_no_value(document, roots, source):
+    """FNSimple, MAPA and DSP have no value element in their schema at all. 4 of
+    the fixture's 13 national-format notices are excluded-nature ATTRIBUTION or
+    RECTIFICATIF ones that `map_notice` cannot map regardless of value, so 9 are
+    checked here."""
+    excluded = frozenset(source.exclude_notice_types)
+    national = [
+        name
+        for name, root in roots.items()
+        if format_paths(root, reference=name).value is None and notice_nature(root, reference=name) not in excluded
+    ]
+
+    assert len(national) == 9
+    for name in national:
+        notice = mapped(document, name).notice
+        assert notice.estimated_value is None, name
+        assert notice.value_currency is None, name
 
 
 # --- the envelope ------------------------------------------------------------

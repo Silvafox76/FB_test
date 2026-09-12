@@ -94,13 +94,32 @@ are central-government arrive in the export as "Local/Regional"
 (`config/record_defaults.yaml`). The reviewer sees the buyer's name and the notice
 URL beside it.
 
-**`estimated_value_usd` is never set from here, and 96 of the 224 eForms notices do
-state a value.** They state it in EUR (`EstimatedOverallContractAmount`,
-`currencyID="EUR"` on all 96). The column is USD, there is no exchange rate in
-`config/`, and rule 6 forbids putting one in a `.py` file. A number written into a
-USD column from an EUR figure is exactly the "plausible-looking invented value"
-CLAUDE.md's export section forbids. Adding a rate to `config/thresholds.yaml` is
-what would close this, and the value is already in hand when someone does.
+**The published value is read at procedure level only, and only from eForms.**
+Measured across all 584 payloads held in `storage/boamp/` on 2026-09-12: 323 are
+eForms and the other 261 (FNSimple 218, MAPA 42, DSP 1) carry no value element in
+their schema at all. `EstimatedOverallContractAmount`, always `currencyID="EUR"`,
+occurs at two paths that are siblings rather than one nested inside the other -
+`ContractNotice/ProcurementProject/RequestedTenderTotal/EstimatedOverallContractAmount`
+for the procedure as a whole (123 occurrences, 19 of them zero for "not stated",
+so 104 real totals) and
+`ContractNotice/ProcurementProjectLot/ProcurementProject/RequestedTenderTotal/EstimatedOverallContractAmount`
+for each lot (329 occurrences) - so a descendant-axis search finds both and the
+result alone cannot tell them apart. Only the procedure path is read here. 24 of
+the 323 eForms notices state a value on their lots and none at the procedure
+level; summing those lots would be this module's own arithmetic, not the
+published figure (rule 9), and it would be arithmetic the publisher itself does
+not always agree with anyway - 12 notices state a procedure total that differs
+from the sum of their lots (one states 245 000€ against three lots summing
+204 166.68€) - so those 24 carry no value rather than a computed one. A separate
+`FrameworkMaximumAmount` element, in the eForms extension namespace rather than
+the base UBL one, exists at both levels too (48 procedure-level, 144 lot-level)
+and is never read: it is a ceiling on a framework agreement, not an estimate of
+the contract, and storing a ceiling as an estimate is exactly the kind of
+plausible-looking wrong figure CLAUDE.md's export rules exist to keep out.
+`estimated_value_usd` is still never set from here: the figure carried is EUR,
+the column is USD, and turning one into the other needs a dated rate, which is
+what staging applies (migration 012) to every source that states a value, this
+one now included.
 
 `DESCRIPTEURS` (BOAMP's own 375-term subject vocabulary) and `ANNONCE_ANTERIEUR`
 (the annonce a correction corrects) are both read by nothing here: `Notice` has no
@@ -112,6 +131,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 
 import structlog
 
@@ -127,6 +147,7 @@ from monitor.normalise.cpv import extract_codes
 from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
+from monitor.normalise.value import published_value
 
 log = structlog.get_logger(__name__)
 
@@ -176,12 +197,19 @@ class FormatPaths:
     additional objects in separate elements, the way TED splits
     `classification-cpv` across fields. It is empty for MAPA, which has no CPV
     element in its schema at all.
+
+    `value` is the procedure-level path to the published contract value. It is
+    None for the three national formats, which have no value element in their
+    schema at all - recorded once here rather than discovered per notice - and,
+    for EFORMS, it is deliberately the procedure-level path only: see the module
+    docstring for why the lot-level path beside it is never read or summed.
     """
 
     document: dict[str, str]
     title: str
     description: str
     cpv: tuple[str, ...]
+    value: str | None
 
 
 # Keyed on the single child element of `DONNEES`, which is the format the document
@@ -207,6 +235,12 @@ FORMATS = {
         # One path: in eForms the main classification and every lot's additional
         # ones are the same element type, so `.//` reads all of them at once.
         cpv=(f".//{CBC}ItemClassificationCode",),
+        # The procedure-level total only. Its sibling under each
+        # `ProcurementProjectLot` is the same element name one level down and is
+        # deliberately not read here or anywhere else in this module - see the
+        # module docstring for the 24 notices that state only a lot value and the
+        # 12 where the procedure total disagrees with the lots' sum.
+        value=f"{CAC}ProcurementProject/{CAC}RequestedTenderTotal/{CBC}EstimatedOverallContractAmount",
     ),
     "FNSimple": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -216,6 +250,8 @@ FORMATS = {
         title="natureMarche/intitule",
         description="natureMarche/description",
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
+        # No value element anywhere in the schema; see the module docstring.
+        value=None,
     ),
     "MAPA": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -225,6 +261,8 @@ FORMATS = {
         title="description/objet",
         description="caracteristiques/principales",
         cpv=(),
+        # No value element anywhere in the schema; see the module docstring.
+        value=None,
     ),
     "DSP": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -234,6 +272,8 @@ FORMATS = {
         title="descriptionMarche/titreMarche",
         description="descriptionMarche/description",
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
+        # No value element anywhere in the schema; see the module docstring.
+        value=None,
     ),
 }
 
@@ -257,6 +297,7 @@ def map_notice(raw: dict) -> MappedNotice:
     if not title:
         raise ValueError(f"{idweb}: {paths.title} is empty; a notice with no title cannot be mapped")
     body = text_of(document, paths.description)
+    value, value_currency = procedure_value(document, paths)
 
     notice = Notice(
         content_hash=content_hash(title, body),
@@ -277,15 +318,10 @@ def map_notice(raw: dict) -> MappedNotice:
         # of the module docstring. Not a detection, so there is nothing uncertain.
         language_confidence=1.0,
         cpv_codes=cpv_codes(document, paths),
-        # Stated in EUR on 96 of 224 eForms notices and never converted here; see
+        # Procedure level only, in EUR, never converted or summed from lots; see
         # the module docstring.
-        # eForms states one on 323 of the 584 stored notices, in EUR, as
-        # `EstimatedOverallContractAmount`. It is NOT read yet: the element occurs 452
-        # times across those 323 documents, so procedure-level and lot-level have to be
-        # told apart before a figure is carried, and reading the wrong one would either
-        # understate the opportunity or count it twice. The three national formats
-        # (FNSimple 218, MAPA 42, DSP 1) carry no value element at all. Deliberately
-        # left for its own change rather than guessed at here.
+        estimated_value=value,
+        value_currency=value_currency,
         body=body,
         status="detected",
     )
@@ -360,6 +396,24 @@ def cpv_codes(document, paths: FormatPaths) -> list[str]:
     """
     values = [element.text or "" for path in paths.cpv for element in document.findall(path)]
     return extract_codes(*values)
+
+
+def procedure_value(document, paths: FormatPaths) -> tuple[Decimal | None, str | None]:
+    """The procedure-level published value, or (None, None) where none is stated.
+
+    None for the three national formats (`paths.value` is None for them). None
+    also for a eForms notice that states a value only on its lots and not at the
+    procedure level - 24 of the 323 recorded - because summing the lots would be
+    this module's own arithmetic, not the published figure (rule 9); see the
+    module docstring for the 12 notices where the publisher's own total disagrees
+    with that sum anyway. `published_value` turns a stated zero into None too.
+    """
+    if paths.value is None:
+        return None, None
+    element = document.find(paths.value)
+    if element is None:
+        return None, None
+    return published_value(element.text, element.get("currencyID"), source_id=SOURCE_ID)
 
 
 def published_at(root, *, day: date, idweb: str, url: str) -> datetime:
