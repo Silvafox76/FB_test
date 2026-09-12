@@ -109,6 +109,14 @@ api_url: https://eprocurement.ppcc.gov.lr/ocds/record/searchRecords.action
 # reviewed_ok on the same basis sources/ebrd.yaml used: a permissive robots.txt
 # plus no login wall on the data actually read, not a quoted license clause,
 # because no clause exists to quote - its absence is the finding.
+# One fact for whoever revisits document enrichment, measured 2026-09-12 while ruling
+# out a second connector against this same host. The OCDS release's own
+# documents[].url path (downloadContractDocument.do) 302s to /cas/login, but the
+# generated notice PDF at /epps/cft/downloadNoticeForAdvSearch.do?resourceId=<id>
+# returns 200 application/pdf with no login and no cookie, and it carries a real text
+# layer. It is NOT grounds for a second connector: the HTML listing it hangs off
+# resolves to the same ocds-dwjm7l-<id> records the OCDS API already returns, so
+# building against it would be a second client for one source (rule 1).
 tos_status: reviewed_ok
 enabled: false          # step 18: not yet built or fixture-tested; see notes above on the route change from BUILD_ORDER's assumption
 health:

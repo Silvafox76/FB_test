@@ -220,6 +220,20 @@ list_url: https://tenders.ppa.gov.gh/tenders
 # No clause found either permitting or prohibiting automated access on either
 # ppa.gov.gh or tenders.ppa.gov.gh - see WHAT A PERSON NEEDS TO DO step 4. Absent
 # a clause to quote, this is pending for legal review, not a guess.
+# Cross-source finding, 2026-09-12, and it changes what this blocker IS.
+#
+# Every GHANEPS listing action 302s an anonymous request back to the home page, with
+# no login form and no 401, which reads like a hard registration wall. It is probably
+# not one. Liberia runs the SAME Struts eGPS product at eprocurement.ppcc.gov.lr, with
+# the same quickSearchAction.do action name, and a plain anonymous GET there returns a
+# populated results table - 200, no redirect, 24 results, live deadlines (measured the
+# same day, see sources/liberia.yaml).
+#
+# Same software, opposite behaviour. So anonymous listing is a per-deployment
+# configuration choice and Ghana's operator has it switched off. That makes the ask a
+# cheap one - PPA enabling anonymous search, or confirming it is deliberate - rather
+# than the expensive one it looks like, and it should be tried before anyone considers
+# registering a supplier account.
 tos_status: pending
 # Not a step the orchestrator flips after a passing fixture. Two independent
 # things must be confirmed by a person with a connection this session did not
