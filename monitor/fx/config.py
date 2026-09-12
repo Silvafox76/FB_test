@@ -105,6 +105,13 @@ def load(path: Path | None = None) -> FxConfig:
     re-validated the YAML (design-cop on 67954a7). The model is frozen, so a
     cached instance cannot be mutated by a caller. maxsize 4 rather than 1 so a
     test loading a tmp copy does not evict the real file for the next call.
+
+    Nothing invalidates the cache: the key is the path as passed, and a second
+    load of the same path returns the first document even if the file changed
+    in between. A test wanting two documents must use two paths (every test
+    today does, one tmp_path per test); a long-lived process that edits
+    config/fx.yaml restarts. Exceptions are not cached, so a bad file re-raises
+    on every call.
     """
     document = yaml.safe_load((path or CONFIG_PATH).read_text(encoding="utf-8"))
     return FxConfig.model_validate(document)

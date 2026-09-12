@@ -323,6 +323,11 @@ def test_the_registrys_sentence_list_is_exactly_what_the_record_builder_reads():
     from monitor.registry.load import RECORD_SENTENCE_KEYS
 
     source = (Path(__file__).parents[2] / "monitor" / "stage" / "record.py").read_text(encoding="utf-8")
+    # Sees exactly one form: a literal key subscripted directly. Every read in
+    # record.py is written that way today, and this test only holds while that
+    # stays true - `sentences.get("x")` or a key held in a variable would add a
+    # dependency this regex never sees (design-cop on dbe6e71). If record.py ever
+    # needs another form, extend the pattern here in the same change.
     read_in_code = set(re.findall(r'sentences\["([a-z_]+)"\]', source))
 
     assert read_in_code == RECORD_SENTENCE_KEYS
