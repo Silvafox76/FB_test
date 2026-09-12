@@ -96,21 +96,30 @@ landed at step 2, before any code that might need it, and runs on every commit f
 
 **Steps 1 to 22 have been worked, and not all of their acceptance tests are met.** Code is not the
 same thing as a passed gate, so the table below says which is which rather than reporting a step as
-done because its files exist. 1,039 tests pass, and the checkpoint test that proves
-`monitor_pipeline` holds no privilege on `approved_records` runs on every commit. The pipeline holds 2,487 notices from 11 enabled sources and 148 candidates, 26 of them in the
-review queue — 6 West Africa, 2 Balkans, the rest Europe. **Sierra Leone and Liberia went live on
-2026-09-12 and are the pilot's first West African national sources**; before them the 1.0-weight
-priority geography had no national feed at all. Nothing has been approved or exported:
-the pilot has not entered shadow mode. These counts move with every pass; `make status` is the
-live reading and this line is a snapshot taken on 2026-09-12.
+done because its files exist. 1,186 tests pass and 1 is skipped; 2 fail —
+`tests/unit/test_backfill_values.py::test_pass_two_running_twice_changes_nothing` and
+`tests/unit/test_stager.py::test_a_second_notice_about_the_same_tender_joins_rather_than_making_a_candidate`
+— both because three `pending_review` candidates (`C919153`–`C919155`, under `test-exp-*` sources)
+are still sitting in the shared dev database from an interrupted `test_export.py` run: its fixture
+teardown does not survive an interrupted run. Neither failure touches code this branch changed. The
+checkpoint test that proves `monitor_pipeline` holds no privilege on `approved_records` runs on every
+commit and is not one of the two. The pipeline holds 2,487 notices from 11 enabled sources, 1,277 of
+them carrying a published value in the currency it was published in, and 148 candidates, 26 of them
+in the review queue — 6 West Africa, 2 Balkans, 18 Europe; of those 26, 11 show a converted USD
+figure, 15 state no value, and none is stuck in a currency with no rate held for it. **Sierra Leone
+and Liberia went live on 2026-09-12 and are the pilot's first West African national sources**; before
+them the 1.0-weight priority geography had no national feed at all. Nothing has been approved or
+exported: the pilot has not entered shadow mode. These counts move with every pass; `make status` is
+the live reading and this line is a snapshot taken on 2026-09-12.
 
 | Steps | State |
 | --- | --- |
 | 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
 | 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
-| 17 to 19, West Africa | Built, **partly met**. Three of ten West African portals have a recorded fixture and a passing contract test (Burkina Faso, Liberia, Sierra Leone); the other seven have a registry entry and nothing behind it, and five of those have no terms page to clear at all. |
+| 17 to 19, West Africa | Built, **partly met**. Three of ten West African portals have a recorded fixture and a passing contract test (Burkina Faso, Liberia, Sierra Leone); the other seven have a registry entry and nothing behind it, and five of those have no terms page to clear at all. Burkina Faso's connector and fixtures pass 29 contract tests, but `monitor/normalise/burkina_faso.py` does not exist, so it still ships `enabled: false`; testing `config/lexicon_fr.yaml` today against its 284-notice sample (five Quotidien issues) found 0 PFM notices, with all 28 free-filter passes false positives on `trésor` and `recrutement` — the finding that had both words dropped from the lexicon today. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
 | 21, golden set and metrics | Metrics half met; golden half **not met** — see below. |
+| 21b, published value and USD conversion | Met. See `BUILD_ORDER.md`. |
 | 22, security review | Met. Eleven findings, two closed early, two deferred with an owner and a date. |
 | 25, wave 2 | Out of order — its gates at steps 23 and 24 have not run. Both connectors ship `enabled: false`. |
 
@@ -119,7 +128,7 @@ gate. `docs/open_decisions.md` carries the per-step disclosure table, including 
 several steps out of order, and 41 open and closed decisions with what each blocked source is blocked
 on.
 
-**Two things worth knowing before trusting any number this system produces.**
+**Three things worth knowing before trusting any number this system produces.**
 
 *The golden set has no labels.* It is 150 stratified notices across 8 sources and 19 languages,
 straddling the free filter so it can measure what the filter drops as well as what the scorer keeps —
@@ -129,12 +138,28 @@ opinion, and a real regression would read as agreement. **So precision and recal
 any claim about this system's accuracy today has no measurement behind it.** It needs roughly two
 hours from a named labeller, and it is the single largest unmeasured thing in the pilot.
 
-*The staging threshold cannot usefully be tuned.* Swept across all 143 candidates, every value from 43
-to 68 stages the same 12, so the current 60 sits mid-plateau and moving it inside that range changes
-nothing. The 146 scores take 18 distinct values and pile onto round ones — 58 notices at exactly 5, 38
-at 15, 10 at 72 — so the scorer behaves as a five-or-six-way classifier wearing a 0-100 scale. The top
-score in the corpus is 72, so any threshold at 73 or above empties the queue. The levers that would
-move the queue are the scoring prompt and the upstream filter, not the number (decision 39).
+*The staging threshold is 25, not 60.* `config/thresholds.yaml` is authoritative and carries the
+reasoning: 60 could not be tuned because the scorer's scores cluster on a small number of round
+values, so every threshold from 43 to 68 staged the identical 12 candidates and moving it inside that
+band changed nothing. 25 is the edge taken instead, made safe by the same-day lexicon fix that removed
+the generic words letting waste-disposal and vehicle-repair notices reach the free filter. The rescore
+band follows the same floor, `[25, 70]`, and is reachable only via `monitor rescore` / `make rescore`
+— deliberately not a stage of `monitor run`, because each row is a paid Sonnet call sized by a person.
+
+*Contract values are no longer the model's invention.* The scorer used to report
+`estimated_value_usd` itself; every one of the eight values it ever produced was checked against the
+full notice text it was given, and none of the eight appeared in that text in any form — migration
+`012_published_value_and_currency.sql`'s header carries the evidence, including four TED notices
+where the true structured figure sat in the payload the model was never shown. Values now come from
+the source's own structured field, stored in the currency it was published in (rule 9), and a USD
+figure is derived at staging from a rate stored beside it: `estimated_value / value_rate` reproduces
+`estimated_value_usd` exactly on every stamped row (checked today: 60 of 60). Two things a reviewer
+will not see on that figure. Prozorro mixes VAT-inclusive and VAT-exclusive amounts in the same field
+— of 743 stored payloads, 245 state `valueAddedTaxIncluded: true` and 498 state `false`, and the
+pipeline carries the number as published, saying nothing about which. And 24 BOAMP eForms notices
+state a value only on their lots and none at the procedure level; summing the lots would be this
+module's own arithmetic rather than the publisher's, and on 12 of those the publisher's own total
+disagrees with the lot sum anyway, so those 24 show "not stated" rather than a computed figure.
 
 Observability of a running pilot is a person reading `make status` and `make metrics`. The five
 application alarms in `infra/terraform/observability.tf` still have no publisher and sit in
