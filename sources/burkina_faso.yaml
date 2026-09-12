@@ -61,9 +61,11 @@
 # branch is cheap insurance - but nobody should expect it to fire routinely on
 # this source, and no scanned fixture was found here to build step 18's
 # "scanned week" contract-test fixture from. Whoever builds
-# monitor/connectors/burkina_faso.py should either keep sampling the
-# remaining ~1,390 issues for one, or confirm with a person that the
-# acceptance test's premise needs correcting alongside "weekly" above.
+# monitor/normalise/burkina_faso.py and that fixture - monitor/connectors/
+# burkina_faso.py itself already exists and passes contract tests; see BLOCKED ON
+# THE NORMALISER below - should either keep sampling the remaining ~1,390 issues
+# for one, or confirm with a person that the acceptance test's premise needs
+# correcting alongside "weekly" above.
 #
 # No CPV code or other numbered code system is carried anywhere in the ten
 # sampled issues (grep for "CPV" case-insensitively: zero hits in all ten).
@@ -134,11 +136,29 @@ list_url: https://dgcmef.gov.bf/index.php/fr/revue-de-march-s-pour-tous
 # droit reserve" line differently, the honest fallback is pending, not
 # reviewed_restricted, since nothing found here actually forbids the fetch.
 tos_status: reviewed_ok
+# BLOCKED ON THE NORMALISER, NOT THE CONNECTOR. As of 2026-09-12,
+# monitor/connectors/burkina_faso.py exists, and so do all three of its fixtures
+# (burkina_faso.json, burkina_faso.html, burkina_faso_sample.pdf);
+# tests/contract/test_burkina_faso.py runs 29 cases against them, all passing.
+# What is missing is monitor/normalise/burkina_faso.py - the RawNotice -> Notice
+# mapper - and the matching (connector, mapper) pair in monitor/fetch.py's
+# CONNECTORS table; without both, fetch.py has nothing to map this connector's
+# RawNotice output onto, and it stays disabled. That is one normaliser module plus
+# its own tests, the same shape as monitor/normalise/doe.py, not a rebuild of the
+# connector or a re-probe of the routes above. The same gap, and nothing more, is
+# why sources/liberia.yaml and sources/sierra_leone.yaml are also still disabled -
+# the pilot's only other West African national sources with cleared terms - so all
+# three sit two-thirds built while the 1.0 geography weight market currently has
+# zero live national feeds.
 enabled: false
 health:
-  # Not notices yielded by a connector, which does not exist yet - a proxy
-  # measurement, and the acceptance test's real numbers should replace this
-  # once monitor/connectors/burkina_faso.py exists. Counted distinct
+  # Not notices yielded by a live run - the connector itself exists and passes 29
+  # contract-test cases against its fixtures (see BLOCKED ON THE NORMALISER
+  # above), but it has never run against Postgres because there is no
+  # monitor/normalise/burkina_faso.py mapper and no CONNECTORS entry for it in
+  # monitor/fetch.py, so this is still a proxy measurement rather than a
+  # connector-observed one. The acceptance test's real numbers should replace
+  # this once the normaliser exists and a run has actually happened. Counted distinct
   # dossier-reference strings (pattern n or N degree + 4-digit year + '-' +
   # digits, e.g. "N2026-016/MEBAPLN/SG/DMP") in pdftotext's plain-text output,
   # case-folded and de-duplicated within one issue, across ten issues sampled

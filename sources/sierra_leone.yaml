@@ -194,12 +194,22 @@
 # a quiet week of zero *new* postings is not, and this framing is what keeps the
 # two apart. Revisit both bounds once real run history exists.
 #
-# NOTHING HERE IS BLOCKED ON A PERSON. No registration, no account, no credential,
-# no local tax or company registration wall sits in front of /bid/ - unlike several
-# other sources in this pilot, this one needed no escalation to reach an enabled-
-# once-tested state. `enabled` is false only because BUILD_ORDER step 19 is
-# connector work not yet done, the same reason sources/doe.yaml and
-# sources/simap.yaml were false before their contract tests passed.
+# NOTHING HERE IS BLOCKED ON A PERSON, AND NOT BLOCKED ON THE CONNECTOR EITHER ANY
+# MORE. No registration, no account, no credential, no local tax or company
+# registration wall sits in front of /bid/ - unlike several other sources in this
+# pilot, this one needed no escalation to reach an enabled-once-tested state. As of
+# 2026-09-12, monitor/connectors/sierra_leone.py exists, tests/contract/fixtures/
+# sierra_leone.json exists, and tests/contract/test_sierra_leone.py runs 26 cases
+# against it, all passing - so the earlier "connector work not yet done" reason no
+# longer holds. What is actually missing is monitor/normalise/sierra_leone.py - the
+# RawNotice -> Notice mapper - and the matching (connector, mapper) pair in
+# monitor/fetch.py's CONNECTORS table; without both, fetch.py has nothing to map
+# this connector's table-row RawNotice output onto, and it stays disabled. That is
+# one normaliser module plus its own tests, the same gap and nothing more that
+# holds back sources/burkina_faso.yaml and sources/liberia.yaml, the pilot's other
+# two West African national sources with cleared terms - so all three sit
+# two-thirds built while the 1.0 geography weight market currently has zero live
+# national feeds.
 id: sierra_leone
 name: National Public Procurement Authority (NPPA) Bid Opportunities
 country: SL
@@ -219,7 +229,7 @@ schedule: '0 11 * * *'
 # for why this is the whole source in one URL with nothing to page through.
 list_url: https://nppa.gov.sl/bid/
 tos_status: reviewed_ok
-enabled: false          # step 19: not yet built. See NOTHING HERE IS BLOCKED ON A PERSON above.
+enabled: false          # blocked on the normaliser, not the connector - see NOTHING HERE IS BLOCKED ON A PERSON above.
 health:
   # See VOLUME above for why this models table size, not arrival rate. 32 rows
   # measured 2026-09-12; floor and ceiling are headroom around that, not a

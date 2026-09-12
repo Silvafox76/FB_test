@@ -118,7 +118,21 @@ api_url: https://eprocurement.ppcc.gov.lr/ocds/record/searchRecords.action
 # resolves to the same ocds-dwjm7l-<id> records the OCDS API already returns, so
 # building against it would be a second client for one source (rule 1).
 tos_status: reviewed_ok
-enabled: false          # step 18: not yet built or fixture-tested; see notes above on the route change from BUILD_ORDER's assumption
+# BLOCKED ON THE NORMALISER, NOT THE CONNECTOR OR ITS FIXTURE. As of 2026-09-12,
+# monitor/connectors/liberia.py exists, tests/contract/fixtures/liberia.json
+# exists, and tests/contract/test_liberia.py runs 25 cases against it, all
+# passing - the earlier "not yet built or fixture-tested" reason no longer holds.
+# What is actually missing is monitor/normalise/liberia.py - the RawNotice ->
+# Notice mapper - and the matching (connector, mapper) pair in monitor/fetch.py's
+# CONNECTORS table; without both, fetch.py has nothing to map this connector's
+# OCDS-derived RawNotice output onto, and it stays disabled. That is one
+# normaliser module plus its own tests, not a rebuild of the connector or a
+# re-probe of the route documented above. The same gap, and nothing more, is why
+# sources/burkina_faso.yaml and sources/sierra_leone.yaml are also still disabled -
+# the pilot's only other West African national sources with cleared terms - so all
+# three sit two-thirds built while the 1.0 geography weight market currently has
+# zero live national feeds.
+enabled: false
 health:
   # Measured 2026-09-12 against the live corpus (1,385 records total, one
   # ~256 KB request for the lot - `POST searchRecords.action` with

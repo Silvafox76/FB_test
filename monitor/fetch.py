@@ -82,11 +82,42 @@ CONNECTORS = {
 #           signature and no file in this repository is one. Wiring it would let
 #           `monitor run` fetch it, so the permission to run is what is withheld;
 #           the connector and its 43 contract tests stay.
-#   ebrd    no recorded fixture. ecepp.ebrd.com served the recording pass on
-#           2026-09-12 and then began resetting connections, so the 56-case contract
-#           test skips and nothing has proven the parser.
+#   burkina_faso, liberia, sierra_leone
+#           NO NORMALISER. All three have a connector, a recorded fixture and a
+#           passing contract test (29, 25 and 26 cases), and all three are
+#           `tos_status: reviewed_ok`. What is missing is the other half of the pair
+#           this table wants: there is no `monitor/normalise/<source>.py`, so nothing
+#           maps the `RawNotice` they yield to a `Notice`. They are two-thirds built
+#           rather than un-built, and the missing third is one module each plus its
+#           tests. Worth doing: they are the only West African national sources with
+#           cleared terms, and no West African national source is enabled at all, in
+#           a pilot whose priority geography weight for the region is 1.0.
 #
-# Both are `enabled: false` in their registry entries as well. The test
+#   ebrd    THE HOST CANNOT TAKE THE CADENCE THIS PIPELINE ACTUALLY RUNS AT, which
+#           is not the same problem the earlier note here described and is worse.
+#           That note said "no recorded fixture: ecepp.ebrd.com is resetting
+#           connections". Half of it was stale by 2026-09-12 - the fixtures are
+#           recorded and the 56-case contract test runs and passes - and on one
+#           live probe `fetch_raw` returned 4,050 archive rows and 11 notices in
+#           scope, inside the entry's own expected range of 1 to 30. That probe was
+#           read as proof the host was fine and the source was enabled and wired.
+#           The very next fetch, five minutes later, timed out.
+#
+#           One success does not disprove "serves the first pass, then resets": it
+#           is what that sentence predicts. The deeper reason not to wire it is
+#           cadence, and it is ours rather than theirs. `sources/ebrd.yaml` asks for
+#           `schedule: '30 10 * * *'`, once a day. `fetch()` below selects every
+#           enabled source with no reference to `schedule`, and the scheduler runs
+#           `monitor run` hourly, so wiring this source asks a host that refuses a
+#           second pass for twenty-four passes a day. That is rule 21's "one polite
+#           pass per schedule" broken by us, and it is a real reason to wait rather
+#           than a cautious one. RUNBOOK.md line 898 records the underlying gap:
+#           nothing in the fetch stage reads a source's schedule yet.
+#
+#           So EBRD is unblocked on everything except the one thing nobody had
+#           looked at, and it goes in the moment fetch honours `schedule`.
+#
+# Every source here is `enabled: false` in its registry entry as well. The test
 # `test_every_wired_source_is_enabled_and_every_enabled_source_is_wired` asserts
 # those two facts stay in step.
 
