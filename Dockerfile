@@ -7,6 +7,15 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# poppler-utils, for `pdftotext`. Burkina Faso publishes its notices as a weekly PDF
+# bulletin and `monitor/normalise/ocr.py` measures the text layer before deciding
+# whether the issue needs OCR at all (BUILD_ORDER step 18). It is a system binary and
+# not a Python dependency, so it belongs here rather than in pyproject.toml. Without
+# it every bulletin measures as a scan and is billed to Textract.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends poppler-utils \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # uv.lock is copied and --frozen is passed so the image installs the versions that

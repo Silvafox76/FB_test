@@ -40,6 +40,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("stage", help="dedupe scored notices into candidates and stage them for review")
     subparsers.add_parser("run", help="one full pass: fetch all, filter, score, dedupe, stage")
     subparsers.add_parser("status", help="source health, today's calls and cost, queue depth, export backlog")
+    metrics = subparsers.add_parser("metrics", help="measure the week's numbers and write the row the page reads")
+    # 0 rather than a literal 7, so the window has one definition and it is
+    # WINDOW_DAYS in monitor/health/metrics.py. Same idiom as --limit above, and it
+    # keeps that module's imports out of argument parsing.
+    metrics.add_argument(
+        "--days", type=int, default=0, help="the window every rate is measured over (0 = the job's weekly cadence)"
+    )
     golden = subparsers.add_parser(
         "golden", help="precision, recall and schema validity for the current prompt version"
     )
@@ -378,6 +385,34 @@ def run_full_pass() -> int:
     return 0
 
 
+def run_metrics(days: int) -> int:
+    """Measure the week, store the run the metrics page reads, print the report.
+
+    Two connections, for the reason `monitor status` uses two: the reads include the
+    export backlog, which lives in `approved_records`, and `migrations/002_roles.sql`
+    leaves monitor_pipeline no privilege there. Reporting is what monitor_readonly is
+    for. The one insert is the pipeline's, because this is a scheduled job and not a
+    reviewer action.
+
+    Nothing is notified (rule 18). The row is written, the report is printed, and the
+    reviewer reads the page when they read it.
+    """
+    from monitor.db import connect
+    from monitor.health.metrics import WINDOW_DAYS, collect, render, write
+    from review.export import reporting_connection
+
+    with reporting_connection() as conn:
+        run = collect(conn, window_days=days or WINDOW_DAYS)
+
+    with connect("pipeline") as conn:
+        write(conn, run)
+
+    print(render(run))
+    print()
+    print(f"stored as run {run.run_id}; the metrics page reads it at /metrics")
+    return 0
+
+
 def run_status() -> int:
     """Source health and the filter's arithmetic per source, then the export backlog."""
     from monitor.db import connect
@@ -419,6 +454,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_full_pass()
     if args.command == "status":
         return run_status()
+    if args.command == "metrics":
+        return run_metrics(args.days)
 
     print(f"monitor {args.command}: not implemented, arrives in {IMPLEMENTED_BY[args.command]}", file=sys.stderr)
     return NOT_IMPLEMENTED_EXIT  # pragma: no cover - every command is implemented

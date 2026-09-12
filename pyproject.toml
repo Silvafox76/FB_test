@@ -24,6 +24,15 @@ dependencies = [
     "uvicorn>=0.32",
 ]
 
+[project.optional-dependencies]
+# Playwright, for the handful of portals whose notice rows are injected by
+# JavaScript (BUILD_ORDER step 17). An extra rather than a dependency so the
+# `pipeline` image installs neither the package nor a Chromium: only the `browser`
+# service in docker-compose.yml is built with it, and `monitor/connectors/
+# browser_base.py` imports it inside the render function so the module imports,
+# parses fixtures and runs its whole contract test with the extra absent.
+browser = ["playwright>=1.47"]
+
 [project.scripts]
 monitor = "monitor.cli:main"
 

@@ -52,18 +52,25 @@ def test_every_registry_file_loads_and_the_weekend_four_are_among_them():
 
 
 def test_every_enabled_source_is_a_feed_connector():
-    """Playwright arrives at step 17 and not before (CLAUDE.md, Stack).
+    """Scoped to enabled sources, because that is what "running" means.
 
-    Scoped to enabled sources. A registry entry may be written ahead of its
-    connector - source-onboarder assesses a source before anyone builds it, and
-    that assessment is the entry - so a disabled `PageConnector` row is the
-    onboarding having happened, not a browser having arrived. What would break the
-    rule is one of those running, and `enabled` is what decides that.
+    A registry entry may be written ahead of its connector - source-onboarder
+    assesses a source before anyone builds it, and that assessment is the entry - so
+    a disabled `BrowserConnector` row is the onboarding having happened, not a
+    browser having arrived. What would break the rule is one of those running, and
+    `enabled` is what decides that.
+
+    This test used to also assert that no `BrowserConnector` existed in the registry
+    at all, which contradicted the paragraph above and was really a "Playwright
+    arrives at step 17 and not before" guard. Step 17 has arrived:
+    `monitor/connectors/browser_base.py` is built and the portals that need it are
+    being onboarded, so the guard is gone and only the scoped assertion remains.
+    Enabling a browser source is still a deliberate act that fails this test until
+    the line below is changed with it.
     """
     running = {source.connector_class for source in load_sources() if source.enabled}
 
     assert running == {"FeedConnector"}
-    assert "BrowserConnector" not in {source.connector_class for source in load_sources()}
 
 
 def test_a_misspelled_field_fails_naming_the_field(sources_copy):

@@ -1,0 +1,43 @@
+# The browser image, and the only image in this project that carries a Chromium.
+#
+# It exists so the `pipeline` image does not (BUILD_ORDER step 17). The pipeline
+# fetches nine sources with httpx and selectolax and would otherwise carry several
+# hundred megabytes of browser it never launches, plus that browser's CVE surface and
+# its patch cadence, for the sake of one or two portals whose rows arrive by
+# JavaScript.
+#
+# It is the same repository and the same CLI as the pipeline image: this is a second
+# runtime for the browser sources, not a second program. The base is Microsoft's
+# Playwright image because the Chromium it ships is the one the pinned Playwright
+# version drives and its system libraries are already present; installing a browser
+# onto python:3.12-slim means tracking that pairing by hand.
+#
+# Nothing listens. An earlier shape ran `playwright run-server` here and had the
+# pipeline connect to it over a websocket, which would have introduced the first
+# listener in the deployment; running the connector where the browser already is
+# removes the question instead of answering it (rule 17).
+FROM mcr.microsoft.com/playwright/python:v1.47.0-jammy
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/usr/local \
+    # Read by monitor/connectors/browser_base.py. A browser source that runs anywhere
+    # this is unset fails with a message naming this service rather than with a
+    # ModuleNotFoundError from inside a connector.
+    MONITOR_BROWSER=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR /app
+
+# --frozen and the lock, for the same reason the pipeline image does it: the image
+# installs the versions the suite ran against rather than re-resolving at build time.
+# --extra browser is the only difference from that image's install.
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project --extra browser
+
+COPY monitor/ ./monitor/
+COPY review/ ./review/
+COPY migrations/ ./migrations/
+
+CMD ["python", "-m", "monitor.cli", "status"]

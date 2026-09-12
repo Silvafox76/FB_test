@@ -127,3 +127,20 @@ score_body_chars: 12000
 # longest body in the database (54,631 characters) would need about 13,000. Capping
 # the input is what keeps the output inside the limit.
 translate_body_chars: 12000
+
+# The character count at or above which a PDF is read as born digital rather than
+# sent to OCR (BUILD_ORDER step 18). Measured on the poppler text layer with
+# `pdftotext -layout`, after stripping.
+#
+# A born-digital weekly bulletin runs to tens of thousands of characters and a true
+# scan yields nought, so almost any number between them separates the two. This is
+# not set near the middle of that gap: it is set low, because the case that actually
+# needs a line is a scan the *publisher* has already auto-OCR'd badly, which yields a
+# few hundred characters of noise that looks like a text layer and is not one. 2,000
+# is roughly one dense page, which is below any real issue and above that noise.
+#
+# Moving it is a tuning decision. Too low and a bad publisher OCR is accepted as text
+# and its notices are parsed out of garbage; too high and a thin but genuine issue is
+# sent to Textract and billed for nothing. The route taken is recorded per bulletin,
+# so which way it errs is measurable rather than a matter of opinion.
+pdf_text_layer_min_chars: 2000

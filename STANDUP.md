@@ -24,6 +24,16 @@ Neither path needs AWS. Step 12's Terraform is roughed in and not required to ru
   call rather than after.
 - **Outbound HTTPS**, plus port 80 — several West African portals still lack TLS.
 - About **1 GB** of disk for the database and raw notice storage.
+- **`poppler-utils`**, for `pdftotext`. Burkina Faso publishes its notices as a weekly
+  PDF bulletin, and the pipeline measures a PDF's text layer before deciding whether
+  the issue needs OCR at all. Without the binary every bulletin measures as a scan.
+  `apt-get install poppler-utils`, or `brew install poppler`. The Docker image
+  installs it itself.
+
+You do **not** need a browser. Two or three portals render their notice rows with
+JavaScript and those run in their own container (`browser` in `docker-compose.yml`),
+which is the only image in the project carrying a Chromium. Everything else is httpx
+and selectolax, and Path A below skips the browser sources rather than requiring one.
 
 You do not need a CRM, a Zoho account, or any inbound network path. The review app binds
 to localhost and nothing listens for anything.
@@ -95,6 +105,11 @@ make review             # http://127.0.0.1:8080
 ---
 
 ## Path B — Docker Compose (the deployment shape, unexecuted)
+
+Four services here, not three: `postgres`, `pipeline`, `review` and `browser`. The
+browser service exists so the other two do not carry a Chromium they never launch —
+it is built from `Dockerfile.browser` and runs the browser sources only. It publishes
+no port and listens for nothing.
 
 Same `.env` as above, except the four `DATABASE_URL_*` lines are supplied to the
 containers by `docker-compose.yml` and the ones in `.env` are used by commands you run on

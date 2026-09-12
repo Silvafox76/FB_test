@@ -1,6 +1,10 @@
-# Three services, one Dockerfile, two commands (CLAUDE.md, Stack).
-# Nothing here exposes an inbound network path off the host: Postgres and the
-# review app both bind to 127.0.0.1 only (rule 17).
+# Four services now: postgres, pipeline, review, and browser (BUILD_ORDER step 17).
+# Two Dockerfiles, because the browser service is the only one that carries a
+# Chromium and the whole point of it is that the other two do not.
+#
+# Nothing here exposes an inbound network path off the host: Postgres and the review
+# app both bind to 127.0.0.1 only, and the browser service publishes no port at all
+# and listens for nothing (rule 17).
 
 services:
   postgres:
@@ -41,6 +45,37 @@ services:
       - ./config:/app/config:ro
       - ./logs:/app/logs
       - ./storage:/app/storage
+    restart: "no"
+
+  browser:
+    # The browser sources and nothing else. It runs the same CLI as `pipeline` and
+    # writes to the same database as the same `monitor_pipeline` role: it is a second
+    # runtime for a different transport, not a second privilege (rule 11).
+    #
+    # `restart: "no"` and a status default, like `pipeline`: both are run on a
+    # schedule by the host, not left looping. The schedule for a browser source is in
+    # its registry entry like every other source's.
+    build:
+      context: .
+      dockerfile: Dockerfile.browser
+    container_name: monitor-browser
+    command: ["python", "-m", "monitor.cli", "status"]
+    env_file: .env
+    environment:
+      DATABASE_URL_PIPELINE: postgresql://monitor_pipeline:${MONITOR_PIPELINE_PASSWORD:?set MONITOR_PIPELINE_PASSWORD in .env}@postgres:5432/monitor
+      MONITOR_BROWSER: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./sources:/app/sources:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./storage:/app/storage
+    # Chromium needs more than the default 64 MB of /dev/shm and crashes partway
+    # through a render without it, which would surface as a torn page rather than as
+    # an out-of-memory error.
+    shm_size: "1gb"
     restart: "no"
 
   review:

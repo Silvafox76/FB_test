@@ -77,9 +77,9 @@ class Source(BaseModel):
 
     Field names match the `sources` table; the YAML keys that differ (`access`,
     `connector`) are aliases, and `health` is flattened by the validator below.
-    `covers`, `schedule`, `list_url`, `api_url` and `owner` live only in the YAML:
-    the registry is authoritative for the schedule (BUILD_ORDER step 11) and the
-    table has no column for them.
+    `covers`, `schedule`, `list_url`, `api_url`, `row_selector` and `owner` live only
+    in the YAML: the registry is authoritative for the schedule (BUILD_ORDER step 11)
+    and the table has no column for them.
     """
 
     model_config = STRICT
@@ -97,6 +97,14 @@ class Source(BaseModel):
     schedule: str  # five-field cron, in the source's own timezone; the registry is authoritative
     list_url: str = ""  # one of list_url or api_url is set; checked below
     api_url: str = ""
+    # The CSS selector naming one notice row in a rendered listing. BrowserConnector
+    # sources only, and required for them (checked below). It is in the registry and
+    # not in the connector because a selector is the thing about a portal most likely
+    # to change without warning, and changing it should be a config edit with a
+    # version hash rather than a deployment (rule 6). One selector per source: it is
+    # both what the render waits for and what the parser reads, so there is no second
+    # selector to fall back to (BUILD_ORDER step 17).
+    row_selector: str = ""
     tos_status: TosStatus
     # Notice types to exclude at the query, where the source classifies them.
     # Acquisition scope rather than a filter stage: it decides what to ask for, not
@@ -127,6 +135,24 @@ class Source(BaseModel):
             raise ValueError("a source needs list_url or api_url")
         if self.country == "multi" and not self.covers:
             raise ValueError("a source with country 'multi' must say which countries it covers")
+        # A browser source without a row_selector would render a page and then have
+        # nothing to assert about it, which is the silent-zero this connector class
+        # exists to prevent.
+        #
+        # Required of an *enabled* browser source only, for the same reason
+        # `test_every_enabled_source_is_a_feed_connector` scopes itself that way.
+        # source-onboarder decides a portal needs a browser by fetching its HTML and
+        # finding the rows absent from it; working out what the rows are *called*
+        # needs the page rendered, which is the connector's job and happens later.
+        # Requiring the selector at onboarding would mean one unbuilt source made the
+        # whole registry unloadable. `enabled` is what decides whether anything
+        # fetches, so it is where the requirement binds — and `browser_base`'s
+        # `row_selector()` raises again at fetch time, which is the guard that
+        # actually stands between a blank selector and a silent zero.
+        if self.enabled and self.connector_class == "BrowserConnector" and not self.row_selector.strip():
+            raise ValueError(f"{self.id} is an enabled BrowserConnector and must declare row_selector")
+        if self.connector_class != "BrowserConnector" and self.row_selector.strip():
+            raise ValueError(f"row_selector is for BrowserConnector sources; {self.id} is a {self.connector_class}")
         return self
 
 

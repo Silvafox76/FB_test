@@ -7,7 +7,7 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs migrate seed filter translate score stage golden-export test lint fmt fetch run status golden review export
+.PHONY: help up down logs migrate seed filter translate score stage golden-export test lint fmt fetch run status golden metrics review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -74,6 +74,12 @@ golden: ## Precision, recall and schema validity for the current prompt version
 
 golden-export: ## Write the unlabelled golden set for a person to label
 	uv run python -m monitor.cli golden --export
+
+# No arguments, no flags, no labelling step: the weekly job and this target are the
+# same command, so what a person runs on demand is what cron runs on Monday. It makes
+# no model call and notifies nobody (rules 18 and 22).
+metrics: ## Measure the week's numbers, store them, print the report the metrics page shows
+	uv run python -m monitor.cli metrics
 
 review: ## Serve the review app on 127.0.0.1:8080
 	uv run uvicorn review.app:app --host 127.0.0.1 --port 8080

@@ -1,0 +1,86 @@
+{# The sixth page: the numbers the week 14 gate reads, and the ones that have no data yet.
+
+   Scanned, not read. Three things carry that:
+
+     - what needs a person comes first. The band under the heading names every number
+       that is not measurable, and inside each section those rows sort to the top.
+     - state is in the form as well as the figure. A measured number is a solid chip;
+       a number that does not exist is grey words and a reason, never a nought that
+       could be mistaken for a good week.
+     - every reading carries what is behind it, so no figure on this page has to be
+       taken on trust.
+
+   No orange. That belongs to the decision panel, where a click writes to
+   approved_records, and nothing on this page writes anything. #}
+{% extends "base.html" %}
+{% block title %}Metrics — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Metrics</h1>
+
+{% if not run %}
+  <p class="summary">
+    The weekly job measures precision, recall, the translation rejection rate and the connector break
+    rate, and stores them with the export backlog and the duplicate count. This page reads the newest run.
+  </p>
+  <p class="empty">
+    No metrics run has been recorded. Run <code>make metrics</code>; it takes no arguments, makes no
+    model call and needs nothing prepared.
+  </p>
+{% else %}
+  <p class="summary">
+    Measured {{ run.at.strftime('%Y-%m-%d %H:%M') }} UTC over the {{ run.window.days }} days to
+    {{ run.window.end.strftime('%Y-%m-%d') }}.
+    Nothing here is computed when the page is opened: <code>make metrics</code> writes a row and this
+    reads the newest one.
+    <span class="id">run {{ run.run_id }}</span>
+  </p>
+
+  {% if run.unmeasurable %}
+  {# The attention band. These are the numbers a person has to unblock; no code change will. #}
+  <p class="summary">
+    <strong>{{ run.unmeasurable|length }} of {{ run.metrics|length }} numbers are not measurable yet</strong>
+    — {{ run.unmeasurable|map(attribute='label')|join('; ') }}.
+    Each says below what is missing. A figure derived from nothing is worse than no figure, so none is stored.
+  </p>
+  {% endif %}
+
+  {% for title, members in run.families() %}
+  <section>
+    <h2>{{ title }}</h2>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Reading</th><th>What is behind it</th></tr>
+      </thead>
+      <tbody>
+      {% for m in members %}
+        <tr>
+          <td>
+            {{ m.label }}
+            <span class="evidence">{{ m.description }}</span>
+          </td>
+          <td>
+            {% if m.measurable %}
+              <span class="score big">{{ m.display }}</span>
+              {% if m.of %}<span class="id">{{ m.of }}</span>{% endif %}
+              {% if m.moved %}<span class="evidence">{{ m.moved }}</span>{% endif %}
+            {% else %}
+              <span class="muted">not measurable</span>
+            {% endif %}
+          </td>
+          <td class="muted">{{ m.note }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endfor %}
+
+  <p class="summary">
+    Precision and recall come from the last recorded <code>make golden</code> run at the prompt version
+    the scorer runs today, never from a fresh scoring pass: a weekly report does not get to spend the
+    day's model calls. The duplicate count the gate asks for is the one the Monitor cannot see — under
+    D31 it holds no CRM scope, and the reviewer checking Zoho by hand before approving is the only
+    duplicate control there is.
+  </p>
+{% endif %}
+{% endblock %}

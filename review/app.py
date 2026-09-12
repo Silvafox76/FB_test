@@ -41,6 +41,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from monitor import db
+from monitor.health.metrics import latest
 from monitor.registry.load import load_function_map
 from monitor.stage.record import build_record
 from review.decisions import (
@@ -283,6 +284,25 @@ def audit(request: Request, entity_type: str = "") -> HTMLResponse:
         "audit.html",
         {"events": events, "entity_type": entity_type, "entity_types": ["candidate", "approved_record", "source"]},
     )
+
+
+@app.get("/metrics", response_class=HTMLResponse)
+def metrics_page(request: Request) -> HTMLResponse:
+    """The sixth page, and the only one added after step 10: what the week 14 gate will read.
+
+    It renders the newest row the weekly job wrote and computes nothing itself. That is
+    rule 5 rather than caution about the cost: measuring is the pipeline's job and
+    `monitor/health/metrics.py` does it on a monitor_readonly connection, so a page that
+    measured on request would put the pipeline's arithmetic in the review app and give
+    two answers to the same question depending on which was looked at last.
+
+    Half the numbers on it have no data behind them yet and say so in place of a figure.
+    That is the page working, not the page broken.
+    """
+    with db.connect("review") as conn:
+        run = latest(conn)
+
+    return templates.TemplateResponse(request, "metrics.html", {"run": run})
 
 
 @app.get("/export", response_class=HTMLResponse)

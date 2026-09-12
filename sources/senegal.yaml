@@ -1,0 +1,172 @@
+# Senegal's national public procurement portal. Every candidate entry point named
+# in the onboarding brief was checked live on 2026-09-12 rather than assumed, and
+# three of the four are dead or are the wrong host:
+#
+#   1. https://armp.sn -> HTTP 200, but the body is a 76-byte redirect stub,
+#      `<html><body><script>window.location='http://arcop.sn'</script></body></html>`.
+#      ARMP (Autorité de Régulation des Marchés Publics) has been renamed ARCOP
+#      (Autorité de Régulation de la Commande Publique) and the old host forwards to
+#      the new one. arcop.sn itself resolves and answers 200/301 (www redirects to
+#      bare domain) and is a WordPress site - the regulator's institutional site, not
+#      a notice listing. Its own `wp-json/wp/v2/pages` inventory is mostly a
+#      commerce-theme demo left in place (Shop, Cart, Checkout, Donation pages), so it
+#      is not a curated site to read either.
+#   2. https://dcmp.sn and https://www.dcmp.sn -> do not resolve at all
+#      (`socket.gaierror: Name or service not known`, confirmed independent of the
+#      session's egress proxy: the proxy's own status log records the same host as a
+#      "connect_rejected ... gateway answered 502" at the same moment, i.e. its
+#      resolver failed too). DCMP as a standalone host is gone.
+#   3. https://marchespublics.sn -> same, does not resolve at all.
+#      https://www.marchespublics.sn (the www host, which *does* resolve, to
+#      213.154.85.241) answers plain HTTP with `503 Service Unavailable` and the body
+#      text `upstream connect error or disconnect/reset before headers ... connection
+#      timeout` - an Envoy/Istio gateway with no live backend behind it - and resets
+#      the TLS connection outright on HTTPS. This is a stood-up-but-dead legacy stack,
+#      not a portal to onboard.
+#   4. SYGMAP: no `sygmap.sn` or `sygmap.bj` host resolves either. Not a route here.
+#
+# THE ACTUAL PORTAL, found from ARCOP's own site rather than guessed: arcop.sn's
+# homepage names "APPEL (Achats Publics en Procédures Électroniques)" as where
+# tenders are now published, at https://achatspublics.sn, and links a supplier
+# manual PDF (see below) that confirms it. This is the one entry point that is live,
+# is the government's own platform (ARCOP is the statutory regulator; the manual's
+# cover page carries the Republic of Senegal's arms and ARCOP's own logo), and is
+# not a third-party mirror. Note the manual's own prose gives the domain once as
+# `https://achatpublics.sn` (singular "achat") - that spelling does not resolve
+# (`gaierror`). The real, working domain is `achatspublics.sn` (plural), which is
+# also what robots.txt, the sitemap and every live page on the site itself use; the
+# manual's typo is recorded here so nobody "corrects" this file to the broken form.
+#
+# ROBOTS.TXT, fetched 2026-09-12, verbatim:
+#   # START nuxt-robots (indexable)
+#   User-agent: *
+#   Disallow:
+#   Sitemap: https://achatspublics.sn/sitemap_index.xml
+#   # END nuxt-robots
+# An empty Disallow permits every path. No crawl-delay is stated.
+#
+# WHAT THE PAGE ACTUALLY SERVES, AND WHY THIS IS A BrowserConnector.
+# The site is a Nuxt single-page application with no server-side rendering. The raw
+# HTML for the home page, `/consultations/tenders` (the tender listing itself) and
+# `/consultations/avis-generaux` are byte-identical, all 22,857 bytes, and every one
+# of them contains only `<div id="__nuxt" class="isolate"></div>` - an empty mount
+# point - plus `<script>` tags for the app bundle. There is no notice, title, date or
+# table row anywhere in the served document; a second tool (WebFetch, which also does
+# not execute JavaScript) independently rendered the same URL to nothing. This is the
+# proof rule 4 and the onboarding brief ask for: the listing is absent without JS.
+# `monitor/connectors/base.py`'s FeedConnector/selectolax approach, and a PageConnector
+# built the same way, would read 22KB of script tags and zero notices, forever, and
+# would not even fail loudly (rule 4) - it would just report an empty page as if the
+# portal published nothing, which is worse than not onboarding it at all.
+#
+# This contradicts BUILD_ORDER.md step 17's plan ("Build: Benin and Senegal as
+# PageConnector on structured listings"), which is exactly the kind of assumption
+# this onboarding step exists to check rather than carry forward - the brief says so
+# explicitly ("do not assume any is correct - check what actually serves"). The
+# evidence above is measured against the live site today, not against the build
+# order's expectation, so it is BrowserConnector. Two things a person must resolve
+# before a connector is built against this file:
+#   - tests/unit/test_registry.py::test_every_enabled_source_is_a_feed_connector
+#     currently asserts `"BrowserConnector" not in` the whole registry's
+#     connector_class set, enabled or not - not only "no *enabled* BrowserConnector",
+#     which is what mcc.yaml's PageConnector row relies on being allowed. Writing
+#     this file as `connector: BrowserConnector` fails that assertion as it stands
+#     today. That test is outside this agent's lane (file ownership) and is not
+#     edited here; whoever picks up the step 17 build needs to loosen it to match
+#     what step 17 itself is building (`monitor/connectors/browser_base.py`).
+#   - BUILD_ORDER.md's own step 17 line should be corrected or annotated to match.
+#
+# There IS a same-origin API host, `api.achatspublics.sn`, which is what the SPA
+# almost certainly calls once hydrated. Probed 2026-09-12: every path tried -
+# `/`, `/api/consultations`, `/api/tenders`, `/api/public/consultations`,
+# `/actuator/health` and half a dozen more - answers `401` with `WWW-Authenticate:
+# Bearer` (one exception, `/actuator/health`, which is a bare `404`, consistent with
+# Spring Security's default of requiring auth on every path that isn't explicitly
+# excluded). No public, unauthenticated JSON route was found by guessing. This does
+# NOT mean an account is needed to read notices - see below - it means the anonymous
+# read this portal clearly supports is issued through a token the browser negotiates
+# at load time, which was not reverse-engineered further: doing that without running
+# the page's own JavaScript would be guessing at an undocumented internal API rather
+# than reading what the portal actually publishes, and is exactly the kind of
+# assumption CLAUDE.md's "do not build against documentation memory" forbids. A
+# Playwright connector watching the page's own network calls is how the real
+# endpoint (and whatever token flow feeds it) gets found - not more URL-guessing here.
+#
+# REGISTRATION: NOT REQUIRED TO READ A LISTING. ARCOP's own supplier manual
+# ("Manuel d'utilisation APPEL : Fournisseurs", arcop.sn/wp-content/uploads/2025/12/
+# Manuel_dutilisation_APPEL_Fournisseurs-.pdf, PDF Last-Modified 2026-06-17) says so
+# twice: "L'espace public est accessible sans authentification" (section I.1) and,
+# in bold, "La consultation peut se faire même si on n'est pas connecté et une fois
+# connecté, le bouton « Consultations » permet d'accéder aux appels d'offres."
+# (section III). An account ("Inscription") is needed only to "manifester son
+# intérêt" (express interest), open a tender's full dossier of documents, ask the
+# authority a question, or submit a bid - none of which this pipeline needs: it
+# reads the public notice (reference, contracting authority, procurement type,
+# publication and closing dates, a short title/description), not the attachments.
+# access is therefore `public_listing`, not `registered`, even though the technical
+# route to it needs a browser.
+#
+# VOLUME: NOT MEASURED FROM A LIVE 7-DAY WINDOW, BECAUSE THIS AGENT CANNOT RENDER THE
+# PAGE. The one number available is from the manual's own screenshot of the
+# homepage's counters, dated by the PDF to on-or-before 2026-06-17: "En 2025 - 2 Plans
+# de passation, 7 Appel d'offres, 28 Autorités contractantes, 37 Fournisseurs." Seven
+# tenders is the platform's apparent LIFETIME total at that point, not a weekly rate -
+# consistent with APPEL being a newly launched platform (its own homepage copy reads
+# "Construisons une commande publique sûre, agile et endogène", present tense,
+# building it now) replacing the dead marchespublics.sn/dcmp.sn stack found above.
+# Treat `expected_items_per_run` below as a placeholder, not an observation, and
+# replace it from the first live Playwright fetch, the same discipline
+# sources/mcc.yaml uses for a route nobody has read yet.
+#
+# LANGUAGE AND CODES. Every screenshot in the supplier manual is French; the site's
+# sitemap also declares `en` and `ar` alternates (hreflang), but French is the
+# default and `x-default`. No CPV code appears anywhere in the manual's screenshots:
+# the platform classifies "Biens et Services" under its own ten-letter scheme (A
+# "Matières premières..." through J "Services"), a national commodity list, not CPV.
+# The free CPV filter therefore cannot run against this source; it falls to the
+# lexicon stage, the same shape as sources/ebrd.yaml.
+#
+# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or
+# "mentions légales" page was found on achatspublics.sn (fully client-rendered, so a
+# footer link cannot be confirmed without a browser either) or on arcop.sn (its
+# `wp-json/wp/v2/pages` listing, checked in full, has no such slug). Registration
+# terms may exist only inside the sign-up flow itself, which this agent will not
+# open (rule: never register an account on FreeBalance's behalf). Absent a clause to
+# quote, this is `pending` for legal review, not a guess in either direction.
+id: senegal
+name: Achat Public en Procédures Électroniques (APPEL), Senegal
+country: SN
+admin_level: national
+language: fr
+stream: portal
+access: public_listing
+# See "WHAT THE PAGE ACTUALLY SERVES" above for the evidence and for the two things
+# (a test assertion and a BUILD_ORDER.md line) a person needs to reconcile with this
+# before step 17's connector is built.
+connector: BrowserConnector
+wave: 1
+# 11:00 UTC daily = 11:00 Dakar (Senegal is UTC+0 year-round, no DST). Chosen to
+# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
+# 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30.
+schedule: '0 11 * * *'
+# The tender listing itself ("Appels d'offres"), reached from the home page's
+# Consultations menu. Confirmed live 2026-09-12: HTTP 200, but see above - the
+# document served here carries no notices without JavaScript, which is the fact a
+# BrowserConnector has to be built against.
+list_url: https://achatspublics.sn/consultations/tenders
+tos_status: pending
+enabled: false
+health:
+  # UNMEASURED. See VOLUME above: the only figure available is a lifetime total (7)
+  # from a screenshot in the supplier manual, not a 7-day count, because reading a
+  # real window needs the browser fetch this agent did not run. Floored at 1 rather
+  # than 0 so a silent run can never read as a healthy empty one (rule 4), same as
+  # sources/mcc.yaml's placeholder. Whoever builds the connector replaces both
+  # numbers from real Playwright runs before this source is enabled - the upper bound
+  # is also a detail-request ceiling in whatever connector is built, not only a
+  # health band, so it should not be raised without also deciding how many notice
+  # pages one run may fetch.
+  expected_items_per_run: [1, 15]
+  max_consecutive_failures: 3
+owner: ryan.dear
