@@ -12,8 +12,13 @@ every call is capped and logged like any other (rule 22).
 
 Writes tests/contract/fixtures/translate_<lang>.json, one per notice, each holding
 the original text, the model's response and whether any system name was dropped.
-The notices are taken from the database: real ones held at "needs translation",
-so the fixtures are what the pipeline actually meets rather than invented text.
+The notices are taken from the database - real ones, in the language concerned, with
+a body - so the fixtures are what the pipeline actually meets rather than invented
+text. Selected by language and not by current status: the first run of this script
+found nothing, because the translation stage had already processed all 662 held
+notices and moved them on. The notice's text is the same text whatever status it now
+carries, and requiring it to be *awaiting* translation only meant the fixtures could
+be recorded in the window before the stage first ran and never afterwards.
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ from pathlib import Path
 import anthropic
 import psycopg
 
-from monitor.translate.client import SYSTEM_PROMPT, SchemaError, dropped_acronyms, translate
+from monitor.translate.client import SchemaError, dropped_acronyms, system_prompt, translate
 from monitor.translate.run import prompt_version
 
 REPO = Path(__file__).resolve().parent.parent
@@ -49,7 +54,9 @@ def main() -> int:
         return 2
 
     client = anthropic.Anthropic()
-    version = prompt_version(SYSTEM_PROMPT)
+    # The prompt is built from config/system_names.yaml at call time, so the version
+    # is hashed from the prompt as it actually goes out rather than from a constant.
+    version = prompt_version(system_prompt())
     written = 0
 
     with psycopg.connect(url) as conn:
@@ -58,8 +65,9 @@ def main() -> int:
                 """
                 select external_id, title, coalesce(body, '')
                 from notices
-                where language = %s and filter_result = 'needs translation'
-                order by fetched_at limit %s
+                where language = %s and coalesce(body, '') <> ''
+                order by length(coalesce(body, '')) desc, fetched_at
+                limit %s
                 """,
                 (language, PER_LANGUAGE),
             ).fetchall()
