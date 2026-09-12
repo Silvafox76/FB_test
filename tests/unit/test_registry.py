@@ -249,3 +249,24 @@ def test_product_mapping_reproduces_the_appendix_e_examples():
     ]
     assert by_number["5.1"]["product_status"]["Electronic Public Procurement"] == "Available"
     assert by_number["2.3"]["product_status"]["Core Financial Execution and Reporting"] == "Available"
+
+
+def test_no_config_key_parses_as_a_boolean():
+    """`NO: Europe` is `False: Europe` in YAML 1.1, and Norway vanishes silently.
+
+    YAML 1.1 treats NO, ON, OFF, YES, TRUE and FALSE as booleans when unquoted. `NO`
+    is the only ISO 3166-1 alpha-2 code that collides, and it is a real one: Norway is
+    in the EEA, carries 26 notices in the corpus, and belongs to the 0.6 band.
+
+    This happened while `regions` was being given an explicit Europe list, and it
+    failed the way config errors do — nothing raised, the key was simply a different
+    key, and Norway fell through to the default. Pinned here rather than in a comment
+    because a comment does not fail a build.
+    """
+    document = yaml.safe_load((CONFIG_DIR / "thresholds.yaml").read_text(encoding="utf-8"))
+
+    for block in ("geography", "regions"):
+        coerced = [key for key in document[block] if not isinstance(key, str)]
+        assert not coerced, f"{block} has non-string keys {coerced}; quote them"
+
+    assert document["regions"]["NO"] == "Europe"

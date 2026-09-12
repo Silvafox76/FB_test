@@ -319,7 +319,21 @@ def _actions(conn, source_id: str) -> list[str]:
         ("UA", "Balkans and Ukraine"),
         ("XK", "Balkans and Ukraine"),
         ("DE", "Europe"),
-        ("AR", "Europe"),
+        ("GB", "Europe"),
+        ("CH", "Europe"),
+        # Norway, and it is here for a reason. Bare NO is a boolean in YAML 1.1, so
+        # `NO: Europe` in thresholds.yaml parses as `False: Europe` and Norway falls
+        # silently through to the default. The key is quoted; this is what proves it.
+        ("NO", "Europe"),
+        # Argentina. This case used to assert "Europe" and that was the defect, not
+        # the test: `regions` listed only the 1.0 and 0.8 bands and let `default:
+        # Europe` catch everything else, so every country nobody scoped was filed as
+        # European - and `industry_by_region` turns the region into the Industry
+        # column of the Zoho export. An Argentine notice exported as a European
+        # opportunity, which is the plausible-looking invented value appendix E
+        # forbids. TED does carry Argentine and Moldovan notices, so this was reachable.
+        ("AR", "Out of scope"),
+        ("TZ", "Out of scope"),
     ],
 )
 def test_region_comes_from_config(country, region):

@@ -68,7 +68,63 @@ regions:
   XK: Balkans and Ukraine
   ME: Balkans and Ukraine
   MK: Balkans and Ukraine
-  default: Europe
+  # The 0.6 band, enumerated. CLAUDE.md's domain notes define it as "EU, EEA, UK, CH",
+  # and until now it was not listed here at all - every one of these countries reached
+  # the region 'Europe' only by falling through `default`. That worked, and it hid the
+  # problem below: a default that is load-bearing for 32 real countries cannot also be
+  # the safe answer for a country nobody scoped.
+  AT: Europe
+  BE: Europe
+  BG: Europe
+  HR: Europe
+  CY: Europe
+  CZ: Europe
+  DK: Europe
+  EE: Europe
+  FI: Europe
+  FR: Europe
+  DE: Europe
+  GR: Europe
+  HU: Europe
+  IE: Europe
+  IT: Europe
+  IS: Europe
+  LV: Europe
+  LI: Europe
+  LT: Europe
+  LU: Europe
+  MT: Europe
+  NL: Europe
+  # Quoted, and it must stay quoted. Bare NO is a BOOLEAN in YAML 1.1, so `NO: Europe`
+  # parses as `False: Europe` and Norway silently falls through to the default. It did,
+  # for about a minute, while this block was being written. ON, OFF, YES, TRUE and FALSE
+  # are the same trap; NO is the only ISO 3166 code that collides. A test in
+  # tests/unit/test_registry.py asserts every key in this file parses as a string.
+  "NO": Europe
+  PL: Europe
+  PT: Europe
+  RO: Europe
+  SK: Europe
+  SI: Europe
+  ES: Europe
+  SE: Europe
+  GB: Europe
+  CH: Europe
+  # Everything else. It is NOT "Europe", and it used to be.
+  #
+  # `regions` fills two things: the reviewer's region filter, and - through
+  # `industry_by_region` in config/record_defaults.yaml - the Industry column of the
+  # Zoho export. The codes above are the pilot's entire scored geography, so a country
+  # reaching this default is by definition one nobody scoped. Calling that 'Europe'
+  # filed an Angolan or Kenyan notice as a European opportunity and exported it as
+  # one: a plausible-looking invented value of exactly the kind appendix E forbids.
+  #
+  # Latent today rather than live. `monitor/connectors/worldbank.py` queries by the
+  # registry's `covers` list and raises on any country outside it, so no unweighted
+  # country has ever arrived. It stops being latent the moment a source is added
+  # whose reach is not enumerated that way. `industry_by_region` carries its own
+  # `default: "TBD"`, so such a notice now exports the honest placeholder.
+  default: Out of scope
 
 # CPV top-level codes that survive the free filter: 48 software, 72 IT services,
 # 79 business and consultancy. A notice that carries CPV codes and none of these is
