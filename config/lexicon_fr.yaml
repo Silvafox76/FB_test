@@ -14,6 +14,31 @@
 # and carry the regulatory sense the function actually means. `SIRH` is added because it is
 # the standard French acronym for an HR information system and it catches two real HRMIS
 # tenders the lexicon was missing entirely.
+#
+# `trésor`, `recrutement` and `mutation` WERE REMOVED ON 2026-09-12, the same generic-word
+# defect `conformité` had, found the same way. Measured on five Burkina Faso Quotidien
+# issues (n4471, n4477, n4478, n4483, n4486; 284 tender notices, pdftotext -layout):
+#
+# `trésor` matched 59 times and not once in the treasury sense. Every hit was the payment
+# office where a bidder buys the tender file - "à la Trésorerie Provinciale de Orodara",
+# "la Trésorerie Régionale du Liptako", "payable à la trésorerie départementale de Sebba".
+# That sentence is in substantially every West African tender notice, so the phrase would
+# have passed the whole francophone West African corpus on boilerplate the moment one of
+# those sources went live. It matches 0 notices in the corpus we hold today, so removing it
+# costs nothing now and prevents a flood later. `compte unique du trésor` (TSA) and
+# `gestion de trésorerie` replace it and carry the sense the function means.
+#
+# `recrutement` matched consultant hiring for air-quality monitoring, fibre-optic links,
+# entrepreneurship training for 50 young people, environmental impact notices and a
+# communications agency. `mutation` matched "mutation vers la technologie à diodes
+# électroluminescentes" - a streetlight replacement. Neither is PFM.
+#
+# Recall cost of all three, measured against the 710 notices the fr lexicon reads: 2 lost,
+# scoring 15 and 5, both false positives (a Belgian business-services catch-all listing
+# "recrutement" among its services, and the LED streetlights). Nothing at or above the
+# staging threshold moved. The one genuine PFM notice `recrutement` had been matching -
+# "Recrutement d'un cabinet de conseil pour la Revue de la Qualité des Actifs (AQR)",
+# relevance 25 - still passes, on `gouvernance`.
 language: fr
 functions:
   policy_management:
@@ -66,7 +91,8 @@ functions:
   - contrôle de conformité
   - audit de conformité
   treasury_accounting:
-  - trésor
+  - compte unique du trésor
+  - gestion de trésorerie
   - grand livre
   - système intégré de gestion des finances publiques
   - IFMAS
@@ -163,9 +189,7 @@ functions:
   - SIRH
   - système de gestion des ressources humaines
   civil_service_movement:
-  - recrutement
   - mouvement du personnel
-  - mutation
   - nomination
   civil_service_performance:
   - compétences des agents
