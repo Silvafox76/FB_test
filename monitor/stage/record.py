@@ -39,6 +39,7 @@ from datetime import date
 from decimal import Decimal
 
 from monitor.fx.config import load as load_fx
+from monitor.registry.load import VALUE_BASES
 
 
 @dataclass(frozen=True)
@@ -92,13 +93,6 @@ class RecordCandidate:
 
 class RecordDefaultsError(ValueError):
     """`config/record_defaults.yaml` holds a value this module does not recognise."""
-
-
-# The two honest choices for the export's single amount column. Appendix E has one
-# amount column and one currency column; which figure belongs there is a mapping
-# decision, not a fact this module infers, so it lives in config (rule 6) and
-# nothing outside these two values is accepted.
-VALUE_BASES = frozenset({"published", "usd"})
 
 
 def build_record(

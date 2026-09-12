@@ -40,7 +40,7 @@ import structlog
 import yaml
 
 from monitor.normalise.codes import country_name
-from monitor.registry.load import CONFIG_DIR, load_function_map
+from monitor.registry.load import CONFIG_DIR, load_function_map, load_record_defaults
 from monitor.stage.record import ClusterSource, RecordCandidate, build_record
 
 log = structlog.get_logger(__name__)
@@ -82,7 +82,15 @@ def review_config() -> dict:
 
 
 def record_defaults() -> dict:
-    return yaml.safe_load((CONFIG_DIR / "record_defaults.yaml").read_text(encoding="utf-8"))
+    """`config/record_defaults.yaml`, validated the same way every other config file is.
+
+    Until 2026-09-12 this read the file directly with `yaml.safe_load`, the one call
+    site `load_record_defaults` in `monitor/registry/load.py` was written to replace,
+    and only `seed()` (`make up`) called that loader — so a typo in `value_basis` or a
+    missing sentence key passed a restart of the review service alone and surfaced as
+    a raw exception on a reviewer's page instead of failing loudly here (rule 4).
+    """
+    return load_record_defaults()
 
 
 def rejection_reasons() -> list[str]:

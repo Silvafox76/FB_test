@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -94,7 +95,16 @@ class FxConfig(BaseModel):
         return value
 
 
+@lru_cache(maxsize=4)
 def load(path: Path | None = None) -> FxConfig:
-    """The config, validated. The path is an argument so a test can point at a copy."""
+    """The config, validated once per path per process.
+
+    The path is an argument so a test can point at a copy. Cached because the
+    record builder asks for the target currency for every candidate it renders
+    and a queue page renders dozens; without this each row re-read and
+    re-validated the YAML (design-cop on 67954a7). The model is frozen, so a
+    cached instance cannot be mutated by a caller. maxsize 4 rather than 1 so a
+    test loading a tmp copy does not evict the real file for the next call.
+    """
     document = yaml.safe_load((path or CONFIG_PATH).read_text(encoding="utf-8"))
     return FxConfig.model_validate(document)

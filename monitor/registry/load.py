@@ -125,6 +125,30 @@ def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, lis
 
 RECORD_DEFAULTS = CONFIG_DIR / "record_defaults.yaml"
 
+# What `value_basis` may be. Owned here, at the config boundary, and imported by
+# monitor/stage/record.py - not the other way round. The registry is the layer
+# everything else reads config through; the first version of this loader reached
+# forward into the stage layer for the constant and needed a deferred import to
+# avoid the cycle, which was the dependency pointing the wrong way.
+VALUE_BASES = frozenset({"published", "usd"})
+
+# Every `sentences[...]` key monitor/stage/record.py reads. One list, checked on
+# load, and pinned to record.py's actual reads by tests/unit/test_registry.py so
+# a new sentence cannot be added to the code without being added here.
+RECORD_SENTENCE_KEYS = frozenset(
+    {
+        "account_name_proposal",
+        "eligibility_none_detected",
+        "next_steps",
+        "pricing_notes",
+        "value_in_target",
+        "value_no_usd",
+        "value_not_stated",
+        "value_usd_basis",
+        "value_with_usd",
+    }
+)
+
 
 def load_record_defaults(path: Path = RECORD_DEFAULTS) -> dict:
     """The record builder's config, validated where every other config file is (rule 4).
@@ -132,22 +156,19 @@ def load_record_defaults(path: Path = RECORD_DEFAULTS) -> dict:
     Until 2026-09-12 this file was only content-hashed here and read directly by
     `monitor/stage/record.py`, which checks `value_basis` when it builds a record -
     so a typo in that key passed `make up` and surfaced when a reviewer opened a
-    candidate page. Every other config kind fails on load; this one now does too.
-
-    The allowed values stay defined in `monitor/stage/record.py`, next to the code
-    that acts on them, and are imported inside the function so the registry does
-    not import the stage layer at module load.
+    candidate page. Every other config kind fails on load; this one now does too,
+    and review/decisions.py reads the file through this function rather than its
+    own `yaml.safe_load`, so the check runs on the request path and not only in
+    `make up`.
     """
-    from monitor.stage.record import VALUE_BASES
-
     document = _read_yaml(path)
     basis = document.get("value_basis")
     if basis not in VALUE_BASES:
         raise RegistryError(f"{path.name}: value_basis is {basis!r}, must be one of {sorted(VALUE_BASES)}")
     sentences = document.get("sentences") or {}
-    for key in ("value_not_stated", "value_no_usd", "value_with_usd", "value_usd_basis", "value_in_target"):
-        if key not in sentences:
-            raise RegistryError(f"{path.name}: sentences has no {key!r}; the record builder renders it")
+    missing = RECORD_SENTENCE_KEYS - set(sentences)
+    if missing:
+        raise RegistryError(f"{path.name}: sentences is missing {sorted(missing)}; the record builder renders them")
     if not document.get("columns"):
         raise RegistryError(f"{path.name}: no columns; appendix E's export has nothing to write")
     return document

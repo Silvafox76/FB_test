@@ -99,9 +99,11 @@ same thing as a passed gate, so the table below says which is which rather than 
 done because its files exist. 1,186 tests pass and 1 is skipped; 2 fail —
 `tests/unit/test_backfill_values.py::test_pass_two_running_twice_changes_nothing` and
 `tests/unit/test_stager.py::test_a_second_notice_about_the_same_tender_joins_rather_than_making_a_candidate`
-— both because three `pending_review` candidates (`C919153`–`C919155`, under `test-exp-*` sources)
-are still sitting in the shared dev database from an interrupted `test_export.py` run: its fixture
-teardown does not survive an interrupted run. Neither failure touches code this branch changed. The
+— both because the shared dev database still holds fixtures that interrupted `test_export.py` runs
+left behind: 617 `test-exp-*` sources, one `scored` notice each with no score row, and three
+`pending_review` candidates (`C919153`–`C919155`) whose title is the one the stager test stages.
+The fixture teardown does not survive an interrupted run, and the runtime roles hold no delete, so
+the cleanup is an owner-role action. Neither failure touches code this branch changed. The
 checkpoint test that proves `monitor_pipeline` holds no privilege on `approved_records` runs on every
 commit and is not one of the two. The pipeline holds 2,487 notices from 11 enabled sources, 1,277 of
 them carrying a published value in the currency it was published in, and 148 candidates, 26 of them

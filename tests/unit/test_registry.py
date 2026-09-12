@@ -312,3 +312,17 @@ def test_a_missing_value_sentence_fails_on_load(tmp_path):
 
     with pytest.raises(RegistryError, match="value_in_target"):
         load_record_defaults(path)
+
+
+def test_the_registrys_sentence_list_is_exactly_what_the_record_builder_reads():
+    """design-cop on 67954a7: a hand-kept list of five keys was already short of the
+    nine record.py reads. Read the source and compare, so the two cannot drift."""
+    import re
+    from pathlib import Path
+
+    from monitor.registry.load import RECORD_SENTENCE_KEYS
+
+    source = (Path(__file__).parents[2] / "monitor" / "stage" / "record.py").read_text(encoding="utf-8")
+    read_in_code = set(re.findall(r'sentences\["([a-z_]+)"\]', source))
+
+    assert read_in_code == RECORD_SENTENCE_KEYS

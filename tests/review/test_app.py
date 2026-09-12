@@ -19,9 +19,12 @@ from decimal import Decimal
 from urllib.parse import unquote
 
 import pytest
+import yaml
 from starlette.testclient import TestClient
 
+from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
 from monitor.stage.stager import FIXTURE_ID_FLOOR
+from review import decisions
 from review.app import app
 
 pytestmark = pytest.mark.roles
@@ -224,6 +227,46 @@ def test_the_candidate_page_carries_the_duplicate_check_reminder(client, staged)
 
 def test_an_unknown_candidate_is_a_404_not_a_traceback(client):
     assert client.get("/candidate/C999999").status_code == 404
+
+
+# --- design-cop on 67954a7: record_defaults.yaml is validated on the request path,
+# not only by seed() at `make up` --------------------------------------------------
+#
+# `review/decisions.py`'s `record_defaults()` used to be its own `yaml.safe_load`,
+# so a typo in `value_basis` or a missing `sentences` key passed a restart of the
+# review service alone and would have surfaced as a raw exception three calls deep
+# on a reviewer's page rather than failing loudly (rule 4). It now calls
+# `monitor.registry.load.load_record_defaults`, the same validated loader `seed()`
+# uses, so these two exercise the whole route rather than the loader in isolation:
+# `load_record_defaults` is patched, not the config file on disk, because the
+# shipped file is a fixture every other test in this module relies on being valid.
+
+
+def test_a_bad_value_basis_surfaces_on_the_request_path_not_only_in_seed(client, staged, monkeypatch, tmp_path):
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    document["value_basis"] = "dollars please"
+    bad_defaults = tmp_path / "record_defaults.yaml"
+    bad_defaults.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    # `load_record_defaults`'s own `path` default is bound to the real file at
+    # import time, so pointing this test at a broken copy means patching the name
+    # `review/decisions.py` calls it through, not the module-level constant.
+    monkeypatch.setattr(decisions, "load_record_defaults", lambda: load_record_defaults(bad_defaults))
+
+    with pytest.raises(RegistryError, match="value_basis is 'dollars please'"):
+        client.get(f"/candidate/{staged}")
+
+
+def test_a_missing_sentence_key_surfaces_on_the_request_path_not_only_in_seed(client, staged, monkeypatch, tmp_path):
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    del document["sentences"]["value_in_target"]
+    bad_defaults = tmp_path / "record_defaults.yaml"
+    bad_defaults.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    monkeypatch.setattr(decisions, "load_record_defaults", lambda: load_record_defaults(bad_defaults))
+
+    with pytest.raises(RegistryError, match="value_in_target"):
+        client.get(f"/candidate/{staged}")
 
 
 def test_approving_through_the_form_writes_the_record_and_shows_it(client, review, staged):
