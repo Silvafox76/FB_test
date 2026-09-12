@@ -32,7 +32,7 @@ Exit codes are three, not two:
 | --- | --- |
 | 0 | PASS. The system did what the runbook says it does. |
 | 1 | FAIL. It did not. That is a finding about the system, not about the drill. |
-| 2 | The drill could not run: no database URLs, or another pipeline run in flight. Nothing was proved either way and nothing was changed. |
+| 2 | The drill could not run: no database URLs, another pipeline run in flight, today's model budget spent, or state in the way that is not the drill's. Nothing was proved either way and nothing was changed. |
 
 **Run them on a quiet system.** Drills 1, 2 and 3 touch state a scheduled `monitor run`
 moves under them - model calls today, notices by status, one source's health row - so all
@@ -55,6 +55,14 @@ api.anthropic.com and comes back HTTP 401 `authentication_error`.
 **Expected outcome.** `monitor score` exits non-zero with `anthropic.AuthenticationError`
 on the traceback. No `scores` row, no `model_calls` row, no notice whose status moved. The
 notice is still `filtered_in`.
+
+**It also needs a day with model budget left.** The cap is checked before the client, so on
+a day whose call or dollar cap is spent the score stage stops at the cap and never reaches
+the credential - drill 3's outcome, not this one's. The drill checks the budget first and
+exits 2 with the numbers rather than reporting a failure it did not cause. This is measured,
+not imagined: it is how the drill failed the first time it ran on a day another job had
+spent all 600 calls. Raising the cap to get past it is a decision to take in
+`config/thresholds.yaml` or the environment, by a person, out loud.
 
 Two honest notes:
 
@@ -199,3 +207,17 @@ not roll back, so every gap in the B-series is an export that did not finish.
   temporary directory, never `exports/`, and removes its batch rows with its records.
 - `_drill.py` holds what all six share: the connections, the two fixtures, the PASS/FAIL
   printing and the two preconditions. It is not a drill and does not run on its own.
+
+## Last run
+
+All six against the live database on this host, over the night of 2026-09-11 into
+2026-09-12, with the full outputs in the step 11 session log:
+
+| drill | verdict | checks | what it showed |
+| --- | --- | --- | --- |
+| 1 | PASS | 5 | HTTP 401 `invalid x-api-key`, exit 1, nothing written, notice still `filtered_in`. Run at the cap in `config/thresholds.yaml` because the `.env` override of 600 calls had been spent that day; the refused request bills nothing. |
+| 2 | PASS | 7 | `worldbank: ValueError: World Bank notice 0 (OP00468043) is missing ['contact_organization']` three times; healthy -> watch -> unhealthy; `fts`, `prozorro`, `ted` untouched; health row and `fetch_runs` restored. |
+| 3 | PASS | 11 | `score_cap_exceeded`, `CapExceeded: score: 600 calls today, cap is 600`, exit 1, no 401 anywhere, nothing billed. The day's own 600 calls were the cap, so the drill seeded none. |
+| 4 | PASS | 8 | 303 to `/candidate/<id>?error=a reviewer name is required`; nothing written; `candidate ... cannot be set to approved without a named reviewer` from Postgres; the control approved. |
+| 5 | PASS | 5 | `InsufficientPrivilege: permission denied for table approved_records` on both the insert and the select. |
+| 6 | PASS | 12 | Killed while waiting for a ShareLock with `approved_records` and `export_batches` RowExclusiveLocks already held: `B0097` complete on disk with a matching sha256, no batch row, no stamped record, no `.part`; then `B0098` exported both records cleanly. |

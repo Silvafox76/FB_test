@@ -36,9 +36,16 @@ one call to attempt and the drill does not depend on what happens to be in the q
 it is run. It is removed on the way out. The subprocess the drill starts writes nothing,
 which is the whole point.
 
-**Run it on a quiet system.** A scheduled `monitor run` overlapping this drill would add
-`model_calls` and `scores` rows of its own, and the two counts below would move for a
-reason that has nothing to do with the credential.
+**Run it on a quiet system, and on a day with model budget left.** A scheduled
+`monitor run` overlapping this drill would add `model_calls` and `scores` rows of its own
+and the counts below would move for reasons that have nothing to do with the credential.
+And if the day's call or dollar cap is already spent, the score stage stops at the cap
+before it reaches the client, which is drill 3's outcome and not this one's: the drill
+checks the budget first and exits 2 rather than reporting a failure it did not cause.
+Measured, not imagined - it is how this drill failed the first time it was run on a day
+another lane had spent all 600 calls. Raising the cap to get past that is a decision for
+`config/thresholds.yaml` or the environment, taken by a person and said out loud, not
+something a drill does to itself.
 """
 
 from __future__ import annotations
@@ -51,6 +58,7 @@ from pathlib import Path
 from _drill import (
     INVALID_CREDENTIAL,
     Drill,
+    DrillCannotRun,
     connection,
     filtered_in_notice,
     owner,
@@ -58,6 +66,8 @@ from _drill import (
     require_quiet_pipeline,
     run,
 )
+
+from monitor import caps
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -76,6 +86,24 @@ LABELS = ("notices filtered_in", "notices scored", "notices parked", "scores row
 # something else. The SDK raises `anthropic.AuthenticationError` and the CLI's traceback
 # carries the API's own message with it.
 AUTH_MARKERS = ("AuthenticationError", "authentication_error", "invalid x-api-key", "401")
+
+
+def require_call_budget(conn) -> None:
+    """Refuse to run when the day's cap would stop the call before the credential does.
+
+    Rule 22's guard runs before the client is touched, so on a spent day `monitor score`
+    raises `CapExceeded` and never sends a request. That is a correct system and a useless
+    drill, and it must not read as a failure of this one.
+    """
+    limits = caps.caps()
+    spend = caps.spend_today(conn)
+    if spend.calls >= limits.calls or spend.usd >= limits.usd:
+        raise DrillCannotRun(
+            f"today's model budget is spent: {spend.calls} calls of {limits.calls}, "
+            f"USD {spend.usd:.2f} of {limits.usd:.2f}. The score stage would stop at the cap before it "
+            "reached the credential, which is drill 3's outcome. Run this drill on a day with budget "
+            "left, or raise the cap deliberately first."
+        )
 
 
 def snapshot(conn) -> tuple[int, ...]:
@@ -99,10 +127,14 @@ def main() -> int:
         # even by accident (rule 11).
         with connection("DATABASE_URL_READONLY") as reader:
             require_quiet_pipeline(reader)
+            require_call_budget(reader)
             before = snapshot(reader)
 
         drill.note(f"seeded notice {notice_id} at filtered_in, with {before[0]} notices waiting in all")
-        drill.note(f"{before[5]} model calls recorded today; the scorer takes the oldest notice first")
+        drill.note(
+            f"{before[5]} model calls recorded today of a cap of {caps.caps().calls}; "
+            "the scorer takes the oldest notice first"
+        )
 
         completed = subprocess.run(
             [sys.executable, "-m", "monitor.cli", "score", "--limit", "1"],
@@ -132,11 +164,17 @@ def main() -> int:
             bool(refusal),
             refusal[-1].strip() if refusal else "no authentication failure in the output",
         ):
-            drill.note(
-                "no 401 in the output means the request did not reach api.anthropic.com. The write "
-                "checks below still hold, but the credential half of this drill is unproven: check "
-                "egress with 'uv run python scripts/check_egress.py' and read the output above."
-            )
+            if "CapExceeded" in output:
+                drill.note(
+                    "the run stopped on the daily cap instead, so it never reached the client. That is "
+                    "drill 3's outcome: the budget went while this drill was running."
+                )
+            else:
+                drill.note(
+                    "no 401 in the output means the request did not reach api.anthropic.com. The write "
+                    "checks below still hold, but the credential half of this drill is unproven: check "
+                    "egress with 'uv run python scripts/check_egress.py' and read the output above."
+                )
 
         drill.check(
             "the notice the run reached is still filtered_in, so the next run picks it up",
