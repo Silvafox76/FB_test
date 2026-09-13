@@ -293,7 +293,9 @@ Touch: `monitor/connectors/benin.py`, `senegal.py`, `nigeria.py`, `ghana.py`, `m
 
 Build: Benin and Senegal as `PageConnector` on structured listings. Ghana (GHANEPS) and any Côte d'Ivoire work that lands this week as `BrowserConnector`, running Playwright in its own container so the cheap fetchers never carry a browser dependency.
 
-Accept: all four have a fixture and contract test; a deliberately stale Playwright selector fails loudly rather than returning zero silently.
+**Corrected 2026-09-13, from the onboarding measurements rather than the plan.** Three of the four classes above were wrong. Senegal publishes a public JSON API (`/anon/tdo`) and is a `FeedConnector`, live since 2026-09-13. Ghana's "Current Tenders" listing is server-rendered HTML that answers an anonymous GET, walked two pages deep with httpx: a `PageConnector`, not a browser, live since 2026-09-13; the OCDS endpoint the plan would have preferred returns HTTP 500 on every payload shape tried. Benin is the one that does need a browser, and it needs a person at a real one first to record the row selector the sandbox cannot capture (decision 20). Nigeria's federal portal is a retrospective register measured at zero live tenders and is dropped from wave 1 pending a named person's decision (open decisions, West African wave). Côte d'Ivoire is a readable HTML table under no terms page, still `pending`.
+
+Accept: all four have a fixture and contract test; a deliberately stale Playwright selector fails loudly rather than returning zero silently. Met for Senegal and Ghana; Benin waits on the selector; Nigeria is dropped.
 
 ---
 
@@ -304,6 +306,8 @@ Touch: `monitor/connectors/burkina_faso.py`, `mali.py`, `gambia.py`, `liberia.py
 Build: Burkina Faso's weekly PDF bulletin: text-layer detection first (`pdftotext` output length as the signal), Textract only when the layer is absent. Mali, The Gambia, Liberia are simpler Page connectors, added here rather than week 6 only because sequencing them after the OCR work means a Textract problem surfaces with runway left before week 8's dedupe deadline.
 
 Accept: the Burkina bulletin fixture (a scanned week) OCRs to text with the expected item count in range; Mali, Gambia, Liberia contract tests pass on their fixtures.
+
+**Corrected 2026-09-13.** No Burkina issue sampled across five years is a scan (decision 19), so the OCR half of the acceptance test has no fixture and the text-layer route is the one that runs. What the bulletin actually needed was an acquire-stage contract, not OCR: one PDF payload maps to thirty-odd notices, so `monitor/fetch.py` now decodes a payload by its declared mime and a mapper may return a list (decision 51). Mali is a JSON feed the portal's own app calls, not a page, and is live since 2026-09-13 with a normaliser. Liberia was live on 2026-09-12. Gambia is a browser source under no terms page and stays `pending`.
 
 ---
 
