@@ -17,12 +17,25 @@ yields one `RawNotice` per issue PDF (occasionally two). See the "consequence"
 section of `monitor/connectors/burkina_faso.py`'s module docstring. What is
 asserted instead is the exact, hand-verified count of issues a five-day lookback
 selects from the recorded page.
+
+A third fixture, recorded 2026-09-13: `burkina_faso_avis.pdf` is pages 20-47 of the
+same real issue (Quotidien n°4478) that `burkina_faso_sample.pdf` truncates to its
+first four pages. Those first four pages are RESULTATS PROVISOIRES — award results
+only, per the issue's own table of contents — and carry no tender notice, no
+deadline and no financing line. Pages 20-47 are the AVIS section the table of
+contents names, so the normaliser this connector is blocked on (see
+`sources/burkina_faso.yaml`'s "BLOCKED ON THE NORMALISER" note) has an actual
+notice to be built against. This file does not parse a single notice out of it —
+that is the normaliser's job — it only proves the fixture is what
+`tests/contract/fixtures/burkina_faso_avis.json` says it is: real, unscanned
+French prose containing at least the recorded number of each tender-notice marker.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+import re
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -47,6 +60,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 LISTING_FIXTURE = FIXTURES / "burkina_faso.html"
 MANIFEST_FIXTURE = FIXTURES / "burkina_faso.json"
 SAMPLE_PDF_FIXTURE = FIXTURES / "burkina_faso_sample.pdf"
+AVIS_PDF_FIXTURE = FIXTURES / "burkina_faso_avis.pdf"
+AVIS_MANIFEST_FIXTURE = FIXTURES / "burkina_faso_avis.json"
 SOURCE_YAML = Path(__file__).resolve().parents[2] / "sources" / "burkina_faso.yaml"
 
 # The listing was fetched on this day, so this is that run's own window.
@@ -415,6 +430,150 @@ def test_the_sample_pdf_is_not_the_full_issue(manifest, sample_pdf_bytes):
     """Documented rather than silent: this fixture is 4 of 49 pages."""
     assert manifest["sample_pdf"]["truncated_pages"] < manifest["sample_pdf"]["full_issue_pages"]
     assert len(sample_pdf_bytes) < manifest["sample_pdf"]["full_issue_bytes"]
+
+
+# --- the AVIS fixture: pages 20-47, tender notices rather than award results ----
+
+
+@pytest.fixture(scope="module")
+def avis_manifest() -> dict:
+    return json.loads(AVIS_MANIFEST_FIXTURE.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def avis_pdf_bytes() -> bytes:
+    return AVIS_PDF_FIXTURE.read_bytes()
+
+
+@pytest.fixture(scope="module")
+def avis_extraction(tmp_path_factory):
+    """The one extraction call this file makes, shared by every marker-count test
+    below rather than re-run per test, since `pdftotext` is a subprocess call."""
+    pdf_path = tmp_path_factory.mktemp("avis") / "burkina_faso_avis.pdf"
+    pdf_path.write_bytes(AVIS_PDF_FIXTURE.read_bytes())
+    return ocr.extract(pdf_path)
+
+
+def test_the_avis_fixture_opens_and_matches_its_recorded_size_and_hash(avis_manifest, avis_pdf_bytes):
+    import hashlib
+
+    assert len(avis_pdf_bytes) == avis_manifest["extraction"]["bytes"]
+    assert hashlib.sha256(avis_pdf_bytes).hexdigest() == avis_manifest["extraction"]["sha256"]
+
+
+def test_the_avis_fixture_has_the_recorded_page_count(avis_manifest, tmp_path):
+    """pdfinfo's own page count, not a guess from the 20-47 range's arithmetic,
+    though they agree (28 pages either way)."""
+    import subprocess
+
+    pdf_path = tmp_path / "avis.pdf"
+    pdf_path.write_bytes(AVIS_PDF_FIXTURE.read_bytes())
+
+    result = subprocess.run(["pdfinfo", str(pdf_path)], capture_output=True, check=True, timeout=30)
+    output = result.stdout.decode("utf-8")
+    pages_line = next(line for line in output.splitlines() if line.startswith("Pages:"))
+    pages = int(pages_line.split(":")[1].strip())
+
+    assert pages == avis_manifest["extraction"]["pages_extracted"] == 28
+
+
+def test_the_avis_fixture_is_not_the_full_issue_and_not_the_award_results_sample(avis_manifest, avis_pdf_bytes):
+    """Documented rather than silent: this is a different 28 of 49 pages from
+    `burkina_faso_sample.pdf`'s first 4, and both are smaller than the full issue."""
+    assert avis_manifest["extraction"]["pages_extracted"] < avis_manifest["source_issue"]["full_issue_pages"]
+    assert len(avis_pdf_bytes) < avis_manifest["source_issue"]["full_issue_bytes"]
+    full_sha256 = "881e554493dd3e5a3bf6ca97e75d2177fe1ce5e5a160b6406416b4878f006b7d"
+    assert avis_manifest["source_issue"]["full_issue_sha256"] == full_sha256
+
+
+def test_the_avis_fixture_has_an_embedded_font_text_layer(avis_extraction, avis_manifest):
+    """The same premise `test_the_sample_pdf_is_not_a_scan` checks for the award-
+    results fixture, checked again here because a page-range extraction is a
+    different file and could in principle have lost its text layer in the cut."""
+    assert avis_extraction.route == ocr.TEXT_LAYER
+    assert avis_extraction.text_layer_chars >= ocr.text_layer_minimum()
+    assert avis_extraction.text_layer_chars == avis_manifest["extraction"]["text_layer_chars"]
+
+
+def test_the_avis_fixture_is_real_french_prose_not_the_award_results_section(avis_extraction):
+    """Vocabulary that only appears in the AVIS section, not RESULTATS PROVISOIRES:
+    a call for offers names a submission deadline and a financing source; an award
+    result does not use this phrasing for either. "dgcmef" (lowercase) rather than
+    the masthead's uppercase "DGCMEF" - that acronym is only spelled in capitals on
+    page 1's masthead sidebar, outside this fixture's 20-47 range; every occurrence
+    inside pages 20-47 is the lowercase "www.dgcmef.gov.bf" footer URL repeated on
+    every page, which is exactly as good a not-a-scan, not-page-1 signal."""
+    for phrase in ("Avis de demande de prix", "Financement", "dgcmef.gov.bf"):
+        assert phrase in avis_extraction.text
+
+
+@pytest.mark.parametrize(
+    ("manifest_key", "pattern"),
+    [
+        ("avis_de_demande_de_prix", r"avis de demande de prix"),
+        ("avis_d_appel_d_offres", r"avis d[’']appel d[’']offres"),
+        ("demande_de_propositions", r"demande de propositions"),
+        ("manifestation_d_interet", r"manifestation d[’'](?:int[eé]r[eê]t)"),
+        ("avis_de_sollicitation", r"avis de sollicitation"),
+        ("date_limite", r"date limite"),
+        ("depot_des_offres", r"d[eé]p[oô]t des offres"),
+        ("financement_colon", r"financement\s*:"),
+        ("montant_previsionnel", r"montant pr[eé]visionnel"),
+    ],
+)
+def test_a_tender_marker_meets_its_recorded_count(avis_extraction, avis_manifest, manifest_key, pattern):
+    """The recorded counts are a floor, not an exact match a future re-extraction
+    must hit precisely, since `pdftotext`'s line-wrapping can shift by a character
+    between poppler versions; a *lower* count than recorded is the failure this
+    guards, because that is what a changed layout or a bad extraction would produce
+    — a real regression, not noise. See `burkina_faso_avis.json`'s
+    `measured_inventory` for how each of these was counted (re.findall against this
+    same `ocr.extract` text, not a shell pipeline, so there is no locale mismatch
+    between what was recorded and what this test measures)."""
+    expected = avis_manifest["measured_inventory"][manifest_key]
+    found = len(re.findall(pattern, avis_extraction.text, re.IGNORECASE))
+
+    assert found >= expected, f"{manifest_key}: expected at least {expected}, found {found}"
+
+
+def test_a_renamed_or_reflowed_avis_section_fails_loudly_rather_than_yielding_zero(avis_extraction):
+    """The deliberate zero-yield guard this task asked for: if the fixture ever
+    stopped containing tender notices (e.g. a future re-extraction accidentally
+    pointed back at the RESULTATS PROVISOIRES pages, or the source changed its
+    section heading text and pdftotext read nothing recognisable), asserting only
+    `>= 0` would pass on a broken fixture forever. A named marker with zero hits
+    must raise the test, not silently pass, per rule 4 (zero-yield is a failure
+    state, not an empty success)."""
+    demande_de_prix = len(re.findall(r"avis de demande de prix", avis_extraction.text, re.IGNORECASE))
+
+    assert demande_de_prix > 0, (
+        "zero 'Avis de demande de prix' markers found in the AVIS fixture — this is "
+        "the failure this test exists to catch, not a passing empty result"
+    )
+
+
+def test_the_ten_recorded_montant_lines_are_present_verbatim(avis_extraction, avis_manifest):
+    """Every one of the ten sample lines the manifest quotes for the normaliser's
+    XOF parser must actually be findable in the extracted text, unmodified — this
+    is the guard against transcribing a line into the manifest that does not match
+    what `pdftotext` really produces."""
+    for line in avis_manifest["montant_previsionnel_sample_lines_verbatim"]:
+        assert line in avis_extraction.text
+
+
+def test_the_three_recorded_buyer_heading_lines_are_present_verbatim(avis_extraction, avis_manifest):
+    for line in avis_manifest["buyer_heading_lines_verbatim"]:
+        assert line in avis_extraction.text
+
+
+def test_the_avis_manifest_page_range_matches_the_extraction_command(avis_manifest):
+    expected_range = (
+        "20-47 (1-indexed, inclusive, matching the task's instruction and the "
+        "table of contents' own AVIS start/last-entry pages)"
+    )
+    assert avis_manifest["extraction"]["page_range"] == expected_range
+    assert avis_manifest["table_of_contents_measured"]["avis_starts_page"] == 20
+    assert avis_manifest["table_of_contents_measured"]["avis_last_toc_entry_page"] == 47
 
 
 # --- the registry entry ----------------------------------------------------------

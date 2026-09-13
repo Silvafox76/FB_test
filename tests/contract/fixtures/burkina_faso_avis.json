@@ -1,0 +1,69 @@
+{
+  "recorded_on": "2026-09-13",
+  "purpose": "The normaliser fixture. burkina_faso_sample.pdf (pages 1-4 of the same issue) is only RESULTATS PROVISOIRES, the awards section; it has no tender notice, no deadline and no financing line for a normaliser to parse. This fixture is the AVIS (tender notices) section of the same real issue, so monitor/normalise/burkina_faso.py can be built against actual notices rather than documentation memory.",
+  "source_issue": {
+    "issue_title": "Quotidien n°4478 - Mardi 01 septembre 2026",
+    "source_href": "http://dgcmef.gov.bf/sites/default/files/2026-09/Quotidien%20N%C2%B04478.pdf",
+    "full_issue_bytes": 1758977,
+    "full_issue_pages": 49,
+    "full_issue_sha256": "881e554493dd3e5a3bf6ca97e75d2177fe1ce5e5a160b6406416b4878f006b7d",
+    "full_issue_not_refetched_note": "The full issue was already on disk from this same session's earlier fetch (scratchpad/q4478.pdf, sha256 verified to match full_issue_sha256 above before use); it was not fetched again for this fixture."
+  },
+  "table_of_contents_measured": {
+    "note": "Read directly from the issue's own page-1 table of contents (pdftotext -layout -f 1 -l 1). It names two top-level sections: RESULTATS PROVISOIRES (Ministères... P.3, Régions P.12) and AVIS (Ministères: Fournitures et services courants P.20, Travaux and Prestations intellectuelles listed with no page number printed in the ToU cell itself; Régions: Fournitures et services courants P.23, Travaux P.24, Prestations intellectuelles P.47).",
+    "avis_starts_page": 20,
+    "avis_last_toc_entry_page": 47
+  },
+  "extraction": {
+    "tool": "qpdf 11.x (pdftk not installed on this host; qpdf is also what the existing burkina_faso_sample.pdf fixture used, per burkina_faso.json's truncation_note)",
+    "command": "qpdf --pages q4478.pdf 20-47 -- --remove-unreferenced-resources=yes q4478.pdf burkina_faso_avis.pdf",
+    "page_range": "20-47 (1-indexed, inclusive, matching the task's instruction and the table of contents' own AVIS start/last-entry pages)",
+    "pages_extracted": 28,
+    "file": "burkina_faso_avis.pdf",
+    "bytes": 860220,
+    "sha256": "211ac6f26c109dfecfcbf73e215c33982a315ddb337c596fd966859baa84956d",
+    "text_layer_chars": 125797,
+    "text_layer_chars_note": "As measured by monitor.normalise.ocr.extract (len(text.strip())), the same call path the connector's own contract test already uses for burkina_faso_sample.pdf; a raw `pdftotext -layout -enc UTF-8 | wc -m` on this file reads 125847 before that trailing-whitespace strip.",
+    "fonts_embedded": true,
+    "fonts_note": "pdffonts on both the full issue and this extraction show the same mixed pattern: several font names (TimesNewRomanPSMT, Arial-BoldMT, ArialMT, Arial-ItalicMT, Arial-BoldItalicMT, TimesNewRomanPS-ItalicMT, TimesNewRomanPS-BoldItalicMT) appear twice, once as a non-embedded WinAnsi TrueType reference (emb=no, standard Word/Windows font names Office does not bother embedding) and once as an embedded, unicode-mapped CID TrueType subset (emb=yes) carrying the actual glyphs used. At least one embedded font is present and pdftotext extracts real prose either way; this is the same pattern the original sample_pdf fixture's issue already showed, not a regression introduced by qpdf's page extraction.",
+    "boundary_check_page_19": "Still RESULTATS PROVISOIRES at page 19 (a synthese des resultats for REGION DE YAADGA) -- confirms page 20 is the true start of AVIS, not one page early.",
+    "boundary_check_page_47": "Last page of the extraction ends mid-notice: an Avis de Manifestation d'Interet for COMMUNE DE TENKODOGO (suivi-controle de travaux, auberge communale) whose clauses 1-2 and lot list appear on page 47 but whose clauses 3-6, signature and deadline (15/09/2026) continue on page 48, one page outside this fixture's declared range -- see truncation_note below.",
+    "truncation_note": "The task specified pages 20-47 (matching the table of contents' own last-listed AVIS entry, 'Marches de prestations intellectuelles ... P. 47' under Regions), and this fixture follows that instruction exactly. Measured independently of that instruction: the issue's actual AVIS content does not end cleanly at the foot of page 47 -- the final notice (Commune de Tenkodogo, Avis de Manifestation d'Interet) continues onto page 48 with its submission deadline, address and signature block, and page 49 is a closing masthead/footer page with no notice content. A normaliser built only against this fixture will see one notice (the last one) truncated before its deadline field; this is recorded here rather than silently worked around, per this session's own instruction not to build a second selector or a fallback path. Whoever builds the normaliser should decide, with a person, whether the connector's real per-issue extraction (not this fixture) needs to run a page or two past a printed 'P. NN' table-of-contents entry to reach an actual section boundary, since this issue shows the two are not always the same page."
+  },
+  "measured_inventory": {
+    "method": "re.findall(pattern, text, re.IGNORECASE) against monitor.normalise.ocr.extract(fixture).text -- the exact text the normaliser itself will receive -- rather than a shell pdftotext invocation, so these counts are not sensitive to a locale mismatch (the host's default POSIX locale silently drops matches on accented characters under `grep -i` and undercounted every accented marker by roughly half when first tried with LC_ALL unset; recomputed with LC_ALL=C.UTF-8 first, then cross-checked against ocr.extract's own text, which matches).",
+    "avis_de_demande_de_prix": 50,
+    "avis_de_demande_de_prix_note": "Case-insensitive count of the literal phrase, including its 11 occurrences inside 'Cet Avis de demande de prix fait suite à...' recital prose as well as the marker line itself; this is a phrase count, not a distinct-notice count, and the normaliser needs its own rule (most likely: only the marker line immediately under a title line, not every recital sentence) to turn this into a notice count.",
+    "avis_d_appel_d_offres": 4,
+    "avis_d_appel_d_offres_note": "Matched both straight (') and curly (’) apostrophes in 'appel d'offres' / 'd'offres'; both forms occur in this fixture.",
+    "demande_de_propositions": 0,
+    "manifestation_d_interet": 4,
+    "manifestation_d_interet_note": "Matched both apostrophe forms and both 'intérêt'/'interet' accent renderings; all 4 use the accented curly-apostrophe form 'manifestation d’intérêt' in this fixture.",
+    "avis_de_sollicitation": 0,
+    "date_limite": 24,
+    "depot_des_offres": 8,
+    "depot_des_offres_note": "Matched 'dépôt des offres' and 'depot des offres' spelling variants; every occurrence in this fixture uses the fully accented form.",
+    "financement_colon": 27,
+    "montant_previsionnel": 47,
+    "montant_previsionnel_note": "Includes both the standalone header line ('Montant prévisionnel : ...') and the recital sentence ('Le montant prévisionnel de la présente demande de prix est ...') that restates the same figure later in most notices -- these are typically a pair per notice, not two distinct amounts. Two notices print the header phrase twice in a row on the same line ('Montant prévisionnel : Montant prévisionnel HTVA et TTC : ...'), which is why this is 47 rather than 2x the 22-23 notices actually carrying a figure; counted as instances of the phrase, not as lines, since a line-based count silently drops that duplication."
+  },
+  "montant_previsionnel_sample_lines_verbatim": [
+    "Montant prévisionnel : 9 322 034 HTVA et 11 000 000 TTC.",
+    "Montant prévisionnel : 13 347 457 FCFA HTVA ; 15 750 000 FCFA TTC",
+    "Montant prévisionnel HTVA et TTC : Quarante-deux million six cent cinquante-sept mille sept cent dix (42 657 710) francs cfa HTVA et Cinquante",
+    "Montant prévisionnel HTVA et TTC : Seize millions quatre cent cinquante-neuf mille trois cent soixante-dix (16 459 370) francs cfa HTVA et",
+    "Montant prévisionnel : dix millions quatre cent vingt-cinq mille neuf cent dix-huit (10 425 918) FCFA HTVA et douze millions sept cent quatorze mille",
+    "Montant prévisionnel : quatorze millions deux cent soixante-dix-neuf mille six cent soixante un (14 279 661) FCFA HTVA soit seize millions huit cent",
+    "Montant prévisionnel : vingt-cinq millions cent soixante-huit mille cent dix (25 168 110) francs CFA HTVA soit vingt-neuf millions six cent quatre-",
+    "Montant prévisionnel : dix millions trente-trois mille neuf cent cinquante-trois (10 033 953) francs CFA HTVA et onze millions huit cent quarante mille",
+    "Montant prévisionnel : Montant prévisionnel HTVA et TTC : trente-trois millions soixante-treize mille cinq cent quatorze (33 073 514) francs CFA",
+    "Montant prévisionnel : 264 943 177 F CFA TTC."
+  ],
+  "montant_previsionnel_sample_lines_note": "Ten real *physical* lines exactly as `pdftotext -layout` emits them (poppler wraps a long sentence at the page's print width, so several of these end mid-clause or mid-word rather than at a full stop -- that break point is real and reproducible, not an editing artefact, and quoting the wrapped line rather than a hand-joined sentence is what makes these safe to assert against verbatim). Chosen to show the format variety a normaliser's XOF parser has to handle: bare digits with space-separated thousands ('9 322 034'), digits with a semicolon separating HTVA and TTC figures, fully spelled-out French number words with the digit figure repeated in parentheses, and three different currency-unit spellings for the same currency -- 'FCFA', 'francs cfa' / 'francs CFA' (lower and upper case c), and 'F CFA' (space before CFA) -- plus 'HTVA' (hors taxe sur la valeur ajoutee) and 'TTC' (toutes taxes comprises), and one notice ('trente-trois millions...') that prints the 'Montant prévisionnel' header phrase twice in a row on the same line.",
+  "buyer_heading_lines_verbatim": [
+    "INSTITUT SUPERIEUR DE LOGISTIQUE DE OUAGADOUGOU",
+    "ECOLE POLYTECHNIQUE DE OUAGADOUGOU",
+    "INSTITUT NATIONAL DE FORMATION DES PERSONNEL DE L’EDUCATION"
+  ],
+  "buyer_heading_lines_note": "The nearest all-caps line above each of the first three 'Avis de demande de prix' marker lines in reading order (each is two text lines above the marker: buyer name, then a one-line notice title, then the marker itself -- not directly adjacent). Verbatim as pdftotext -layout extracted them: accented capitals are printed unaccented ('SUPERIEUR', not 'SUPÉRIEUR'; confirmed byte-for-byte with od -c, no missing-glyph substitution, this is simply how the source PDF renders uppercase accents), while a lowercase apostrophe-linked word keeps its curly apostrophe and lowercase accent ('L’EDUCATION' -- capital E, no accent, same unaccented-capital pattern). A buyer-name heuristic keyed on 'this line is capitals' must not also require accented capitals to match, or it will miss buyers with accented names."
+}

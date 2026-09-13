@@ -1,0 +1,2278 @@
+{
+ "data": {
+  "content": [
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "NATIONAL",
+    "createdAt": "2025-11-18T16:31:34.210+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DSI",
+     "description": null,
+     "libelle": "Direction des Systèmes d'information",
+     "name": "Direction des Systèmes d'information",
+     "uid": "431b1a07-7d38-4841-8888-8a612f907e82"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 2,
+    "isFree": true,
+    "libelle": "[Marché de test ] Rénovation du bâtiment des archives",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-11-18T17:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-11-18T16:37:40.481+00:00",
+    "questionsCount": 1,
+    "reference": "T_MDE_DSI_627",
+    "remainingTime": -25823782713,
+    "status": "PUBLISHED",
+    "submissionCount": 1,
+    "submissionDate": "2025-11-18T17:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "45824991-595e-4570-ae89-3c6e3abf61a3",
+    "updatedAt": "2025-12-23T12:27:36.602+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Sociétés nationales et sociétés à participation publique majoritaire",
+     "name": null,
+     "uid": "d1d1d1d1-1d1d-1d1d-1d1d-1d1d1d1d1d1d"
+    },
+    "apd": false,
+    "cible": "NATIONAL",
+    "createdAt": "2025-11-13T14:36:17.064+00:00",
+    "description": null,
+    "direction": {
+     "code": "SAED_DRHA",
+     "description": null,
+     "libelle": "Direction des Ressources Humaines et de l'Administration",
+     "name": "Direction des Ressources Humaines et de l'Administration",
+     "uid": "8aa338ab-2502-47e8-a70c-dcaeeac3e49a"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 10,
+    "isFree": false,
+    "libelle": "Gardiennage des sites de la SAED",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-03T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "SAED",
+     "description": null,
+     "libelle": "Société d'Aménagement et d'Exploitation des Terres du Delta du Fleuve Sénégal",
+     "name": "Société d'Aménagement et d'Exploitation des Terres du Delta du Fleuve Sénégal",
+     "uid": "37e2a941-ee3f-4540-9aad-08c0c22659e7"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-11-13T15:00:03.299+00:00",
+    "questionsCount": 0,
+    "reference": "S_SAED_DRHA_156",
+    "remainingTime": -24552982713,
+    "status": "PUBLISHED",
+    "submissionCount": 8,
+    "submissionDate": "2025-12-03T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "3a9ed54e-9fc6-4552-b478-8ad1094780e3",
+    "updatedAt": "2025-12-02T09:18:04.456+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2025-12-11T15:46:52.895+00:00",
+    "description": null,
+    "direction": {
+     "code": "MISP_CREDIPOL",
+     "description": null,
+     "libelle": "Centre de Recueil et d'Enregistrement des Données et Informations Policières",
+     "name": "Centre de Recueil et d'Enregistrement des Données et Informations Policières",
+     "uid": "a1b80bb2-8a55-4f3c-b759-2dc5d3f1bd39"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 4,
+    "isFree": true,
+    "libelle": "Sélection d'un prestataire pour la",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-11T17:05:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MISP",
+     "description": null,
+     "libelle": "Ministère de l'Intérieur et de la Sécurité Publique",
+     "name": "Ministère de l'Intérieur et de la Sécurité Publique",
+     "uid": "dc06974a-f302-46c6-acef-a62cda7af8a9"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-12-11T16:51:08.983+00:00",
+    "questionsCount": 0,
+    "reference": "S_MISP_CREDIPOL_2283",
+    "remainingTime": -23836282713,
+    "status": "PUBLISHED",
+    "submissionCount": 3,
+    "submissionDate": "2025-12-11T17:05:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "9f0601d3-9964-44eb-9e22-42ae1807c4c4",
+    "updatedAt": "2025-12-11T16:51:08.985+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Collectivités territoriales",
+     "name": null,
+     "uid": "b1b1b1b1-1b1b-1b1b-1b1b-1b1b1b1b1b1b"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2025-11-04T16:26:53.790+00:00",
+    "description": null,
+    "direction": {
+     "code": "VD_DEI",
+     "description": null,
+     "libelle": "Direction de l'Education et de l'Insertion",
+     "name": "Direction de l'Education et de l'Insertion",
+     "uid": "0ced4777-9182-40b3-b9e7-36cdc8204310"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 41,
+    "isFree": false,
+    "libelle": "Acquisition de fournitures scolaires et de livre de prix en 2 lots distincts",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-18T11:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "VD",
+     "description": null,
+     "libelle": "Ville de DAKAR",
+     "name": "Ville de DAKAR",
+     "uid": "09678398-5d53-421f-a0b6-a2e059a63714"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-12-08T10:56:00.102+00:00",
+    "questionsCount": 2,
+    "reference": "F_VD_DEI_144",
+    "remainingTime": -23253382713,
+    "status": "PUBLISHED",
+    "submissionCount": 22,
+    "submissionDate": "2025-12-18T11:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "99b21d29-c067-4d4f-99ee-13b3a46950e3",
+    "updatedAt": "2025-12-08T10:56:00.105+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Sociétés nationales et sociétés à participation publique majoritaire",
+     "name": null,
+     "uid": "d1d1d1d1-1d1d-1d1d-1d1d-1d1d1d1d1d1d"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2025-11-11T16:05:32.441+00:00",
+    "description": null,
+    "direction": {
+     "code": "SAED_PDELTA",
+     "description": null,
+     "libelle": "Programme de Développement Économique Local et de Transition Agroécologique",
+     "name": "Programme de Développement Économique Local et de Transition Agroécologique",
+     "uid": "d3ecf4d5-6f38-4ebb-b6a7-82221d03a0c4"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 17,
+    "isFree": false,
+    "libelle": "Acquisition d'équipements (stations hydrométriques, échelles limnométriques, EPI, etc.)   de suivi du plan d'eau et de transmission des données météorologiques dans la Délégation du Lac de Guiers",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-02T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "SAED",
+     "description": null,
+     "libelle": "Société d'Aménagement et d'Exploitation des Terres du Delta du Fleuve Sénégal",
+     "name": "Société d'Aménagement et d'Exploitation des Terres du Delta du Fleuve Sénégal",
+     "uid": "37e2a941-ee3f-4540-9aad-08c0c22659e7"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-11-11T17:32:49.428+00:00",
+    "questionsCount": 2,
+    "reference": "F_SAED_PDELTA_273",
+    "remainingTime": -24639382713,
+    "status": "PUBLISHED",
+    "submissionCount": 8,
+    "submissionDate": "2025-12-02T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "779d4880-6202-402f-ab08-afd61cf068eb",
+    "updatedAt": "2025-12-02T09:18:04.534+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": true,
+    "cible": "COMMUNITY",
+    "createdAt": "2025-12-23T12:48:34.866+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DD",
+     "description": null,
+     "libelle": "Direction",
+     "name": "Direction",
+     "uid": "69a2f014-b792-45f5-beff-11cbe8285eb2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 3,
+    "isFree": true,
+    "libelle": "Fourniture de denree alimentaire (marché clientel)",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-23T13:45:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-12-23T13:29:37.485+00:00",
+    "questionsCount": 0,
+    "reference": "F_MDE_DD_3135",
+    "remainingTime": -22811482713,
+    "status": "PUBLISHED",
+    "submissionCount": 3,
+    "submissionDate": "2025-12-23T13:45:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Petite entreprise (PE)",
+      "name": null,
+      "uid": "3b6c1a4a-39f9-4682-8042-7199759aca2d"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "48e27c58-b198-404f-9e26-b337a00059c5",
+    "updatedAt": "2025-12-23T13:29:37.487+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-13T10:46:55.540+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DD",
+     "description": null,
+     "libelle": "Direction",
+     "name": "Direction",
+     "uid": "69a2f014-b792-45f5-beff-11cbe8285eb2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 3,
+    "isFree": true,
+    "libelle": "TEST Aménagement de bureaux pour les services de sécurité",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-13T16:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-13T12:52:04.771+00:00",
+    "questionsCount": 0,
+    "reference": "T_MDE_DD_11772",
+    "remainingTime": -7942582713,
+    "status": "PUBLISHED",
+    "submissionCount": 2,
+    "submissionDate": "2026-06-13T16:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "c8242f49-4a32-4a48-8551-687dd72610ce",
+    "updatedAt": "2026-09-11T16:08:02.696+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "NATIONAL",
+    "createdAt": "2026-01-30T11:56:50.249+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DRH",
+     "description": null,
+     "libelle": "DRH",
+     "name": "DRH",
+     "uid": "883b524c-b362-48ad-a547-6a4d035e4cd1"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 3,
+    "isFree": true,
+    "libelle": "(Marché TEST) Fourniture de denrées et produits alimentaires",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-01-30T13:15:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-01-30T13:02:01.274+00:00",
+    "questionsCount": 0,
+    "reference": "F_MDE_DRH_5297",
+    "remainingTime": -19530082713,
+    "status": "PUBLISHED",
+    "submissionCount": 2,
+    "submissionDate": "2026-01-30T13:15:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "efaabebb-d726-4b46-9dc5-45f1dc26b304",
+    "updatedAt": "2026-09-11T16:08:02.302+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-02-03T12:30:12.663+00:00",
+    "description": null,
+    "direction": {
+     "code": "ARCOPSN_ARCOP",
+     "description": null,
+     "libelle": "ARCOP",
+     "name": "ARCOP",
+     "uid": "910d7d6b-94e7-439c-8d16-e95f18d1467e"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 24,
+    "isFree": true,
+    "libelle": "Fourniture et installation d’un ascenseur pour le siège de l ’ARCOP ",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-02-24T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ARCOPSN",
+     "description": null,
+     "libelle": "Autorité de Régulation de la commande publique",
+     "name": "Autorité de Régulation de la commande publique",
+     "uid": "3f5b67ca-1629-44cb-8e62-07d413a233d3"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-02-03T13:38:44.481+00:00",
+    "questionsCount": 1,
+    "reference": "F_ARCOPSN_ARCOP_5404",
+    "remainingTime": -17381782713,
+    "status": "PUBLISHED",
+    "submissionCount": 10,
+    "submissionDate": "2026-02-24T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "5dd7b3f3-6e08-48fb-a3b2-94d26fb7df50",
+    "updatedAt": "2026-04-16T16:18:45.919+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-13T10:32:07.487+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DD",
+     "description": null,
+     "libelle": "Direction",
+     "name": "Direction",
+     "uid": "69a2f014-b792-45f5-beff-11cbe8285eb2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 2,
+    "isFree": false,
+    "libelle": "Test Acquisition d’un Banc d’Etalonnage de Compteurs d’Eau",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-13T16:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-13T12:27:06.910+00:00",
+    "questionsCount": 0,
+    "reference": "F_MDE_DD_11771",
+    "remainingTime": -7942582713,
+    "status": "PUBLISHED",
+    "submissionCount": 2,
+    "submissionDate": "2026-06-13T16:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "0a6edeab-ccc9-402c-85c6-fc0cac30f197",
+    "updatedAt": "2026-09-11T16:08:02.673+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-24T15:06:31.128+00:00",
+    "description": null,
+    "direction": {
+     "code": "ARTP_01",
+     "description": null,
+     "libelle": "ARTP",
+     "name": "ARTP",
+     "uid": "2fdcec26-9f57-4787-9382-350a369cab3b"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 18,
+    "isFree": true,
+    "libelle": "Sélection d'un prestataire pour l’organisation d’une colonie de vacances",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-09T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ARTP",
+     "description": null,
+     "libelle": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "name": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "uid": "6c6f511f-a94f-4536-91ab-255e2a4e40f1"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-24T19:28:20.440+00:00",
+    "questionsCount": 0,
+    "reference": "S_ARTP_01_3747",
+    "remainingTime": -5717782713,
+    "status": "PUBLISHED",
+    "submissionCount": 5,
+    "submissionDate": "2026-07-09T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "407a0e6d-da5d-478e-8b93-24d9feca027d",
+    "updatedAt": "2026-09-11T21:30:24.269+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-01-15T15:19:32.303+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DRH",
+     "description": null,
+     "libelle": "DRH",
+     "name": "DRH",
+     "uid": "883b524c-b362-48ad-a547-6a4d035e4cd1"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 2,
+    "isFree": true,
+    "libelle": "Construction d'un lycée moderne à Saint-Louis",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-01-15T17:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 1,
+    "publicationDate": "2026-01-15T16:11:15.914+00:00",
+    "questionsCount": 1,
+    "reference": "T_MDE_DRH_3755",
+    "remainingTime": -20812582713,
+    "status": "PUBLISHED",
+    "submissionCount": 4,
+    "submissionDate": "2026-01-15T17:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "be2a9eac-9861-4334-90b7-d85957ded94d",
+    "updatedAt": "2026-09-11T16:08:02.134+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": true,
+    "cible": "COMMUNITY",
+    "createdAt": "2025-12-04T13:35:05.317+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DSI",
+     "description": null,
+     "libelle": "Direction des Systèmes d'information",
+     "name": "Direction des Systèmes d'information",
+     "uid": "431b1a07-7d38-4841-8888-8a612f907e82"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 7,
+    "isFree": true,
+    "libelle": "Acquisition de materiel informatique ",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2025-12-04T14:30:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2025-12-04T14:27:42.405+00:00",
+    "questionsCount": 0,
+    "reference": "F_MDE_DSI_1722",
+    "remainingTime": -24450382713,
+    "status": "PUBLISHED",
+    "submissionCount": 0,
+    "submissionDate": "2025-12-04T14:30:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Groupement d’Intérêt Économique (GIE)",
+      "name": null,
+      "uid": "3dc1db3b-8fc4-4ca9-991c-b73a0a54ba54"
+     },
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Moyenne entreprise (ME)",
+      "name": null,
+      "uid": "8aed722d-8b8f-45f1-bba3-59235e8079d2"
+     },
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Petite entreprise (PE)",
+      "name": null,
+      "uid": "3b6c1a4a-39f9-4682-8042-7199759aca2d"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "7f39da60-e4a7-4bec-8bb3-4a375e115927",
+    "updatedAt": "2026-09-11T16:08:02.346+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-03-24T22:09:23.775+00:00",
+    "description": null,
+    "direction": {
+     "code": "ARTP_01",
+     "description": null,
+     "libelle": "ARTP",
+     "name": "ARTP",
+     "uid": "2fdcec26-9f57-4787-9382-350a369cab3b"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 25,
+    "isFree": true,
+    "libelle": "Fourniture et installation d'un simplex Otis",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-04-08T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ARTP",
+     "description": null,
+     "libelle": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "name": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "uid": "6c6f511f-a94f-4536-91ab-255e2a4e40f1"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-03-25T13:17:11.048+00:00",
+    "questionsCount": 0,
+    "reference": "F_ARTP_01_8566",
+    "remainingTime": -13666582713,
+    "status": "PUBLISHED",
+    "submissionCount": 3,
+    "submissionDate": "2026-04-08T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "aab29e01-0b6f-4044-add1-3caee82f41f1",
+    "updatedAt": "2026-09-11T21:30:24.063+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Collectivités territoriales",
+     "name": null,
+     "uid": "b1b1b1b1-1b1b-1b1b-1b1b-1b1b1b1b1b1b"
+    },
+    "apd": true,
+    "cible": "NATIONAL",
+    "createdAt": "2026-03-17T14:34:28.188+00:00",
+    "description": null,
+    "direction": {
+     "code": "VR_PALM",
+     "description": null,
+     "libelle": "Programme d'Assainissement Liquide Municipal",
+     "name": "Programme d'Assainissement Liquide Municipal",
+     "uid": "25b276ce-f86e-4e9b-889d-eb81b85d6ab4"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 37,
+    "isFree": false,
+    "libelle": "Fournitures de matériaux pour travaux d'assainissement (PVC et Tampons de regards)",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-04-07T11:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "VR",
+     "description": null,
+     "libelle": "Ville de Rufisque",
+     "name": "Ville de Rufisque",
+     "uid": "e8fdda73-6197-4783-b013-baaaf47121b4"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-03-18T19:04:24.698+00:00",
+    "questionsCount": 0,
+    "reference": "F_VR_PALM_1783",
+    "remainingTime": -13749382713,
+    "status": "PUBLISHED",
+    "submissionCount": 17,
+    "submissionDate": "2026-04-07T11:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Petite entreprise (PE)",
+      "name": null,
+      "uid": "3b6c1a4a-39f9-4682-8042-7199759aca2d"
+     },
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Moyenne entreprise (ME)",
+      "name": null,
+      "uid": "8aed722d-8b8f-45f1-bba3-59235e8079d2"
+     },
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Entreprise sociale / coopérative",
+      "name": null,
+      "uid": "256cb7b2-e5a9-43f5-95e4-b19c6ff54c7b"
+     },
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Groupement d’Intérêt Économique (GIE)",
+      "name": null,
+      "uid": "3dc1db3b-8fc4-4ca9-991c-b73a0a54ba54"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "1c0b29fd-ca11-4b84-9793-32f1d0dae668",
+    "updatedAt": "2026-08-18T14:50:16.405+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "NATIONAL",
+    "createdAt": "2026-01-31T12:31:53.301+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DRH",
+     "description": null,
+     "libelle": "DRH",
+     "name": "DRH",
+     "uid": "883b524c-b362-48ad-a547-6a4d035e4cd1"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 4,
+    "isFree": true,
+    "libelle": "Contruction d'un centre de formation",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-01-31T13:30:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-01-31T12:59:16.311+00:00",
+    "questionsCount": 0,
+    "reference": "T_MDE_DRH_5310",
+    "remainingTime": -19442782713,
+    "status": "PUBLISHED",
+    "submissionCount": 4,
+    "submissionDate": "2026-01-31T13:30:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "1392d715-2316-40c3-b55d-fd33cb3872b6",
+    "updatedAt": "2026-09-11T16:08:02.154+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-09-08T14:33:37.021+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DAI",
+     "description": null,
+     "libelle": "Direction de l'Audit",
+     "name": "Direction de l'Audit",
+     "uid": "0565ca15-5eaa-4a59-8402-aac2ae49eea8"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 1,
+    "isFree": true,
+    "libelle": "Acquisition de matériel informatique",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-09-08T15:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-09-08T14:50:41.737+00:00",
+    "questionsCount": 0,
+    "reference": "F_MDE_DAI_17328",
+    "remainingTime": -429382713,
+    "status": "PUBLISHED",
+    "submissionCount": 1,
+    "submissionDate": "2026-09-08T15:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Petite entreprise (PE)",
+      "name": null,
+      "uid": "3b6c1a4a-39f9-4682-8042-7199759aca2d"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "8795e163-dcab-446c-a2a3-f4361b798d7c",
+    "updatedAt": "2026-09-11T16:08:03.002+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Collectivités territoriales",
+     "name": null,
+     "uid": "b1b1b1b1-1b1b-1b1b-1b1b-1b1b1b1b1b1b"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-05T21:51:37.037+00:00",
+    "description": null,
+    "direction": {
+     "code": "VG_DAF",
+     "description": null,
+     "libelle": "Division de l'Administration Générale et des Finances VG",
+     "name": "Division de l'Administration Générale et des Finances VG",
+     "uid": "52e1fc9c-feb7-483c-8459-9e63fdaea169"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 45,
+    "isFree": false,
+    "libelle": "ACQUISITION DE MOBILIERS DE BUREAUX ET DE MACHINES ET APPAREILS DE BUREAUX",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-22T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "VG",
+     "description": null,
+     "libelle": "Ville de Guédiawaye",
+     "name": "Ville de Guédiawaye",
+     "uid": "15601b5f-e527-4245-b45a-019e5dbebd54"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 1,
+    "publicationDate": "2026-06-17T14:46:54.796+00:00",
+    "questionsCount": 2,
+    "reference": "F_VG_DAF_3681",
+    "remainingTime": -7186582713,
+    "status": "PUBLISHED",
+    "submissionCount": 21,
+    "submissionDate": "2026-06-22T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "108c5ab6-ec48-4441-887a-68facbd46f88",
+    "updatedAt": "2026-06-17T14:46:54.798+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Établissements publics ",
+     "name": null,
+     "uid": "c1c1c1c1-1c1c-1c1c-1c1c-1c1c1c1c1c1c"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-19T10:16:28.411+00:00",
+    "description": null,
+    "direction": {
+     "code": "ENA_ENA",
+     "description": null,
+     "libelle": "Ecole nationale d'Administration",
+     "name": "Ecole nationale d'Administration",
+     "uid": "db432195-3e2d-48a6-9ebb-8f171d678352"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 14,
+    "isFree": false,
+    "libelle": "Recrutement d'une société de gardiennage pour la sécurité de l'ENA",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-29T11:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ENA",
+     "description": null,
+     "libelle": "Ecole Nationale d'Administration",
+     "name": "Ecole Nationale d'Administration",
+     "uid": "5fc493a4-151e-4f20-99e2-bf305c12a9a3"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-14T15:47:12.764+00:00",
+    "questionsCount": 0,
+    "reference": "S_ENA_ENA_12151",
+    "remainingTime": -3986182713,
+    "status": "PUBLISHED",
+    "submissionCount": 4,
+    "submissionDate": "2026-07-29T11:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "84d7e97d-02b2-45f2-8f02-5e0131c406c7",
+    "updatedAt": "2026-07-14T15:47:12.765+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-03-16T12:34:11.074+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DSI",
+     "description": null,
+     "libelle": "Direction des Systèmes d'information",
+     "name": "Direction des Systèmes d'information",
+     "uid": "431b1a07-7d38-4841-8888-8a612f907e82"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 1,
+    "isFree": false,
+    "libelle": "Construction d'autoroutes (Marché de Test)",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-03-16T13:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-03-16T12:43:04.898+00:00",
+    "questionsCount": 0,
+    "reference": "T_MDE_DSI_8420",
+    "remainingTime": -15642982714,
+    "status": "PUBLISHED",
+    "submissionCount": 1,
+    "submissionDate": "2026-03-16T13:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "56b0b4a2-d495-4cf1-a107-962bcb61eda6",
+    "updatedAt": "2026-09-11T16:08:02.506+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Sociétés nationales et sociétés à participation publique majoritaire",
+     "name": null,
+     "uid": "d1d1d1d1-1d1d-1d1d-1d1d-1d1d1d1d1d1d"
+    },
+    "apd": false,
+    "cible": "NATIONAL",
+    "createdAt": "2025-11-18T10:23:21.175+00:00",
+    "description": null,
+    "direction": {
+     "code": "SICAP SA_DEDE",
+     "description": null,
+     "libelle": "Direction des Etudes , du Développement et de l' Entretien",
+     "name": "Direction des Etudes , du Développement et de l' Entretien",
+     "uid": "490eee3f-03ce-4aed-92a2-b0919bd474a2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 25,
+    "isFree": false,
+    "libelle": "Réhabilitation du patrimoine en trois (03) lots: lot1: lotissement siège de la SICAP SA; lot2: lotissement SICAP MBAO VILLENEUVE PHASE 2 et SICAP KEUR MASSAR 1; lot3: lotissement SICAP KEUR GORGUI.",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-01T09:30:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "SICAPSA",
+     "description": null,
+     "libelle": "SICAP SA",
+     "name": "SICAP SA",
+     "uid": "938b808b-29bf-4e29-869a-1fda3ac8a68c"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-05-15T13:23:40.762+00:00",
+    "questionsCount": 0,
+    "reference": "T_SICAP SA_DEDE_232",
+    "remainingTime": -9002782714,
+    "status": "PUBLISHED",
+    "submissionCount": 10,
+    "submissionDate": "2026-06-01T09:30:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "7f4fd976-614a-4242-9876-77ddd2056a41",
+    "updatedAt": "2026-05-15T13:23:40.764+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-07-09T15:46:42.379+00:00",
+    "description": null,
+    "direction": {
+     "code": "PR_CF",
+     "description": null,
+     "libelle": "Contrôle Financier",
+     "name": "Contrôle Financier",
+     "uid": "76a6dce9-4245-4fda-9776-c96ee6985fde"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 46,
+    "isFree": true,
+    "libelle": "ACQUISITION FOURNITURES DE BUREAU ET CONSOMMABLES INFORMATIQUES EN DEUX LOTS",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-24T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "PR",
+     "description": null,
+     "libelle": "Presidence de la République",
+     "name": "Presidence de la République",
+     "uid": "21a85ab3-6ac2-49b5-9e89-d11b3a5a82c9"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-10T12:13:40.152+00:00",
+    "questionsCount": 3,
+    "reference": "F_PR_CF_1234",
+    "remainingTime": -4421782714,
+    "status": "PUBLISHED",
+    "submissionCount": 24,
+    "submissionDate": "2026-07-24T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "723b28ab-d0d0-4221-ae47-932dd8ff891d",
+    "updatedAt": "2026-08-13T12:47:37.319+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Sociétés nationales et sociétés à participation publique majoritaire",
+     "name": null,
+     "uid": "d1d1d1d1-1d1d-1d1d-1d1d-1d1d1d1d1d1d"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-04-17T12:09:24.255+00:00",
+    "description": null,
+    "direction": {
+     "code": "SICAP SA_DSI",
+     "description": null,
+     "libelle": "Direction des Services Informatiques",
+     "name": "Direction des Services Informatiques",
+     "uid": "dad3ecf9-8d61-495c-bf2d-b596ffd5b333"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 72,
+    "isFree": false,
+    "libelle": "Acquisition d'équipements informatiques (45 micro-ordinateurs, 11 ordinateurs portables, 2 imprimantes couleur grand format,1 imprimante monocolore grand forma, 5 scanneurs, 1 palo alto, bornes WIFI",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-05-25T16:45:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "SICAPSA",
+     "description": null,
+     "libelle": "SICAP SA",
+     "name": "SICAP SA",
+     "uid": "938b808b-29bf-4e29-869a-1fda3ac8a68c"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-05-08T12:58:04.873+00:00",
+    "questionsCount": 3,
+    "reference": "F_SICAP SA_DSI_1352",
+    "remainingTime": -9581482714,
+    "status": "PUBLISHED",
+    "submissionCount": 52,
+    "submissionDate": "2026-05-25T16:45:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "69be6cb0-6ba0-432c-8ccd-2f21e03ab16f",
+    "updatedAt": "2026-08-31T18:24:31.525+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-16T12:08:59.946+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DFAT",
+     "description": null,
+     "libelle": "Direction de la formation",
+     "name": "Direction de la formation",
+     "uid": "9fe3a637-69c8-41a5-a82a-7e148e6ae00f"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 2,
+    "isFree": false,
+    "libelle": "TEST Construction d'une digue de protection  à St Louis",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-16T13:40:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-16T13:18:21.388+00:00",
+    "questionsCount": 0,
+    "reference": "T_MDE_DFAT_11882",
+    "remainingTime": -7691782714,
+    "status": "PUBLISHED",
+    "submissionCount": 4,
+    "submissionDate": "2026-06-16T13:40:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "2c8e901d-30f5-448f-9a66-68ee99f357c4",
+    "updatedAt": "2026-09-11T16:08:02.743+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-07-21T09:48:42.297+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DD",
+     "description": null,
+     "libelle": "Direction",
+     "name": "Direction",
+     "uid": "69a2f014-b792-45f5-beff-11cbe8285eb2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 4,
+    "isFree": true,
+    "libelle": "TEST Contruction du second pont de MATAM",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-21T14:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-21T12:20:06.058+00:00",
+    "questionsCount": 1,
+    "reference": "T_MDE_DD_15048",
+    "remainingTime": -4666582714,
+    "status": "PUBLISHED",
+    "submissionCount": 6,
+    "submissionDate": "2026-07-21T14:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "e5d47bd1-6194-46ae-a683-d595cce63c3b",
+    "updatedAt": "2026-09-11T16:08:02.884+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-01-16T10:45:51.359+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DSI",
+     "description": null,
+     "libelle": "Direction des Systèmes d'information",
+     "name": "Direction des Systèmes d'information",
+     "uid": "431b1a07-7d38-4841-8888-8a612f907e82"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 6,
+    "isFree": false,
+    "libelle": "Travaux de construction de 2 000 km de voirie en pavés [TEST]",
+    "marketType": {
+     "code": "T",
+     "description": null,
+     "libelle": "Travaux",
+     "name": "Travaux",
+     "uid": "485ca2fe-6ef1-419d-8e06-3de110b3d320"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-01-16T13:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-01-16T12:11:22.522+00:00",
+    "questionsCount": 0,
+    "reference": "T_MDE_DSI_3933",
+    "remainingTime": -20740582714,
+    "status": "PUBLISHED",
+    "submissionCount": 2,
+    "submissionDate": "2026-01-16T13:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "3391a713-260b-437c-8c43-37ade60695e8",
+    "updatedAt": "2026-09-11T16:08:02.195+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-13T10:31:38.882+00:00",
+    "description": null,
+    "direction": {
+     "code": "MDE_DD",
+     "description": null,
+     "libelle": "Direction",
+     "name": "Direction",
+     "uid": "69a2f014-b792-45f5-beff-11cbe8285eb2"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 3,
+    "isFree": false,
+    "libelle": "TEST ENTRETIEN DES RESEAUX ELECTRIQUES",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-06-13T16:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "MDE",
+     "description": null,
+     "libelle": "Ministère de la dématerialisation (TESTS APPEL)",
+     "name": "Ministère de la dématerialisation (TESTS APPEL)",
+     "uid": "b70dcb0c-adb4-4e78-a9fc-4f38293cd558"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-13T12:26:02.114+00:00",
+    "questionsCount": 1,
+    "reference": "S_MDE_DD_11773",
+    "remainingTime": -7942582714,
+    "status": "PUBLISHED",
+    "submissionCount": 3,
+    "submissionDate": "2026-06-13T16:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "a4a3c0bd-22be-49e7-a5d1-1f6a6702e526",
+    "updatedAt": "2026-09-11T16:08:02.721+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": true,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-25T10:16:48.059+00:00",
+    "description": null,
+    "direction": {
+     "code": "ARTP_01",
+     "description": null,
+     "libelle": "ARTP",
+     "name": "ARTP",
+     "uid": "2fdcec26-9f57-4787-9382-350a369cab3b"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 38,
+    "isFree": true,
+    "libelle": "Sélection d’un prestataire pour le nettoiement des sites de l’ARTP en quatre (4) lots :\nLot 1 : Nettoiement des locaux du Siège \nLot 2 : Nettoiement des locaux du Collège\nLot 3 : Nettoiement des locaux du centre de Khombole\nLot 4 : Nettoiement des locaux du centre de Matam\n",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-27T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ARTP",
+     "description": null,
+     "libelle": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "name": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "uid": "6c6f511f-a94f-4536-91ab-255e2a4e40f1"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-25T17:45:54.488+00:00",
+    "questionsCount": 0,
+    "reference": "S_ARTP_01_13247",
+    "remainingTime": -4162582714,
+    "status": "PUBLISHED",
+    "submissionCount": 33,
+    "submissionDate": "2026-07-27T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Moyenne entreprise (ME)",
+      "name": null,
+      "uid": "8aed722d-8b8f-45f1-bba3-59235e8079d2"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "cc87dc00-df54-4f7e-a204-0df9411f13ff",
+    "updatedAt": "2026-09-11T21:30:24.417+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-08-25T10:16:13.374+00:00",
+    "description": null,
+    "direction": {
+     "code": "PR_CF",
+     "description": null,
+     "libelle": "Contrôle Financier",
+     "name": "Contrôle Financier",
+     "uid": "76a6dce9-4245-4fda-9776-c96ee6985fde"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 60,
+    "isFree": true,
+    "libelle": "ACQUISITION MATERIEL INFORMATIQUE",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-09-10T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "PR",
+     "description": null,
+     "libelle": "Presidence de la République",
+     "name": "Presidence de la République",
+     "uid": "21a85ab3-6ac2-49b5-9e89-d11b3a5a82c9"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-09-01T16:17:31.169+00:00",
+    "questionsCount": 1,
+    "reference": "F_PR_CF_1229",
+    "remainingTime": -274582714,
+    "status": "PUBLISHED",
+    "submissionCount": 25,
+    "submissionDate": "2026-09-10T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "fbf79903-bdd0-431b-8ce3-1f975494fa05",
+    "updatedAt": "2026-09-01T16:17:31.171+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-18T13:10:21.468+00:00",
+    "description": null,
+    "direction": {
+     "code": "OFNAC_01",
+     "description": null,
+     "libelle": "OFNAC",
+     "name": "OFNAC",
+     "uid": "ee85b155-70c6-4b00-92c6-db734e11136e"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 99,
+    "isFree": true,
+    "libelle": "Acquisition de matériels informatiques, de logiciels, de licences et diverses des installations et configurations ",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-08-18T11:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "OFNAC",
+     "description": null,
+     "libelle": "Office national de lutte contre la corruption (OFNAC)",
+     "name": "Office national de lutte contre la corruption (OFNAC)",
+     "uid": "823063ae-8713-409b-bbd7-845438f5c379"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-14T10:51:24.855+00:00",
+    "questionsCount": 12,
+    "reference": "F_OFNAC_01_12171",
+    "remainingTime": -2258182714,
+    "status": "PUBLISHED",
+    "submissionCount": 72,
+    "submissionDate": "2026-08-18T11:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "4a4e6213-fa9d-49f1-ae5d-71a2a3430cb7",
+    "updatedAt": "2026-07-29T08:17:52.951+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-07-09T12:10:33.174+00:00",
+    "description": null,
+    "direction": {
+     "code": "PR_CF",
+     "description": null,
+     "libelle": "Contrôle Financier",
+     "name": "Contrôle Financier",
+     "uid": "76a6dce9-4245-4fda-9776-c96ee6985fde"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 19,
+    "isFree": true,
+    "libelle": "ACQUISITION DE DEUX VEHICULES DONT UN VEHICULE 4X4 STATION WAGON ET UNE BERLINE  ",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-08-14T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "PR",
+     "description": null,
+     "libelle": "Presidence de la République",
+     "name": "Presidence de la République",
+     "uid": "21a85ab3-6ac2-49b5-9e89-d11b3a5a82c9"
+    },
+    "passationMode": {
+     "code": "AOO",
+     "description": "Appel d'Offres Ouvert",
+     "libelle": "Appel d'offres ouvert",
+     "supplierInvitation": false,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-10T13:11:36.495+00:00",
+    "questionsCount": 0,
+    "reference": "F_PR_CF_13596",
+    "remainingTime": -2607382714,
+    "status": "PUBLISHED",
+    "submissionCount": 4,
+    "submissionDate": "2026-08-14T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "16bb2aea-69fe-42d7-a4ab-61039897b1a4",
+    "updatedAt": "2026-08-13T12:47:37.297+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Sociétés nationales et sociétés à participation publique majoritaire",
+     "name": null,
+     "uid": "d1d1d1d1-1d1d-1d1d-1d1d-1d1d1d1d1d1d"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-06-03T11:20:30.400+00:00",
+    "description": null,
+    "direction": {
+     "code": "SENELEC_DPP",
+     "description": null,
+     "libelle": "Direction Principale Production",
+     "name": "Direction Principale Production",
+     "uid": "a69904bf-b62c-4904-90e1-0d3c057f8a5c"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 37,
+    "isFree": true,
+    "libelle": "Fourniture d’équipements IGBT,compteurs enerium,…) pour les centrales du département production Dakar de SENELEC",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-15T09:30:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "SENELEC",
+     "description": null,
+     "libelle": "SENELEC",
+     "name": "SENELEC",
+     "uid": "e4f3fb55-0ac8-4946-bee0-3ba983653db1"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-06-16T10:43:05.798+00:00",
+    "questionsCount": 4,
+    "reference": "F_SENELEC_DPP_4108",
+    "remainingTime": -5201182714,
+    "status": "PUBLISHED",
+    "submissionCount": 14,
+    "submissionDate": "2026-07-15T09:30:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "46f7dbab-79d8-49c3-9535-1839009a69b4",
+    "updatedAt": "2026-08-20T08:55:27.708+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "État (Administration centrale)",
+     "name": null,
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-08-25T11:16:54.059+00:00",
+    "description": null,
+    "direction": {
+     "code": "PR_CF",
+     "description": null,
+     "libelle": "Contrôle Financier",
+     "name": "Contrôle Financier",
+     "uid": "76a6dce9-4245-4fda-9776-c96ee6985fde"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 49,
+    "isFree": true,
+    "libelle": "ACQUISITION MOBILIER ET MATERIEL DE BUREAU",
+    "marketType": {
+     "code": "F",
+     "description": null,
+     "libelle": "Fourniture",
+     "name": "Fourniture",
+     "uid": "b2b2b2b2-2b2b-2b2b-2b2b-2b2b2b2b2b2b"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-09-10T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "PR",
+     "description": null,
+     "libelle": "Presidence de la République",
+     "name": "Presidence de la République",
+     "uid": "21a85ab3-6ac2-49b5-9e89-d11b3a5a82c9"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 1,
+    "publicationDate": "2026-09-01T15:57:06.559+00:00",
+    "questionsCount": 2,
+    "reference": "F_PR_CF_1225",
+    "remainingTime": -274582714,
+    "status": "PUBLISHED",
+    "submissionCount": 18,
+    "submissionDate": "2026-09-10T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "932f2383-e36e-454b-9575-feab18a5d97a",
+    "updatedAt": "2026-09-01T15:57:06.561+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Agences et autres",
+     "name": null,
+     "uid": "g1g1g1g1-1g1g-1g1g-1g1g-1g1g1g1g1g1g"
+    },
+    "apd": true,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-07-14T15:00:16.913+00:00",
+    "description": null,
+    "direction": {
+     "code": "ARTP_01",
+     "description": null,
+     "libelle": "ARTP",
+     "name": "ARTP",
+     "uid": "2fdcec26-9f57-4787-9382-350a369cab3b"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 16,
+    "isFree": true,
+    "libelle": "Sélection d’un prestataire pour l’entretien et la réparation des véhicules du parc auto de l’ARTP en trois lots :\nLot 1 : Mitsubishi\nLot 2 : Toyota\nLot 3 : Autres marques",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-07-30T10:00:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ARTP",
+     "description": null,
+     "libelle": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "name": "Autorité de Régulation des Télécommunications et des Postes (ARTP)",
+     "uid": "6c6f511f-a94f-4536-91ab-255e2a4e40f1"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-07-15T10:59:48.493+00:00",
+    "questionsCount": 0,
+    "reference": "S_ARTP_01_3749",
+    "remainingTime": -3903382714,
+    "status": "PUBLISHED",
+    "submissionCount": 5,
+    "submissionDate": "2026-07-30T10:00:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": [
+     {
+      "code": null,
+      "description": null,
+      "libelle": "Moyenne entreprise (ME)",
+      "name": null,
+      "uid": "8aed722d-8b8f-45f1-bba3-59235e8079d2"
+     }
+    ],
+    "tenderNoticeFile": null,
+    "uid": "67ee6c14-5c54-4995-9013-29c9087d56e7",
+    "updatedAt": "2026-09-11T21:30:24.308+00:00"
+   },
+   {
+    "acType": {
+     "code": null,
+     "description": null,
+     "libelle": "Établissements publics ",
+     "name": null,
+     "uid": "c1c1c1c1-1c1c-1c1c-1c1c-1c1c1c1c1c1c"
+    },
+    "apd": false,
+    "cible": "COMMUNITY",
+    "createdAt": "2026-09-11T12:16:22.126+00:00",
+    "description": null,
+    "direction": {
+     "code": "ONAS_DRH",
+     "description": null,
+     "libelle": "Direction des Ressources Humaines",
+     "name": "Direction des Ressources Humaines",
+     "uid": "4aca5b26-c627-4f1a-9b02-3f032f218424"
+    },
+    "expressedInterest": false,
+    "expressedInterestCount": 0,
+    "isFree": true,
+    "libelle": "visite médicale pour le personnel de l'ONAS",
+    "marketType": {
+     "code": "S",
+     "description": null,
+     "libelle": "Services",
+     "name": "Services",
+     "uid": "a1a1a1a1-1a1a-1a1a-1a1a-1a1a1a1a1a1a"
+    },
+    "obtainingMode": "ONLINE",
+    "openingDate": "2026-09-17T10:30:00.000+00:00",
+    "openingPlace": null,
+    "organization": {
+     "code": "ONAS",
+     "description": null,
+     "libelle": "Office Nationale de l'Assainissement du Sénégal",
+     "name": "Office Nationale de l'Assainissement du Sénégal",
+     "uid": "0f3f2637-e594-4d1a-8dc0-425dc170e676"
+    },
+    "passationMode": {
+     "code": "DRPCO",
+     "description": "Demande de renseignements et de prix à compétition ouverte",
+     "libelle": "Demande de renseignements et de prix à compétition ouverte",
+     "supplierInvitation": false,
+     "uid": "f86c4778-19f2-4dc7-82c9-0a75a339d045"
+    },
+    "pendingQuestionsCount": 0,
+    "publicationDate": "2026-09-11T13:23:14.740+00:00",
+    "questionsCount": 0,
+    "reference": "S_ONAS_DRH_13060",
+    "remainingTime": 332017286,
+    "status": "PUBLISHED",
+    "submissionCount": 0,
+    "submissionDate": "2026-09-17T10:30:00.000+00:00",
+    "submissionMode": "ELECTRONIC",
+    "submissionPlace": null,
+    "supplierProperties": null,
+    "tenderNoticeFile": null,
+    "uid": "2a9af760-a27e-4add-b990-a6f016d51658",
+    "updatedAt": "2026-09-11T13:23:14.742+00:00"
+   }
+  ],
+  "empty": false,
+  "first": true,
+  "last": true,
+  "number": 0,
+  "numberOfElements": 35,
+  "pageable": {
+   "offset": 0,
+   "pageNumber": 0,
+   "pageSize": 200,
+   "paged": true,
+   "sort": [],
+   "unpaged": false
+  },
+  "size": 200,
+  "sort": [],
+  "totalElements": 35,
+  "totalPages": 1
+ },
+ "message": "SUCCESS",
+ "success": true
+}
