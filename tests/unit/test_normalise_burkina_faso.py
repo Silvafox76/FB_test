@@ -590,7 +590,7 @@ def test_the_body_ends_at_the_signature_block_not_the_next_notice(notices):
 
 
 def test_no_phone_number_or_email_survives_in_any_body(text, notices):
-    """The fixture prints 22 bodies' worth of them before stripping."""
+    """27 of the fixture's 28 bodies carry at least one before stripping."""
     assert "armelnombre@gmail.com" in text
     assert "24_71_00_19/73_70_47_14" in text
     phone = re.compile(r"(?<!\d)\d{2}(?:([ \-_.])\d{2}\1\d{2}\1\d{2}|\d{6})(?!\d)")

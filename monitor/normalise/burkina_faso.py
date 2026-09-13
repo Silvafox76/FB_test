@@ -210,6 +210,29 @@ connector's, imported, so the spelling of a month lives in one place. Not
 measured: a combined issue ("Quotidien n°4473-4474.pdf") yields number 4473 and
 its masthead may print "N° 4473-4474"; none of the five is combined.
 
+**Contact details are stripped from the body before it is hashed (rule 19).**
+The body goes to the scorer, and the gazette prints office telephone, cell and
+fax numbers and the occasional email address inside a notice: "Tel : 66 66 39
+03", "tel (+226)72 71 72 72", "70-73-64-92", "24_71_00_19/73_70_47_14",
+"Téléphone : 25 31 77 95 / 70 81 84 25", "armelnombre@gmail.com", and on 4486
+"adresse électronique : haromahamadou792@ gmail.com" with a space after the
+"@". A Burkinabè number is eight digits, printed as four pairs with one
+separator throughout (space, hyphen, underscore or dot) or unbroken, with an
+optional +226 prefix; requiring the same separator in all three positions is
+what keeps an amount out of it - "16 101695" (a mistyped figure on 4478 p.40)
+and "25 168 110" are not phone-shaped under that rule, and no thousands-grouped
+amount can be. The number or address is removed, with a "Tél :", "Cel", "Fax",
+"E-mail :", "contact :" or "adresse électronique :" label directly before it
+and a "/" joining consecutive numbers; the rest of the line stays, and a line
+nothing was removed from is untouched. Names of signing officials stay: they
+sign a public gazette in an official capacity and the text is the record (rule
+9), the same line `liberia.py` took when it dropped contactPoint emails and kept
+the institutional names. Postal boxes ("01 BP 5373 Ouagadougou 01") are an
+office's address, not a person's, and stay. Measured on the six issues: 157 of
+188 bodies carried at least one number or address (4471 27 of 36, 4477 27 of
+32, 4478 27 of 28, 4483 8 of 11, 4485 30 of 35, 4486 38 of 46); after
+stripping, none does.
+
 **Document and URL.** `map_notices` takes `{"url": ..., "text": ...}` as
 `fetch.py`'s PDF decoder hands it over (decision 51): the issue's own URL goes on
 every notice, because the issue is what a reviewer opens, the way Mali's notices
@@ -301,8 +324,12 @@ BLANK_RUN = re.compile(r"\n\s*\n+")
 # is four digit pairs with one consistent separator, or eight unbroken digits,
 # with an optional +226 prefix; a list of them is joined by "/", "," or ";".
 PHONE = r"(?:\(?\+?226\)?[ \-]?)?(?<!\d)\d{2}(?:([ \-_.])\d{2}\1\d{2}\1\d{2}|\d{6})(?!\d)"
-EMAIL = r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
-CONTACT_LABEL = r"(?:t[ée]l(?:[ée]phone)?|cel(?:lulaire)?|fax|portable|mobile|contact|e-?mail)\s*\.?\s*:?\s*"
+# "@" may be followed by a space: 4486 prints "haromahamadou792@ gmail.com".
+EMAIL = r"[\w.+-]+\s*@\s*[\w-]+(?:\.[\w-]+)+"
+CONTACT_LABEL = (
+    r"(?:t[ée]l(?:[ée]phone)?|cel(?:lulaire)?|fax|portable|mobile|contact|e-?mail|adresse\s+[ée]lectronique)"
+    r"\s*\.?\s*:?\s*"
+)
 CONTACT = re.compile(
     rf"(?:{CONTACT_LABEL})?(?:{PHONE}|{EMAIL})(?:\s*[/,;]\s*(?:{PHONE}|{EMAIL}))*",
     re.IGNORECASE,
