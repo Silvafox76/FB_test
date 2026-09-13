@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from monitor.db import connect
 from monitor.models import Source
+from monitor.registry.record_defaults import RECORD_SENTENCE_KEYS, VALUE_BASES, RecordDefaults
 
 REPO = Path(__file__).resolve().parent.parent.parent
 SOURCES_DIR = REPO / "sources"
@@ -125,29 +126,9 @@ def load_lexicon(language: str, path: Path | None = None) -> tuple[dict[str, lis
 
 RECORD_DEFAULTS = CONFIG_DIR / "record_defaults.yaml"
 
-# What `value_basis` may be. Owned here, at the config boundary, and imported by
-# monitor/stage/record.py - not the other way round. The registry is the layer
-# everything else reads config through; the first version of this loader reached
-# forward into the stage layer for the constant and needed a deferred import to
-# avoid the cycle, which was the dependency pointing the wrong way.
-VALUE_BASES = frozenset({"published", "usd"})
-
-# Every `sentences[...]` key monitor/stage/record.py reads. One list, checked on
-# load, and pinned to record.py's actual reads by tests/unit/test_registry.py so
-# a new sentence cannot be added to the code without being added here.
-RECORD_SENTENCE_KEYS = frozenset(
-    {
-        "account_name_proposal",
-        "eligibility_none_detected",
-        "next_steps",
-        "pricing_notes",
-        "value_in_target",
-        "value_no_usd",
-        "value_not_stated",
-        "value_usd_basis",
-        "value_with_usd",
-    }
-)
+# Re-exported so monitor/stage/record.py and the tests keep importing them from the
+# registry, which owns them. The models themselves live in record_defaults.py.
+__all__ = ["RECORD_SENTENCE_KEYS", "VALUE_BASES", "load_record_defaults"]
 
 
 def load_record_defaults(path: Path = RECORD_DEFAULTS) -> dict:
@@ -160,18 +141,19 @@ def load_record_defaults(path: Path = RECORD_DEFAULTS) -> dict:
     and review/decisions.py reads the file through this function rather than its
     own `yaml.safe_load`, so the check runs on the request path and not only in
     `make up`.
+
+    Validated by the Pydantic models in `record_defaults.py` since 2026-09-13
+    rather than by hand: every section, every key the builder reads, every column's
+    shape, and no key the builder does not read. The document is returned as a
+    plain dict because the builder, the review app and the export index into it.
     """
     document = _read_yaml(path)
-    basis = document.get("value_basis")
-    if basis not in VALUE_BASES:
-        raise RegistryError(f"{path.name}: value_basis is {basis!r}, must be one of {sorted(VALUE_BASES)}")
-    sentences = document.get("sentences") or {}
-    missing = RECORD_SENTENCE_KEYS - set(sentences)
-    if missing:
-        raise RegistryError(f"{path.name}: sentences is missing {sorted(missing)}; the record builder renders them")
-    if not document.get("columns"):
-        raise RegistryError(f"{path.name}: no columns; appendix E's export has nothing to write")
-    return document
+    try:
+        defaults = RecordDefaults.model_validate(document)
+    except ValidationError as error:
+        fields = ", ".join(".".join(str(part) for part in item["loc"]) for item in error.errors())
+        raise RegistryError(f"{path.name}: invalid field(s) {fields}: {error}") from error
+    return defaults.model_dump()
 
 
 def config_files(sources_dir: Path = SOURCES_DIR, config_dir: Path = CONFIG_DIR) -> list[tuple[Path, str, str | None]]:

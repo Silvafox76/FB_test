@@ -296,7 +296,54 @@ def test_a_bad_value_basis_fails_on_load_not_on_a_reviewers_page(tmp_path):
     path = tmp_path / "record_defaults.yaml"
     path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
 
-    with pytest.raises(RegistryError, match="value_basis is 'dollars please'"):
+    # Pydantic names the field and lists the allowed values; the file name comes
+    # from the registry's own wrapper.
+    with pytest.raises(RegistryError, match=r"record_defaults\.yaml: invalid field\(s\) value_basis"):
+        load_record_defaults(path)
+
+
+def test_a_key_the_record_builder_does_not_read_is_refused(tmp_path):
+    """extra="forbid" on every section: a stale or misspelt key fails on load (rule 4)."""
+    import yaml
+
+    from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
+
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    document["suggested"]["currncy"] = "USD"
+    path = tmp_path / "record_defaults.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="suggested.currncy"):
+        load_record_defaults(path)
+
+
+def test_two_columns_with_one_header_are_refused(tmp_path):
+    """Zoho's import mapper matches on headers; a duplicate would map one of them to nothing."""
+    import yaml
+
+    from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
+
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    document["columns"].append({"name": "Currency", "category": "S"})
+    path = tmp_path / "record_defaults.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="appears twice"):
+        load_record_defaults(path)
+
+
+def test_a_lookup_table_without_a_default_is_refused(tmp_path):
+    """record.py falls back to `default` for a region or stream it has not seen."""
+    import yaml
+
+    from monitor.registry.load import RECORD_DEFAULTS, RegistryError, load_record_defaults
+
+    document = yaml.safe_load(RECORD_DEFAULTS.read_text(encoding="utf-8"))
+    del document["industry_by_region"]["default"]
+    path = tmp_path / "record_defaults.yaml"
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+
+    with pytest.raises(RegistryError, match="industry_by_region has no 'default'"):
         load_record_defaults(path)
 
 

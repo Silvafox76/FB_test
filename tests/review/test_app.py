@@ -253,7 +253,7 @@ def test_a_bad_value_basis_surfaces_on_the_request_path_not_only_in_seed(client,
     # `review/decisions.py` calls it through, not the module-level constant.
     monkeypatch.setattr(decisions, "load_record_defaults", lambda: load_record_defaults(bad_defaults))
 
-    with pytest.raises(RegistryError, match="value_basis is 'dollars please'"):
+    with pytest.raises(RegistryError, match=r"(?s)invalid field\(s\) value_basis.*'dollars please'"):
         client.get(f"/candidate/{staged}")
 
 
