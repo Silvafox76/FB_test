@@ -23,7 +23,7 @@ class SourceStatus:
     last_success_at: object
     consecutive_failures: int
     notices: int
-    filtered_in: int
+    passed: int
     dropped: int
     needs_translation: int
     unfiltered: int
@@ -31,7 +31,7 @@ class SourceStatus:
     @property
     def considered(self) -> int:
         """Notices the filter has decided on. The denominator of the drop rate."""
-        return self.filtered_in + self.dropped
+        return self.passed + self.dropped
 
     @property
     def drop_rate(self) -> float:
@@ -47,7 +47,11 @@ def collect(conn: psycopg.Connection) -> list[SourceStatus]:
                h.last_success_at,
                coalesce(h.consecutive_failures, 0),
                count(n.id),
-               count(n.id) filter (where n.status = 'filtered_in'),
+               -- Passed the filter, whatever happened to it since. Until 2026-09-13 this
+               -- counted status = 'filtered_in' alone, which a notice leaves the moment
+               -- it is scored, so the line read "passed 0" against 146 scored notices
+               -- and the drop rate was computed on the unscored backlog.
+               count(n.id) filter (where n.status in ('filtered_in', 'scored', 'parked')),
                count(n.id) filter (where n.status = 'filtered_out'),
                count(n.id) filter (where n.filter_result = 'needs translation'),
                count(n.id) filter (where n.status = 'detected'
@@ -72,13 +76,13 @@ def render(statuses: list[SourceStatus]) -> str:
         flag = "" if status.enabled else "  (not enabled)"
         rate = f"{status.drop_rate:.0%}" if status.considered else "-"
         lines.append(
-            f"{status.source_id:<12} {status.state:<9} {status.notices:>7} {status.filtered_in:>7} "
+            f"{status.source_id:<12} {status.state:<9} {status.notices:>7} {status.passed:>7} "
             f"{status.dropped:>8} {rate:>10} {status.needs_translation:>10} {status.unfiltered:>11}{flag}"
         )
 
     considered = sum(s.considered for s in statuses)
     dropped = sum(s.dropped for s in statuses)
-    passed = sum(s.filtered_in for s in statuses)
+    passed = sum(s.passed for s in statuses)
     overall = f"{dropped / considered:.1%}" if considered else "-"
     lines.append("")
     lines.append(f"considered {considered}, passed {passed}, dropped {dropped}, drop rate {overall}")
