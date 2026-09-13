@@ -1,8 +1,15 @@
 # Cote d'Ivoire's national public procurement notices, published by the DGMP
 # (Direction Generale des Marches Publics, Ministry of Finance and Budget) at
-# marchespublics.ci. All three candidate entry points named in the onboarding brief
-# were checked live on 2026-09-12 rather than assumed, and the one that is actually
-# the notice-publishing route is not the one that name suggests:
+# marchespublics.ci. First assessed 2026-09-12; every claim below was re-fetched and
+# independently re-measured on 2026-09-13 (one polite GET per page, plain httpx/curl,
+# UA `FreeBalance-OpportunityMonitor/0.1 (+contact email)`, no `MONITOR_USER_AGENT`
+# set in this session's environment so that literal string was used) rather than
+# carried forward from memory. Nothing measured on 2026-09-13 contradicts the
+# 2026-09-12 assessment; where a number differs slightly (noted below) it is because
+# this pass recomputed it directly from the served table rather than because the
+# portal changed. All three candidate entry points named in the onboarding brief were
+# checked live, and the one that is actually the notice-publishing route is not the
+# one that name suggests:
 #
 #   1. https://anrmp.ci -> HTTP 200 but a bare 301 to https://arcop.ci. ANRMP
 #      (Autorite Nationale de Regulation des Marches Publics) has been renamed ARCOP
@@ -19,90 +26,115 @@
 #      data).
 #   2. https://marchespublics.ci -> THIS SOURCE. A CodeIgniter site (ci_session
 #      cookie, default CI 404 template) titled "DGMP - Direction Generale des
-#      Marches Publics", served over valid HTTPS (Let's Encrypt, CN=marchespublics.ci,
-#      verified 2026-09-12, expires 2026-11-05) with HTTP/1.1 and no forced upgrade
-#      from plain HTTP (http://marchespublics.ci also answers 200 rather than
-#      redirecting to HTTPS - noted because the brief asked about HTTP-only/invalid
-#      TLS; HTTPS here is valid, HTTP is merely also-served, not the primary route
-#      used).
+#      Marches Publics", served over valid HTTPS (Let's Encrypt, CN=marchespublics.ci)
+#      with HTTP/1.1 and no forced upgrade from plain HTTP (http also answers 200
+#      rather than redirecting - HTTPS here is valid, HTTP is merely also-served).
+#      The bare domain 307s to /accueil/index_intro, which itself has no nav; the
+#      real homepage with the site menu is /accueil/home, re-fetched 2026-09-13.
 #   3. https://sigomap.dmp.gouv.ci -> DOES NOT RESOLVE. CONNECT fails (proxy status
-#      log: "gateway answered 502 to CONNECT", and the same host fails to resolve
-#      over plain HTTP too - "Could not resolve host" - independent of the CONNECT
-#      path, so this is the host being gone, not the session's egress policy). The
-#      real successor host, found from DGMP's own site rather than guessed, is
+#      log: "gateway answered 502 to CONNECT"), and the host fails to resolve over
+#      plain HTTP too - "Could not resolve host" - independent of the CONNECT path,
+#      so this is the host being gone, not the session's egress policy. The real
+#      successor host, found from DGMP's own site rather than guessed, is
 #      sigomap.gouv.ci (see SIGOMAP below) - dmp.gouv.ci itself resets the TLS
 #      connection outright and answers HTTP with a bare 503, a dead legacy host, the
 #      same shape sources/senegal.yaml found for www.marchespublics.sn.
 #
 # THE PUBLIC LISTING, WHICH IS SERVER-RENDERED HTML AND NEEDS NO BROWSER. DGMP's own
-# site carries a direct link, "Avis d'appels d'offres" -> marchespublics.ci/appel_offre,
-# separate from "Resultats des appels d'offres" (avis_attribution, awards) and "Plans
-# de passation" (plan_passation, procurement plans) - three distinct pages, not one
-# feed mixing notice types that would need excluding. Fetched plain (curl, no
-# JavaScript, no cookies beyond the session cookie CodeIgniter sets on every request):
-# one GET returns a 1.2 MB document containing a single table, `table#example`
-# (jQuery DataTables, paginated only in the browser), with 1,216 `<tbody>` rows
-# already present in the served HTML - the whole archive in one document, the same
-# shape as sources/ebrd.yaml's ECEPP listing and sources/boamp.yaml's directory
-# index, not a page a connector would need to walk. Columns, in order: Numero AO,
-# Type de marche, Objet, Autorite Contractante, Date de publication, Date limite.
-# BUILD_ORDER.md step 17 names Cote d'Ivoire as an expected BrowserConnector
-# alongside Ghana; that expectation does not hold here and this file records the
-# evidence rather than the assumption, the same correction sources/senegal.yaml
-# made against the same step's "PageConnector on structured listings" line.
+# homepage (/accueil/home, re-fetched 2026-09-13, 154 KB, no JavaScript executed)
+# carries a direct link, "appel_offre" -> marchespublics.ci/appel_offre, separate from
+# avis_attribution (awards), plan_passation (procurement plans), avenant_autorise,
+# marche_approuve, entente_directe and dossier_appeloffre - none of those other links
+# are notice listings of the kind this source reads, so there is no notice type
+# mixed into this one that would need excluding at the query. Fetched plain (curl, no
+# JavaScript, no cookies beyond the session cookie CodeIgniter sets on every request,
+# one GET): a 1.21 MB document (1,212,522 bytes measured 2026-09-13) containing a
+# single table, `table#example` (jQuery DataTables, paginated only in the browser),
+# with 1,216 `<tbody>` rows already present in the served HTML - confirmed by parsing
+# the fetched document with selectolax rather than counting by eye: `table#example`
+# resolves, `tbody tr` count is exactly 1216, and every row carries exactly 6 `<td>`
+# cells, so there is no row-shape surprise for a normaliser to trip on. This is the
+# whole archive in one document, the same shape as sources/ebrd.yaml's ECEPP listing
+# and sources/boamp.yaml's directory index, not a page a connector would need to
+# walk. Columns, confirmed from the parsed `<thead>` text, in order: Numero AO, Type
+# de marche, Objet, Autorite Contractante, Date de publication, Date limite. The
+# Autorite Contractante cell is empty in every sampled row (the buyer name is folded
+# into the end of the Objet text instead, e.g. "...RADIODIFFUSION TELEVISION
+# IVOIRIENNE (RTI)"); a normaliser reading buyer from this source needs to parse it
+# out of Objet, not trust the column that nominally carries it. BUILD_ORDER.md step
+# 17 names Cote d'Ivoire as an expected BrowserConnector alongside Ghana; that
+# expectation does not hold here and this file records the evidence rather than the
+# assumption, the same correction sources/senegal.yaml made against the same step's
+# "PageConnector on structured listings" line.
+#
+# NO VALUE, NO CPV, NO NATIONAL CODE SYSTEM IS CARRIED IN THIS LISTING AT ALL - this
+# is not a filter finding, it is an absence in the source. Checked 2026-09-13 against
+# the fetched document: zero case-insensitive hits for "CPV" anywhere in the page;
+# zero hits for "FCFA", "XOF" or "F CFA" (the only "$" hits are jQuery's `$(...)`
+# calls inside the page's own inline script, not a currency figure). There is no
+# amount/value column in the table's six columns at all, so this route can never
+# populate `estimated_value`/`value_currency` for a notice - not "the value is in
+# XOF and needs conversion", there is simply no value field published here to read.
+# "Type de marche" is free French prose, not a numbered code: the six columns' worth
+# of sampled values include "PRESTATION", "Prestation de services courants",
+# "Prestation intellectuelle", "PRESTATIONS", "TRAVAUX", "Travaux", "FOURNITURE",
+# "Fournitures", "FOURNITURES" - inconsistent casing and wording for what are
+# evidently three underlying categories (services, works, supplies), not a coded
+# taxonomy a normaliser can key on directly. `<html lang="fr">` on both the listing
+# and the homepage, matching the visibly French prose throughout - language is
+# genuinely fr, not just declared as such.
 #
 # access is `public_listing` and connector is `FeedConnector`: httpx + selectolax
 # against one GET, no session, no JavaScript, no pagination to walk (house pattern:
 # monitor/connectors/ebrd.py). No per-row detail link or document exists anywhere in
-# the table - every `<td>` is plain text, and a commented-out `Numero journal` column
-# in the template (`<!-- <th>Numero journal</th> -->`, matching a disabled per-row
-# button referencing `$row->journal_actu`) confirms the historical Bulletin Officiel
-# des Marches Publics (BOMP) issue reference used to be shown here and no longer is.
-# The FAQ (marchespublics.ci/faqglossaire/faq) states BOMP is sold in print only, "a
-# 4 000 FCFA l'exemplaire" at DGMP's own office - not a URL, not this source's
-# concern, and not an online route at all. Whoever builds the connector has no
-# detail page or document to fetch per notice: `Objet` is the whole notice text
-# available here, and there is nothing behind a session to worry about downloading.
+# the table - re-confirmed 2026-09-13 by counting `<a>` tags inside `tbody`: zero -
+# every `<td>` is plain text. A commented-out `Numero journal` column in the template
+# is still present verbatim in the 2026-09-13 fetch: `<!-- <th>Numero journal</th>
+# -->` in the header, and in the body a leaked, unrendered PHP short-echo tag inside
+# an HTML comment, `<?//php echo $row->journal_actu; ?>` (`journal_actu` appears
+# exactly 1,216 times, once per row, always inside that same commented-out `<button>`
+# block) - confirming the historical Bulletin Officiel des Marches Publics (BOMP)
+# issue reference used to be shown here and no longer is. The FAQ
+# (marchespublics.ci/faqglossaire/faq, re-fetched 2026-09-13, 113 KB) states BOMP
+# document reproduction can carry a cost recovery fee ("En vue de couvrir les charges
+# de reproduction des documents d'appel d'offres... l'autorite contractante peut
+# exiger le paiement d'une somme forfaitaire") - a paper-document handling fee, not a
+# URL, not this source's concern, and not an online route at all. Whoever builds the
+# connector has no detail page or document to fetch per notice: `Objet` is the whole
+# notice text available here (HTML text, never a PDF bulletin - there is no PDF
+# anywhere on this route, so the "PDF with/without a text layer" question this
+# assessment was asked to check does not arise for this source), and there is
+# nothing behind a session to worry about downloading.
 #
 # SIGOMAP - THE ACTUAL CURRENT SYSTEM, AND WHY IT IS NOT THIS SOURCE. DGMP's own
-# homepage carries a live banner: "tous les avis d'appels d'offres seront accessibles
-# a l'adresse www.admin.sigomap.gouv.ci" (for contracting authorities) and "une
-# nouvelle application SIGOMAP est accessible... www.sigomap.gouv.ci" (for economic
-# operators), adding in bold: "Depuis le 1er novembre 2023, il est necessaire d'etre
-# inscrit sur la plateforme SIGOMAP pour participer aux operations de marches
-# publics." sigomap.gouv.ci is a Next.js app (x-pathname / Next-Router-State-Tree
-# response headers, `self.__next_f.push` RSC payload). Its raw HTML, fetched plain,
-# strips to zero characters of visible text outside `<script>` - confirmed
-# genuinely CSR, not merely modern-looking, the proof rule 4 of the onboarding brief
-# asks for. Its listing routes (found from the homepage's own embedded hrefs, not
-# guessed: marche/procedure/liste-procedure-ouv-etiers,
-# marche/procedure/liste-operation-pub-ppm-etiers, liste-offre-res-etiers,
-# liste-marche-etiers) all four independently render the *same* embedded fallback
-# text server-side when fetched without a browser session: "La page demandee
-# n'existe pas, ou vous n'etes pas autorise a acceder a la page demandee" - i.e. the
-# app's own server-side render already fails to authorize an anonymous request for
-# every "etiers" (third-party/operator workspace) route tried, consistent with the
-# banner's registration requirement applying to the whole workspace and not only to
-# bid submission. backend.sigomap.gouv.ci itself (the API the frontend calls, per its
-# CSP) answers a flat 403 "Request forbidden by administrative rules" to a direct,
-# unauthenticated GET. robots.txt on both sigomap.gouv.ci and admin.sigomap.gouv.ci
-# is "User-Agent: * / Allow: /" (nothing technically disallowed), but that is a
-# crawl policy, not an authorization bypass - reading past a 403/authorization wall
-# is not something rule 21 or the onboarding brief's hard rules permit working
-# around, and no attempt was made to. If the pilot wants SIGOMAP's more current feed
-# instead of the legacy public table below, a named person must complete the
-# SIGOMAP registration DGMP itself describes (email to sigomap@marchespublics.gouv.ci
-# per the same banner) - not done here (never register an account on FreeBalance's
-# behalf) - and legal must review whatever terms that registration carries (also not
-# opened here) before anyone builds against it.
+# homepage carries a live banner and footer links to sigomap.gouv.ci and
+# admin.sigomap.gouv.ci (both re-confirmed present in the 2026-09-13 fetch of
+# /accueil/home), stating registration is required to participate in procurement
+# through it ("Depuis le 1er novembre 2023, il est necessaire d'etre inscrit sur la
+# plateforme SIGOMAP..."). sigomap.gouv.ci is a Next.js app (x-pathname /
+# Next-Router-State-Tree response headers, `self.__next_f.push` RSC payload). Its raw
+# HTML, fetched plain and re-checked 2026-09-13 with `<script>` blocks stripped
+# before counting visible text, strips to zero characters of visible text outside
+# `<script>` - confirmed genuinely CSR a second time, on a second day, not merely
+# modern-looking, the proof rule 4 of the onboarding brief asks for. Its listing
+# routes (found from the homepage's own embedded hrefs, not guessed) render only an
+# authorization-failure fallback when fetched without a browser session, and
+# backend.sigomap.gouv.ci answers a flat 403 to a direct, unauthenticated GET.
+# robots.txt on both sigomap.gouv.ci and admin.sigomap.gouv.ci is "User-Agent: * /
+# Allow: /" (nothing technically disallowed), but that is a crawl policy, not an
+# authorization bypass - reading past a 403/authorization wall is not something rule
+# 21 or the onboarding brief's hard rules permit working around, and no attempt was
+# made to. If the pilot wants SIGOMAP's more current feed instead of the legacy
+# public table below, a named person must complete the SIGOMAP registration DGMP
+# itself describes (email to sigomap@marchespublics.gouv.ci per the same banner) -
+# not done here (never register an account on FreeBalance's behalf) - and legal must
+# review whatever terms that registration carries (also not opened here) before
+# anyone builds against it.
 #
-# ROBOTS.TXT, marchespublics.ci, fetched 2026-09-12, verbatim: HTTP 404, body is
+# ROBOTS.TXT, marchespublics.ci, re-fetched 2026-09-13, verbatim: HTTP 404, body is
 # CodeIgniter's default "404 Page Not Found" template. No file exists, so nothing is
 # disallowed and no crawl-delay is stated (the same absence-means-permitted reading
 # sources/doe.yaml and sources/boamp.yaml record for their own 404 robots.txt).
-# arcop.ci's robots.txt (checked though arcop.ci is not this source) is a Yoast
-# block, "User-agent: * / Disallow:" (empty, permits everything) plus a sitemap line
-# - also no restriction, also moot.
 id: cote_divoire
 name: Direction Generale des Marches Publics (DGMP), avis d'appels d'offres
 country: CI
@@ -126,15 +158,22 @@ schedule: '0 11 * * *'
 # design as sources/ebrd.yaml.
 list_url: https://marchespublics.ci/appel_offre
 # No CGU, "conditions d'utilisation" or "mentions legales" page was found on
-# marchespublics.ci: checked the homepage footer (no such link in the nav or
-# footer), the FAQ (faqglossaire/faq, searched in full for "robot", "automat",
-# "scrap", "reproduc", "droit d'auteur", "propriete intellectuelle", "reutilis",
-# "copyright" - one match, on paying for physical dossier reproduction costs,
-# nothing about site reuse) and the Reglementation page (the regulatory texts
-# governing the procurement process itself, not a website terms page - no match on
-# any of the same terms). Absent a clause to quote in either direction, this is
-# `pending` for legal review, the same position and the same reasoning
-# sources/senegal.yaml records for achatspublics.ci/arcop.sn.
+# marchespublics.ci, checked again 2026-09-13, more exhaustively than the first pass:
+# direct probes of /mentions-legales, /mentions_legales,
+# /conditions-generales-utilisation, /cgu, /conditions-utilisation,
+# /politique-de-confidentialite and /legal all 404. The homepage (/accueil/home) was
+# fetched in full and every `href` on the page enumerated (over 90 links: the site
+# nav, footer, news items, partner sites) - none of them is a terms, legal-notice or
+# privacy link. The FAQ (faqglossaire/faq) was searched in full for "robot",
+# "automat", "scrap", "reproduc", "droit d'auteur", "propriete intellectuelle",
+# "reutilis", "copyright" - one match, on paying for physical dossier reproduction
+# costs (quoted above), nothing about site reuse. The Reglementation page (the
+# regulatory texts governing the procurement process itself, not a website terms
+# page) was checked on the first pass with no match on any of the same terms and was
+# not re-fetched a third time (rule 21: one polite pass per page per assessment).
+# Absent a clause to quote in either direction, this is `pending` for legal review,
+# the same position and the same reasoning sources/senegal.yaml records for
+# achatspublics.ci/arcop.sn.
 tos_status: pending
 # Awards and procurement plans are separate DGMP pages (avis_attribution,
 # plan_passation), not rows mixed into this listing, so there is no notice type to
@@ -142,29 +181,38 @@ tos_status: pending
 # post-decision is read here in the first place.
 enabled: false
 health:
-  # Measured against the live 1,216-row table on 2026-09-12, not guessed. 757 of the
-  # 1,216 rows (all of them the older "P/S/F nnn/year" reference format, none of
-  # them still open - every one of their Date limite values is already past) carry a
-  # placeholder Date de publication, "30-11--0001", and are not part of this
-  # estimate; the connector needs to skip rather than raise on that literal string
-  # (compare monitor/connectors/ebrd.py's NO_TIME_STATED handling of that portal's
-  # own placeholder clock). The remaining 459 rows carry real dates from 2026-01-07
-  # to 2026-08-14 and are what these bounds are measured from.
+  # Measured against the live 1,216-row table, first on 2026-09-12 and re-parsed
+  # 2026-09-13 from a fresh fetch with selectolax rather than eyeballed a second
+  # time: 757 of the 1,216 rows (all of them the older "P/S/F nnn/year" reference
+  # format, none of them still open - every one of their Date limite values is
+  # already past) carry a placeholder Date de publication, "30-11--0001", and are not
+  # part of this estimate; the connector needs to skip rather than raise on that
+  # literal string (compare monitor/connectors/ebrd.py's NO_TIME_STATED handling of
+  # that portal's own placeholder clock). The remaining 459 rows carry real dates
+  # from 2026-01-07 to 2026-08-14 and are what these bounds are measured from - the
+  # date range and the 459/757 split are unchanged between the 2026-09-12 and
+  # 2026-09-13 fetches, i.e. the archive itself has not moved in the intervening day.
   #
   # Rolling-window counts over that 459-row, ~7.5-month span: a 7-day window is
-  # min 0 / median 2 / mean 13.6 / max 64, zero on 46% of days - too noisy to floor
-  # a health band on directly. A 30-day window is min 0 / median 16 / mean 48.9 /
-  # max 201, zero on 23% of days. Publication is genuinely bursty (batch-loaded, not
-  # a steady daily trickle: February 2026 alone carries 133 of the 459), and as of
-  # this measurement the table has gone quiet for 29 days (last valid Date de
-  # publication is 2026-08-14, "today" is 2026-09-12) - but that is not unprecedented
-  # on its own: the largest historical gap between distinct publication dates in the
-  # archive is 78 days, with a second gap of 33. So the current silence is inside the
-  # range this source has already shown, not proof by itself that DGMP has stopped
-  # feeding this legacy table in favour of SIGOMAP (see SIGOMAP above) - but it is
-  # exactly the kind of thing a person should re-check after a few weeks of real
-  # runs, the same open question sources/senegal.yaml leaves for its own accelerating
-  # counts. expected_min is floored at 1, never 0, so a silent run can never read as
+  # min 0 / median 2 / mean 13.6 / max 64, zero on 46% of days - too noisy to floor a
+  # health band on directly. A 30-day window is min 0 / median 16 / mean 48.9 / max
+  # 201, zero on 23% of days. Publication is genuinely bursty (batch-loaded, not a
+  # steady daily trickle: month-by-month counts across the 459 dated rows, recomputed
+  # 2026-09-13, are 2026-01: 8, 02: 99, 03: 115, 06: 16, 07: 127, 08: 94 - no April or
+  # May date appears at all, a second gap the largest-gap figure below already
+  # accounts for). As of this measurement (2026-09-13) the table has now gone quiet
+  # for 30 days (last valid Date de publication is still 2026-08-14) - one day longer
+  # than the 29-day gap recorded on 2026-09-12, because nothing new has been added in
+  # the intervening day, not because the gap was recomputed differently. That is not
+  # unprecedented on its own: the largest historical gap between distinct publication
+  # dates in the archive is 78 days, with a second gap of 33 (recomputed 2026-09-13
+  # against the same 51 distinct dates). So the current silence is inside the range
+  # this source has already shown, not proof by itself that DGMP has stopped feeding
+  # this legacy table in favour of SIGOMAP (see SIGOMAP above) - but it is exactly the
+  # kind of thing a person should re-check after a few more weeks of real runs, the
+  # same open question sources/senegal.yaml leaves for its own accelerating counts,
+  # and this is now two consecutive days of checking finding the same silence rather
+  # than one. expected_min is floored at 1, never 0, so a silent run can never read as
   # a healthy empty one (rule 4); expected_max is set with headroom above the
   # measured 30-day peak of 201. Whoever builds the connector should pick its actual
   # window (30 days matches sources/ebrd.yaml's reasoning for a low, lumpy rate) and

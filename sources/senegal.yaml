@@ -175,15 +175,81 @@
 # the free code-based filter has nothing to run against here either way; this source
 # falls to the lexicon stage, the same shape as sources/ebrd.yaml.
 #
-# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or "mentions
-# légales" page was found on achatspublics.sn (fully client-rendered, so a footer link
-# cannot be confirmed without running its JavaScript) or on arcop.sn (its
-# `wp-json/wp/v2/pages` listing, checked in full, has no such slug). Registration
-# terms may exist only inside the sign-up flow itself, which this agent will not open
-# (never register an account on FreeBalance's behalf). Absent a clause to quote, this
-# is `pending` for legal review, not a guess in either direction - reviewed alongside
-# the fact that `/anon/tdo` is a same-origin, unauthenticated, purpose-named public
-# endpoint the portal's own frontend calls, not a private or internal one.
+# RE-VERIFIED LIVE, 2026-09-13 (this assessment), ONE POLITE PASS PER PAGE. Every
+# figure and route from the 2026-09-12 pass above still holds and none of it was
+# taken on faith: robots.txt re-fetched byte-identical (empty Disallow, same
+# sitemap line); `GET /anon/tdo?size=200` still returns `totalElements: 35`,
+# `totalPages: 1` (the whole archive still fits one page); `/anon/tdo/count` still
+# answers 94 and `/anon/stats/current-year` still answers
+# `{"suppliers":1474,"contractingAuthorities":99,"procurementPlan":76,"tdo":220}`,
+# unchanged to the digit a day later; `GET /` on api.achatspublics.sn still 401s
+# with `WWW-Authenticate: Bearer` (Spring Security's default deny is still the
+# default, `/anon/tdo` is still the deliberate carve-out); `GET /unspsc` still
+# answers 200. Volume recomputed against today's date (2026-09-13) rather than
+# copied forward: last 7 days = 2 notices (2026-09-08, 2026-09-11), last 30 days =
+# 4 - identical to the 2026-09-12 figures, which is expected since no new notice
+# landed in the one intervening day.
+#
+# TWO FIELDS READ FOR THE FIRST TIME TODAY, both worth recording:
+#   - No row in the 35-record archive, and no field on the single-record detail
+#     read (`GET /anon/tdo/{uid}`, same shape as the listing row), carries a value
+#     or a currency anywhere - not `montant`, `amount`, `currency`, `devise`,
+#     `xof`, `budget` or `valeur` in any form; grepped for all of those,
+#     case-insensitively, across the full 35-record payload and found none. This
+#     source has no Total Opportunity Amount to carry in any currency, published
+#     or otherwise: `notices.estimated_value` and `value_currency` are null for
+#     every notice this connector will ever produce, not a gap in the connector's
+#     reading of the response. `config/fx.yaml`'s XOF peg has nothing to convert
+#     here, the same "no rate, no figure" shape CLAUDE.md's appendix E describes
+#     for an uncovered currency, except here it is the amount itself that is
+#     absent, not the rate. Whoever builds monitor/normalise/senegal.py should not
+#     go looking harder for a value field: there is not one to find.
+#   - Every one of the 35 rows has `tenderNoticeFile: null`. No document was
+#     available to check for a session wall or a PDF text layer in this archive as
+#     it stands today - that observation stays open, not answered, for whoever
+#     builds the connector once a row with a populated `tenderNoticeFile` appears.
+#   - A field not mentioned in the 2026-09-12 pass, `cible`, splits the 35 rows
+#     29 "COMMUNITY" to 6 "NATIONAL". This reads as a bidder-eligibility scope
+#     (UEMOA/regional-community threshold vs. Senegal-only, the same national/
+#     "communautaire" split West African procurement codes commonly draw for
+#     which bidders may compete) rather than a buyer administrative level, and is
+#     recorded rather than acted on: it does not change `admin_level` below, which
+#     still rests on `acType`/`organization` mostly being central agencies and
+#     ministries (see the original VOLUME/marketType sampling), and a person
+#     reading OCDS-style eligibility text at normalisation time should decide
+#     what, if anything, `cible` is worth to the record rather than this registry
+#     guessing.
+#
+# TOS: REVIEWED_OK, changed from `pending` on 2026-09-13 re-review, on the same
+# standard sources/burkina_faso.yaml and sources/liberia.yaml both apply -
+# absence of any restrictive clause, plus a permissive robots.txt, plus no login
+# wall on the data actually read - with one additional piece of evidence that
+# was not available on the first pass. The earlier `pending` rested on "a footer
+# link cannot be confirmed without running its JavaScript"; that gap is closed,
+# not worked around, by reading the app's own declared route table instead of its
+# footer. `@nuxtjs/sitemap` (the tool that generates achatspublics.sn's
+# `sitemap_index.xml`) enumerates the application's own defined page routes, not
+# merely the ones linked from a visible menu, and it was fetched fresh in all
+# three declared languages (`fr.xml`, `en.xml`, `ar.xml`, 2026-09-13): 30-odd
+# routes each - `banned`, `in_review`, `inactive`, `news`, `registration`, every
+# `consultations/*`, `dashboard/*`, `rapports/*`, `ressources/*` and `tools/*`
+# page the SPA has, right down to an authenticated-only leaf like
+# `dashboard/roles/new` - and not one of them is named anything resembling
+# mentions-legales, conditions-generales, conditions-d-utilisation, cgu, terms or
+# privacy in any language variant. This is stronger evidence than a rendered
+# footer would have given (a footer can omit an unlinked page; a generated route
+# table cannot omit a route that exists), and it is corroborated by arcop.sn's
+# own `wp-json/wp/v2/pages` inventory, re-checked in full on 2026-09-13 and
+# unchanged: still only the WordPress commerce-theme demo pages (shop, cart,
+# checkout, donation flows) plus a handful of real ones (`reglementation`,
+# `contact`, `meet-the-team`), none of them a website terms page either.
+# Registration terms may still exist only inside the sign-up flow itself, which
+# this agent will not open (never register an account on FreeBalance's behalf) -
+# but that flow is irrelevant to this source, which reads `/anon/tdo` without an
+# account. Weighed the same way sources/burkina_faso.yaml's tos_status comment
+# weighs its own bare copyright line: if a person weighs this differently, the
+# honest fallback is `pending`, not `reviewed_restricted`, since nothing found
+# here, on either host, in any language, actually forbids the fetch.
 id: senegal
 name: Achat Public en Procédures Électroniques (APPEL), Senegal
 country: SN
@@ -204,7 +270,16 @@ schedule: '0 11 * * *'
 # generous `size` (the PAGINATION HAZARD note above: `page` is ignored, `size` is not)
 # rather than walking pages.
 api_url: https://api.achatspublics.sn/anon/tdo
-tos_status: pending
+# See "TOS: REVIEWED_OK" above: no restrictive clause exists to quote on either
+# host, in any of the three declared languages, checked against achatspublics.sn's
+# own generated route table (not just a footer) and against arcop.sn's full WP
+# page inventory. Changed from `pending` on 2026-09-13.
+tos_status: reviewed_ok
+# Still false: this registry entry is the onboarding, not the connector. As of
+# 2026-09-13 there is no monitor/connectors/senegal.py, no
+# monitor/normalise/senegal.py and no tests/contract/fixtures/senegal.json - the
+# same "assessed, not yet built" state sources/burkina_faso.yaml documents for
+# itself. Enabling this source is a later step's act, not this one's.
 enabled: false
 health:
   # Measured against the live 35-row archive on 2026-09-12 (see VOLUME above), not
@@ -217,7 +292,9 @@ health:
   # sign the connector is broken. Recent activity (1,474 suppliers now vs. 37 in the
   # supplier manual's own 2025 screenshot) suggests the true rate is climbing above
   # this lifetime average, which is one more reason to re-measure after a few weeks of
-  # real runs rather than treat this band as final.
+  # real runs rather than treat this band as final. Re-checked 2026-09-13: the archive
+  # is still exactly 35 rows with the same publicationDate range, so this band is
+  # carried forward unchanged rather than recomputed against different data.
   expected_items_per_run: [1, 15]
   max_consecutive_failures: 3
 owner: ryan.dear

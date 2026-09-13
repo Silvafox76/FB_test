@@ -1,252 +1,244 @@
-# Ghana's national public procurement publication route. This is the source
-# BUILD_ORDER.md step 17 names as the BrowserConnector worked example, and it is
-# also the country the Ghana GIFMIS Modernisation opportunity (the CRM record
-# Architecture v0.4 appendix E is built from) comes from - so the instruction was
-# to verify, not assume, both the connector class and that either candidate host
-# is actually readable. THREE ENTRY POINTS WERE CHECKED LIVE ON 2026-09-12, and the
-# honest result is that NONE of them yielded a confirmed, readable listing this
-# session. This file records what was found and stops short of a working
-# connector, which BUILD_ORDER's own procedure calls the right outcome for a
-# source that turns out blocked rather than a failure to push through.
+# Ghana's national public procurement publication route, RE-ASSESSED 2026-09-13
+# from the position sources/ghana.yaml recorded on 2026-09-12 (that session's own
+# text is quoted below where it matters), because that session ended with three
+# candidate hosts and none of them confirmed readable. This session had a working
+# egress path to two of the three and got a different, better answer for one of
+# them. Ghana still matters more than its volume: the Ghana GIFMIS Modernisation
+# CRM record Architecture v0.4 appendix E is built from names this country, and
+# this is the one West African source with a known real PFM buyer already in the
+# pipeline the pilot exports to.
 #
-# THE THREE HOSTS, IN THE ORDER TRIED.
+# THE ANSWER THIS SESSION MEASURED: GHANEPS's own "Current Tenders" search,
+# https://www.ghaneps.gov.gh/epps/quickSearchAction.do?searchSelect=6, returns a
+# real, populated results table - 69 open tenders, page 1 of 7, title/buyer/
+# deadline/publication-date columns all present - to a single anonymous GET with
+# no cookie jar, no login, and no JavaScript executed (fetched with plain curl).
+# Reproduced twice, twelve minutes apart, byte-identical (34,708 bytes both
+# times). This directly contradicts the 2026-09-12 file's own GHANEPS finding
+# ("an anonymous, single GET to every listing action this portal publishes
+# returns no tender data"), which was based on the same URL 302-redirecting to
+# the home page on that session's attempts. Both findings are kept on the
+# record rather than the earlier one being erased: something about that
+# session's request, or the app's own state at that moment, produced a
+# redirect; this session's request, tried twice, did not. Whoever operates this
+# connector should treat an occasional redirect-to-home as a possible transient
+# state to retry within the run (source-declared retry, rule 2) rather than a
+# hard wall, now that a clean anonymous 200 is proven to be the normal case.
 #
-#   1. https://ghaneps.gov.gh (GHANEPS, Ghana Electronic Procurement System) - the
-#      transactional e-GP system. Reachable: bare ghaneps.gov.gh answers HTTPS and
-#      302-redirects to https://www.ghaneps.gov.gh (confirmed by raw HTTP headers,
-#      not a tool's summary - see REACHABILITY). Its own home page, read by a
-#      non-JS-executing fetch, describes itself as covering "tender notifications,
-#      bid submissions, online evaluations, contract awards" and separately
-#      advertises that supplier registration gets you "full and unrestricted
-#      access to documentation of published tenders" - phrasing that implies a
-#      registration gate rather than settling the question, which is why it was
-#      tested directly rather than taken at its word. It was tested directly: see
-#      GHANEPS ACCESS below. NOT THIS SOURCE - see that section for why.
-#   2. https://ppa.gov.gh - the Public Procurement Authority's own WordPress
-#      institutional site (regulator, not the transactional system). Reachable,
-#      intermittently (see REACHABILITY). It carries no tender listing itself but
-#      its own main navigation links to two things that matter: "Ghaneps Open
-#      Tenders" pointing straight back at GHANEPS's quickSearchAction, and "Open
-#      Tender Notices" pointing at a THIRD, separate host - see below. NOT A
-#      LISTING ITSELF, but the source of the one lead that matters.
-#   3. http://tenders.ppa.gov.gh/tenders - PPA's own dedicated, separately-hosted
-#      tender-notice application, linked from ppa.gov.gh's main nav as "Open Tender
-#      Notices" (the exact phrase the onboarding brief was looking for). This is
-#      the one candidate that looked, from the outside, like it might be the real
-#      answer - PPA is the statutory regulator, the link is on its own official
-#      site, and it is a plausibly separate, purpose-built listing rather than
-#      GHANEPS's gated search. IT COULD NOT BE READ THIS SESSION - see TENDERS
-#      SUBDOMAIN below - which is the actual blocker this file reports.
+# HOSTS CHECKED, IN CLAUDE.md's OWN ORDER (documented API / structured feed
+# before any HTML listing), 2026-09-13:
 #
-# REACHABILITY. All three hosts are HTTPS; no HTTP-only host and no TLS
-# certificate error was observed anywhere (no "certificate verify failed", no
-# "unable to get local issuer certificate" - contrast sources/nigeria.yaml's
-# bpp.gov.ng finding, which is a genuinely different failure mode from this one).
-# What was observed instead, for ghaneps.gov.gh and ppa.gov.gh, was intermittent
-# connection failure at this session's own egress proxy: some fraction of requests
-# to both hosts returned a clean, real response (ghaneps.gov.gh: HTTP 302 to
-# www.ghaneps.gov.gh, reproduced three times in a row; ppa.gov.gh: HTTP 200 with a
-# real WordPress robots.txt body, reproduced twice), and the rest failed with
-# either "CONNECT tunnel failed, response 502" (the proxy's own README: ambiguous
-# between an organisation policy denial and the destination being genuinely
-# unreachable, distinct from a 403/407) or a mid-exchange TLS reset after the
-# CONNECT tunnel itself succeeded. Both hosts are therefore confirmed live and
-# serving real HTTPS content some of the time; the failures are this session's
-# path to them, not the sites, which is exactly the ambiguity CLAUDE.md's proxy
-# guidance warns cannot be resolved from inside the sandbox. tenders.ppa.gov.gh is
-# the one host where this could NOT be resolved even that far: zero clean
-# successes across roughly nineteen attempts by two independent methods (direct
-# fetch, and a separate agent-side fetch tool) in one assessment session, against
-# ghaneps.gov.gh and ppa.gov.gh each answering cleanly more than once by the same
-# methods. That is a materially worse reliability profile, not the same noise
-# floor, and it is recorded as its own open question below rather than smoothed
-# over as "the same proxy flakiness as the other two."
+#   1. GHANEPS's OCDS Visualisation app, linked from GHANEPS's own home page as
+#      "Access to Liberia OCDS portal"'s Ghanaian counterpart
+#      (https://www.ghaneps.gov.gh/ocds/report/home.action#/home) - checked
+#      FIRST, ahead of the HTML listing, because sources/liberia.yaml found
+#      exactly this app, on the same European Dynamics product family, backing
+#      a real documented JSON records API (`POST /ocds/record/searchRecords.
+#      action`). Ghana ships the identical Angular app (same file layout,
+#      /ocds/js/custom/controllers/RecordGridCtrl.js names the same
+#      `contextPath + '/record/searchRecords.action'` URL and the same
+#      `{page, pagesize, sortField, sortDir}` body shape, read directly from
+#      the served JS rather than assumed from Liberia's fixture). The endpoint
+#      exists and answers - it is not a 404 - but it returns HTTP 500 with a
+#      generic `Server Encountered An Unexpected Condition` error page on every
+#      body shape tried (the exact `{page:1,pagesize:5,sortField:"",
+#      sortDir:""}` request that works today against Liberia's instance;
+#      page/pagesize alone; explicit nulls for the sort fields) - three
+#      attempts, all 500, so this is not a request-shape guess that happened to
+#      be wrong, it is a backend that errors on this specific Ghana deployment.
+#      NOT THIS SOURCE: a documented feed that 500s on every call is not a
+#      working route (procedure step 3 says stop at the first route that
+#      *works*), and rule 1 forbids maintaining a second entry point once one
+#      is chosen, so this is recorded and not retried further this session.
+#      Someone with a longer path to this host, or PPA/European Dynamics
+#      support, could confirm whether this is a standing misconfiguration or
+#      transient the way Liberia's own OCDS endpoint reset once on 2026-09-12
+#      and then worked fourteen minutes later.
+#   2. GHANEPS's HTML "Current Tenders" search (`/epps/quickSearchAction.do?
+#      searchSelect=6`) - THIS SOURCE. See above.
+#   3. ppa.gov.gh - PPA's own WordPress institutional site. Reachable this
+#      session (HTTP 200, real WordPress body). Confirmed again, as on
+#      2026-09-12, to carry no listing of its own: its main navigation links
+#      straight back to GHANEPS's quickSearchAction (route 2) and to
+#      tenders.ppa.gov.gh (route 4, below). Its value this session was
+#      checking for a Terms/Disclaimer/Privacy page - see TERMS OF USE below.
+#   4. http://tenders.ppa.gov.gh/tenders - PPA's separately-hosted tender
+#      application, the "open lead that could not be confirmed" in the
+#      2026-09-12 file. STILL NOT READABLE, and now for a clearer reason than
+#      "ambiguous sandbox flakiness": both schemes were retried this session.
+#      https://tenders.ppa.gov.gh (robots.txt and the listing itself) resets
+#      the TLS connection every time - reproduced three times, all
+#      `Recv failure: Connection reset by peer` after the CONNECT tunnel
+#      itself succeeded, consistent with the ~19-failure pattern the prior
+#      session recorded. http://tenders.ppa.gov.gh (plain HTTP, the scheme PPA's
+#      own nav actually publishes) DOES connect, cleanly, and returns a real,
+#      readable HTTP 503 whose body is an Envoy-style gateway error: "upstream
+#      connect error or disconnect/reset before headers. retried and the
+#      latest reset reason: connection timeout." That is the site's own edge
+#      proxy saying its backend is unreachable - a genuine, parseable response
+#      from tenders.ppa.gov.gh's own infrastructure, not a sandbox artifact,
+#      not a 403 and not a login wall. This resolves the ambiguity the prior
+#      session could not: tenders.ppa.gov.gh's backend is down as of
+#      2026-09-13, on the record, and moot regardless because route 2 already
+#      works and rule 1 forbids building a second connector for one source.
 #
-# ROBOTS.TXT, both hosts that actually answered, fetched 2026-09-12, verbatim.
+# ROBOTS.TXT, both hosts touched, fetched 2026-09-13, verbatim.
 #
-#   ghaneps.gov.gh/robots.txt does not exist as a file: the request itself 302s,
-#   with a real Location header, to https://www.ghaneps.gov.gh/epps/home.do -
-#   reproduced twice, byte-identical. This is the same catch-all behaviour the
-#   app applies to an unmapped path generally (see GHANEPS ACCESS below), so it
-#   disallows nothing because there is nothing there to disallow - moot regardless
-#   since this is not the chosen route.
+#   www.ghaneps.gov.gh/robots.txt and ghaneps.gov.gh/robots.txt both 302 to
+#   /epps/home.do, same as ppcc.gov.lr's bare-domain behaviour in
+#   sources/liberia.yaml - the app's generic catch-all for an unmapped path, not
+#   a robots file. The real one lives at the same place Liberia's does,
+#   www.ghaneps.gov.gh/epps/robots.txt, and reads in full:
+#     User-agent: Yandex
+#     Disallow: /
 #
-#   ppa.gov.gh/robots.txt, reproduced twice, in full:
-#     User-agent: *
-#     Disallow: /wp-admin/
-#     Allow: /wp-admin/admin-ajax.php
+#     User-Agent: MJ12bot
+#     Crawl-Delay:   30
+#   Byte-identical to eprocurement.ppcc.gov.lr/epps/robots.txt in
+#   sources/liberia.yaml - the same European Dynamics deployment default.
+#   Nothing here names a generic user agent, disallows /epps/quickSearchAction.
+#   do, or sets a crawl delay that binds a non-Yandex, non-MJ12bot client.
 #
-#     Sitemap: https://ppa.gov.gh/wp-sitemap.xml
-#   A standard WordPress default. No crawl-delay. Nothing relevant to a tender
-#   page is disallowed - moot as well, since ppa.gov.gh carries no listing itself.
+#   ppa.gov.gh/robots.txt, fetched once, standard WordPress boilerplate
+#   (Disallow: /wp-admin/, Allow: /wp-admin/admin-ajax.php, a sitemap line).
+#   Moot: ppa.gov.gh carries no listing itself (see HOSTS CHECKED above).
 #
-#   tenders.ppa.gov.gh/robots.txt: NOT OBTAINED. Every attempt (about nine,
-#   spread across the session) failed at the connection level before any HTTP
-#   response was read - see REACHABILITY. Per the onboarding procedure, a listing
-#   this file has not confirmed is unrestricted must not be fetched for real
-#   until this is resolved: whoever next has a stable path to this host must read
-#   robots.txt there BEFORE any contract-test fixture is recorded against
-#   /tenders, not after.
+# TERMS OF USE / LEGAL NOTICE - NONE FOUND ON EITHER HOST, checked 2026-09-13.
+# GHANEPS's own home page and its footer were read in full: no Terms, Privacy
+# or Legal link anywhere in the nav or footer, only a one-line
+# `©2026 European Dynamics` copyright notice (the vendor, not PPA) - the
+# same single line sources/liberia.yaml found on the sibling eGP instance.
+# ppa.gov.gh's nav and footer were read the same way: no Terms/Privacy link,
+# only "Copyright 2023-2025 Public Procurement Authority. All rights reserved."
+# Direct slug guesses on ppa.gov.gh: /terms-of-use/ and /terms-and-conditions/
+# and /privacy-policy/ and /legal-notice/ all 404; /disclaimer/ returned a real
+# page, but it is a 2020 news post warning the public about fraudsters
+# impersonating PPA staff, not a website terms page, so it is not a clause about
+# automated access and is not treated as one. No clause exists on either host
+# to quote either permitting or restricting automated reading. Absent a clause,
+# and with robots.txt permissive and the notices themselves readable with no
+# login (see REGISTRATION below), this is `reviewed_ok` on the same basis
+# sources/liberia.yaml and sources/ebrd.yaml use for the identical shape of
+# absence: a permissive robots.txt and no login wall on the data actually read,
+# not a quoted license, because no clause exists to quote.
 #
-# GHANEPS ACCESS - WHY THIS IS NOT THE ROUTE. Tested directly rather than inferred
-# from the registration-benefits copy on its own home page. GHANEPS is a Java
-# Struts-style app (`.do` action URLs - quickSearchAction.do, viewPublishedNotices.
-# do, viewAllAwardedContracts.do, viewOpenedTenders.do, searchPlan.do). An
-# anonymous GET to the exact "Current Tenders" link its own home page publishes,
-# `/epps/quickSearchAction.do?searchSelect=6`, returns HTTP 302 to
-# `/epps/home.do` - reproduced twice from raw response headers, not a tool
-# summary. The same collapse-to-home-page pattern was seen, independently, on
-# four more of its own linked actions (Bidding Advertisements, Awarded Contracts,
-# Opened Bid Details, the Procurement Plan search) - none returned a notice, a
-# login form, or an error; every one returned the generic welcome page. No 401,
-# no 403, and no explicit "please log in" message was ever produced, so this file
-# does not claim a proven hard login wall - it claims what was actually measured:
-# an anonymous, single GET to every listing action this portal publishes returns
-# no tender data, which is a registration-shaped blocker in effect regardless of
-# the exact mechanism, and per this project's rule nobody registers a GHANEPS
-# supplier account on FreeBalance's behalf to find out which it is. A person
-# doing that, or a connector-builder confirming from a real browser session
-# whether a plain session cookie (no login) is sufficient, is what would settle
-# this; neither was attempted here.
+# REGISTRATION - CHECKED SPECIFICALLY, PER THIS ASSESSMENT'S BRIEF, AND THE
+# ANSWER IS NO FOR WHAT THIS CONNECTOR NEEDS. Many Ghanaian e-GP portals do
+# gate reading behind supplier registration; this one measured otherwise for
+# the notice list and the notice PDF, both fetched fresh with no cookie jar and
+# no prior request: the "Current Tenders" table (route 2 above) and, from one
+# of its rows, the generated notice PDF at
+# `/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3403640` (200,
+# application/pdf, no login, no cookie) both came back without an account.
+# What DOES sit behind an account, read directly from the fetched notice PDF's
+# own text ("A complete set of Tender Documents ... may be accessed by
+# interested Tenderers through the e-GP portal"), is the full bid-submission
+# document package (drawings, BOQs, the actual bidding room) - not fetched or
+# tested here, and nobody should register a GHANEPS supplier account to find
+# out; that is the same line sources/liberia.yaml drew between the public OCDS
+# release and the login-walled `documents[].url`. If document enrichment is
+# ever wanted beyond the notice PDF, a named FreeBalance person registering a
+# supplier account on GHANEPS - not this pipeline - is the only way in, and
+# that decision has not been asked for here.
 #
-# THE TENDERS SUBDOMAIN - THE OPEN LEAD THAT COULD NOT BE CONFIRMED.
-# ppa.gov.gh's own main navigation (read from its real, live homepage) names
-# "Open Tender Notices" and links it to `http://tenders.ppa.gov.gh/tenders` - a
-# third host, separate from both ppa.gov.gh and ghaneps.gov.gh, that PPA's own
-# site presents as the place the public reads tenders without going through
-# GHANEPS at all. This is the most promising lead found - it is the regulator's
-# own official link, not a guess and not a third party - but it could not be
-# verified: see REACHABILITY above for the ~19-attempt failure rate. One early
-# fetch in this session appeared to return a rendered single-page-app shell for
-# this host; it is NOT relied on here. This session's tooling shares a
-# filesystem with other concurrently-running onboarding agents working other
-# West African sources at the same time, several of which fetch generically-named
-# files (entry.js, a page called "tenders") that can land on the same path this
-# agent was writing to, and a second, deliberately isolated attempt at the same
-# fetch could not reproduce it. Rather than keep evidence this file cannot stand
-# behind, the honest position is: tenders.ppa.gov.gh's actual content and
-# rendering technology - server-rendered HTML versus a JavaScript-only shell, the
-# single fact BUILD_ORDER step 17 turns on - are UNVERIFIED. `access` and
-# `connector` below are the working assumption a person should start from, not a
-# proven finding: `public_listing` because nothing seen anywhere (PPA's own
-# framing of the link, no login redirect on the handful of times a connection was
-# made) suggests an account is needed to read it, unlike GHANEPS; `BrowserConnector`
-# because every sibling West African source built on this kind of modern JS
-# framework in this same registry (sources/senegal.yaml, sources/benin.yaml,
-# sources/gambia.yaml) turned out to ship an empty server-rendered shell, so
-# assuming the same here is the safer default than assuming plain HTML - but
-# nobody should treat that as measured the way sources/gambia.yaml's skeleton-card
-# HTML or sources/senegal.yaml's SPA-shell byte count are. `row_selector` is left
-# blank rather than guessed: sources/gambia.yaml could at least reuse a real
-# loading-skeleton's wrapper class as an evidence-based guess; this file has zero
-# confirmed bytes of tenders.ppa.gov.gh's markup to reuse anything from.
+# VOLUME, measured 2026-09-13 from the live "Current Tenders" table, sorted
+# newest-publication-first: 69 open tenders in total (page 1 of 7 at 10 per
+# page). Reading publication-date timestamps down to the seven-day mark (today
+# is 2026-09-13, so the window is 2026-09-06 through 2026-09-13): 16 notices
+# published in that span, the most recent on Friday 2026-09-11 and none on the
+# Saturday/Sunday since - consistent with a government office not publishing on
+# weekends, the same pattern sources/burkina_faso.yaml documents for its own
+# gazette. This is one week's measurement, not a rolling multi-week series like
+# sources/liberia.yaml's 32-day sample, so the band below carries a wider
+# margin than a measured floor/ceiling would need.
 #
-# WHAT A PERSON NEEDS TO DO BEFORE monitor/connectors/ghana.py IS WRITTEN.
-#   1. Fetch https://tenders.ppa.gov.gh/robots.txt from a stable connection and
-#      confirm it does not disallow /tenders, per this project's own procedure -
-#      not done here (see ROBOTS.TXT above).
-#   2. Fetch https://tenders.ppa.gov.gh/tenders from that same stable connection
-#      and read the raw response body before running any JavaScript: if notice
-#      rows are already in it, this is a PageConnector on a fast httpx client and
-#      Playwright is not needed for Ghana at all; if the content area is empty
-#      markup plus script tags, BrowserConnector is confirmed the way
-#      sources/gambia.yaml and sources/senegal.yaml confirmed it for their hosts.
-#   3. Separately, and not as a substitute for step 2: check whether GHANEPS's
-#      "Current Tenders" search truly requires a login (worth one person's five
-#      minutes in a real browser with dev tools open) or only a same-session
-#      cookie a plain httpx client could hold across two requests. If it is the
-#      latter, GHANEPS itself may be readable without registering anything.
-#   4. Locate or rule out a Terms of Use / Privacy Policy page on both ppa.gov.gh
-#      and tenders.ppa.gov.gh. Neither ppa.gov.gh's real, live main navigation nor
-#      a set of direct guesses (`/terms-of-use/`, `/privacy-policy/`, `/disclaimer/`
-#      - `/terms-and-conditions/` came back a genuine WordPress 404, the others
-#      could not be completed either way) turned up one; GHANEPS's own navigation,
-#      read in full, links no Terms or Privacy page either. Absent a clause,
-#      `tos_status` is `pending` for legal review, not a guess in either
-#      direction, the same position sources/senegal.yaml and sources/gambia.yaml
-#      take for the same reason.
+# LANGUAGE AND CODES, measured against real content this time, not chrome only.
+# `<html lang="en">` on both the listing page and the downloaded notice PDF's
+# own source markup; the notice PDF itself (`pdftotext`, poppler) is fluent
+# English prose. No CPV code or other numbered code system appears anywhere in
+# the listing table or the sampled notice PDF (grepped case-insensitively for
+# "CPV": zero hits in both); notices are classified only by procurement method
+# in free text - "National Competitive Tendering", "Least Cost Selection with
+# EOI", "Quality-Cost Based Selection with EOI" - the same absence of a code
+# system sources/burkina_faso.yaml records for its own free-text section
+# headings.
 #
-# VOLUME: UNMEASURED. No tender row, from either candidate, was read this
-# session, so there is nothing to count a 7-day or 30-day rate from - unlike
-# sources/senegal.yaml, which at least had 35 real rows in hand. The band below
-# is a placeholder only, the same discipline sources/gambia.yaml and
-# sources/mcc.yaml use for a route nobody has read yet, and must be replaced from
-# a real fetch before this source is ever enabled.
+# DOCUMENT / TEXT LAYER. One notice PDF sampled (resourceId=3403640,
+# "Construction of Akim Oda Branch Manager's bungalow at Akim Swedru", 2 pages,
+# 49,403 bytes). `pdffonts` shows embedded, subsetted CID TrueType fonts
+# (BookAntiqua family, `emb yes` throughout) and `pdftotext` extracts real
+# prose (2,942 characters) - a genuine text layer, not a scanned image. One
+# sample is not sources/burkina_faso.yaml's ten-issue survey; whoever builds
+# monitor/normalise/ghana.py should sample a few more across the 69 open
+# tenders before assuming every notice PDF on this host carries a text layer.
 #
-# LANGUAGE AND CODES. English is Ghana's language of government business and
-# GHANEPS's own chrome (menu labels, static text) reads in English throughout
-# what was fetched, so `language: en` is recorded with that much confidence.
-# Whether a Ghanaian notice carries a CPV code or a national scheme, and whether
-# a supporting document needs a session or is a PDF with or without a text
-# layer, could not be checked - no real notice was read from either candidate
-# host this session. Both are open items for whoever builds the connector.
-#
-# admin_level is national: PPA is Ghana's single national procurement regulator
-# and GHANEPS is the mandated e-GP system for all government procurement (per its
-# own site: "Mandatory Use of the Ghana Electronic Procurement System (GHANEPS)
-# for All Government Procurement", November 2023) - there is no separate
-# sub-national portal to onboard instead or alongside it.
+# admin_level is national for the same reason sources/ghana.yaml gave on
+# 2026-09-12 and this session did not need to re-check: GHANEPS is, by PPA's
+# own published policy, the mandated e-GP system for all government
+# procurement, and PPA is Ghana's single national regulator. There is no
+# separate sub-national portal to onboard instead or alongside it.
 id: ghana
-name: Ghana Public Procurement Authority (PPA) - Open Tender Notices
+name: Ghana Electronic Procurement System (GHANEPS) - Current Tenders
 country: GH
 admin_level: national
 language: en
 stream: portal
-# UNVERIFIED WORKING ASSUMPTION - see TENDERS SUBDOMAIN above. Recorded as
-# public_listing rather than registered because nothing found suggests an
-# account gates tenders.ppa.gov.gh specifically (unlike GHANEPS, which is the
-# reason that host was not chosen), but this session never confirmed the page's
-# content at all, so this is a starting point for the next check, not a finding.
+# public_listing, not api: quickSearchAction.do is an undocumented Struts
+# search-results page, not a published, versioned query surface - the same
+# distinction sources/burkina_faso.yaml draws for its own Drupal view. The
+# actual documented, structured route (the OCDS records API, same shape as
+# sources/liberia.yaml's) exists on this host but errors on every call tried
+# this session - see HOSTS CHECKED, route 1 - so it is not "the first route
+# that works" per CLAUDE.md step 3 and this HTML listing is used instead.
 access: public_listing
-# UNVERIFIED WORKING ASSUMPTION, matching BUILD_ORDER step 17's own plan and the
-# pattern every other JS-framework West African source in this registry
-# (sources/senegal.yaml, sources/benin.yaml, sources/gambia.yaml) turned out to
-# need - but unlike those three files, this one has no server-rendered-vs-empty-
-# shell evidence of its own to point to. See WHAT A PERSON NEEDS TO DO step 2.
-connector: BrowserConnector
+# PROVEN, not assumed, unlike the 2026-09-12 file's "working assumption":
+# `/epps/quickSearchAction.do?searchSelect=6` fetched with plain curl, no
+# JavaScript executed, no browser - the response already contains the 69-row
+# results table (title, procuring entity, deadline, publication date, notice
+# PDF link) and its own pagination metadata ("69 results in total... Page 1 of
+# 7"). Reproduced twice. This is the opposite of a JavaScript-only shell, so
+# BrowserConnector - what the 2026-09-12 file guessed by analogy to
+# sources/senegal.yaml, sources/benin.yaml and sources/gambia.yaml - is ruled
+# out for this host; PageConnector is sources/undp.yaml and sources/mcc.yaml's
+# same category for "a public HTML listing with no JS needed", and matches
+# what was actually measured here.
+connector: PageConnector
 wave: 1
-# 12:00 UTC daily = 12:00 Accra (Ghana is UTC+0 year-round, no DST). Chosen to
-# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
-# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
-# 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, benin/
-# senegal/liberia/sierra_leone 11:00, gambia/mali/nigeria 11:30.
+# 12:00 UTC daily = 12:00 Accra (Ghana is UTC+0 year-round, no DST). Checked
+# against every other schedule currently in sources/ (2026-09-13): nothing else
+# runs at :00 past the hour 12 (kosovo is the nearest neighbour, at 12:30).
 schedule: '0 12 * * *'
-# PPA's own "Open Tender Notices" link, published on its live homepage
-# (ppa.gov.gh, checked 2026-09-12) rather than guessed. The href as published
-# there is plain http; this session only tried https (the standard upgrade) and
-# could not complete a read either way - see TENDERS SUBDOMAIN above. Confirm the
-# scheme along with everything else before this is fetched for real.
-list_url: https://tenders.ppa.gov.gh/tenders
-# No clause found either permitting or prohibiting automated access on either
-# ppa.gov.gh or tenders.ppa.gov.gh - see WHAT A PERSON NEEDS TO DO step 4. Absent
-# a clause to quote, this is pending for legal review, not a guess.
-# Cross-source finding, 2026-09-12, and it changes what this blocker IS.
-#
-# Every GHANEPS listing action 302s an anonymous request back to the home page, with
-# no login form and no 401, which reads like a hard registration wall. It is probably
-# not one. Liberia runs the SAME Struts eGPS product at eprocurement.ppcc.gov.lr, with
-# the same quickSearchAction.do action name, and a plain anonymous GET there returns a
-# populated results table - 200, no redirect, 24 results, live deadlines (measured the
-# same day, see sources/liberia.yaml).
-#
-# Same software, opposite behaviour. So anonymous listing is a per-deployment
-# configuration choice and Ghana's operator has it switched off. That makes the ask a
-# cheap one - PPA enabling anonymous search, or confirming it is deliberate - rather
-# than the expensive one it looks like, and it should be tried before anyone considers
-# registering a supplier account.
-tos_status: pending
-# Not a step the orchestrator flips after a passing fixture. Two independent
-# things must be confirmed by a person with a connection this session did not
-# have before anyone builds monitor/connectors/ghana.py: that
-# tenders.ppa.gov.gh's robots.txt permits /tenders, and what its raw HTML
-# actually contains. See WHAT A PERSON NEEDS TO DO above.
+# GHANEPS's own "Current Tenders" quick search, the exact link published in
+# both GHANEPS's own home-page nav and ppa.gov.gh's main nav ("Open Tender
+# Notices" on ppa.gov.gh actually points at the now-confirmed-dead
+# tenders.ppa.gov.gh - see HOSTS CHECKED route 4 - so this URL is read directly
+# off GHANEPS's own site, not off PPA's stale link). searchSelect=6 is the
+# value GHANEPS's own "Current Tenders" anchor carries; page 1 defaults with
+# 10 rows and the listing paginates from there (7 pages at today's volume).
+list_url: https://www.ghaneps.gov.gh/epps/quickSearchAction.do?searchSelect=6
+# No clause found either permitting or prohibiting automated access on
+# ghaneps.gov.gh or ppa.gov.gh - see TERMS OF USE above for everywhere checked.
+# reviewed_ok on the same absence-of-restriction basis sources/liberia.yaml
+# records for the same vendor's sibling deployment: permissive robots.txt, no
+# login wall on any data this connector needs to read.
+tos_status: reviewed_ok
+# NOT BUILT YET. This entry corrects the route and the connector class that a
+# future monitor/connectors/ghana.py and monitor/normalise/ghana.py should be
+# written against - PageConnector reading list_url above, not a browser and
+# not the dead tenders.ppa.gov.gh host - but writing that connector, its
+# contract-test fixture and its normaliser is a separate step, the same gap
+# that keeps sources/burkina_faso.yaml and sources/sierra_leone.yaml's siblings
+# disabled after onboarding until their own code and fixtures exist.
 enabled: false
 health:
-  # UNMEASURED PLACEHOLDER. No notice from either candidate host was read this
-  # session (see VOLUME above). Floored at 1 rather than 0 so a silent empty run
-  # can never read as a healthy one (rule 4), the same convention
-  # sources/gambia.yaml and sources/mcc.yaml use for a route nobody has read yet.
-  # Both numbers must be replaced from a real fetch before this source is enabled.
-  expected_items_per_run: [1, 15]
+  # Measured 2026-09-13 from the live "Current Tenders" table: 69 open tenders
+  # in total; 16 published in the seven days ending today (2026-09-06 through
+  # 2026-09-13), with a visible weekend gap (nothing posted Sep 12-13). One
+  # week's measurement rather than sources/liberia.yaml's 32-day rolling
+  # series, so the band carries a wider margin than a tightly measured one
+  # would: floored above zero per rule 4 (a silent empty run must never read as
+  # healthy) and capped well above the one measured week to allow for a
+  # busier one.
+  expected_items_per_run: [5, 35]
   max_consecutive_failures: 3
 owner: ryan.dear

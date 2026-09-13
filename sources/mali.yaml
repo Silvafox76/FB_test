@@ -34,6 +34,14 @@
 #      this is government infrastructure and not a third-party mirror, not just the
 #      URL the brief happened to name.
 #
+# REVERIFIED 2026-09-13, one polite pass per page, specifically to close the ToS
+# question this entry left `pending`. Nothing above changed: the served bundle is
+# byte-identical in name (main.28e88effd65a3aa8.js, Last-Modified 2026-09-09, i.e.
+# no redeploy between the two sessions), the notices endpoint is still live and
+# unauthenticated, and the trailing-7-day count is unchanged (see VOLUME, below,
+# for the second measurement). What is new this session is the ToS finding itself;
+# see TOS, below.
+#
 # ROBOTS.TXT: THERE ISN'T ONE. `GET https://marchespublics.ml/robots.txt` answers
 # HTTP 200, Content-Type text/html, and the body is byte-for-byte identical (43,092
 # bytes) to the home page and to every other path tried (/avis-generaux,
@@ -42,7 +50,8 @@
 # route serving its own index.html for anything that isn't a built static asset,
 # not a robots exclusion file - there is no dedicated robots.txt resource on this
 # server to disallow or allow anything, and so no crawl-delay is stated either.
-# Nothing is disallowed because nothing is declared.
+# Nothing is disallowed because nothing is declared. Re-fetched 2026-09-13: same
+# 200, same Content-Type text/html, same 43,092 bytes, unchanged.
 #
 # WHAT THE PAGE ACTUALLY SERVES, AND THE ROUTE THIS ENDS UP BEING.
 # The page itself is a pure client-side-rendered Angular SPA: `<app-root></app-root>`
@@ -74,7 +83,8 @@
 # sources/senegal.yaml, where the equivalent same-origin API, api.achatspublics.sn,
 # answers every path with 401 and `WWW-Authenticate: Bearer` - there is no
 # unauthenticated route and that source is rightly a BrowserConnector. Mali's is not
-# gated the same way, measured, not assumed.)
+# gated the same way, measured, not assumed.) Re-proven 2026-09-13 with a fresh,
+# cookie-jar-free GET: still HTTP 200, application/json, no Set-Cookie.
 #
 # `dossier-sigmap` returns only pre-decision notices: every one of the 98 rows in
 # the live fetch has dosStatus 1 and dtpCode either AAO ("Avis d'Appel d'Offres",
@@ -88,11 +98,13 @@
 # avis-de-prorogation, avis-de-repport, avis-manifestation-interet with its own
 # listing route) that this 98-row snapshot did not surface a single example of - a
 # connector builder should watch for a dtpCode this file does not yet name rather
-# than assume AAO/AMI is the complete set.
+# than assume AAO/AMI is the complete set. The 2026-09-13 re-fetch returned the
+# same 98 rows with the same dosStatus-1/AAO-52/AMI-46 split, byte-for-byte the
+# same content as the 2026-09-12 snapshot except that no newer dossier had posted.
 #
 # REGISTRATION: NOT REQUIRED. Proven directly rather than inferred from a manual:
 # the fetch above that returned real notice data used no account, no token, no
-# cookie and no prior authenticated request of any kind.
+# cookie and no prior authenticated request of any kind, on both sessions.
 #
 # VOLUME, measured 2026-09-12 from a live fetch of the full dossier-sigmap
 # endpoint (98 rows, mostly 2026 with 8 stray 2017-2018 rows still carrying
@@ -104,6 +116,12 @@
 # and Office du Niger issuing several notices the same day), not a steady rate.
 # This is one snapshot, not a longitudinal log, so a 7-day trailing minimum below 2
 # cannot be ruled out from data collected before 2026-08-06.
+# SECOND MEASUREMENT, 2026-09-13: re-fetched the same endpoint one day later. Still
+# 98 rows (no new dossier posted 2026-09-12 or 2026-09-13 as of 14:08 UTC); trailing
+# 7 days (2026-09-07 through 2026-09-13) is 26, the same 26 notices as the day
+# before with the window shifted, since nothing new landed in the gap. Two
+# measurements a day apart is still short of a longitudinal log, but the repeat
+# fetch is consistent with, not a contradiction of, the first day's figures.
 #
 # LANGUAGE AND CODES. Every buyer name and notice title read is French (ministries,
 # Primature, Caisse Malienne de Securite Sociale, Office du Niger). No CPV code
@@ -113,20 +131,46 @@
 # here since they are not on the notices this source reads). This platform is
 # SIGMAP, the system name already on CLAUDE.md's system-names list.
 #
-# DOCUMENT DOWNLOAD AND PDF TEXT LAYER: NOT CHECKED. The bundle also names
-# `apiUrlDownload: "portail/api/sigmap/dossiers/files/download"` for a dossier's
-# attachments, but no download was attempted - it was out of scope for this
-# assessment (rule: one polite request per page) and is a question for whoever
-# builds the connector, not answered here.
+# DOCUMENT DOWNLOAD AND PDF TEXT LAYER: STILL NOT CHECKED. The bundle also names
+# `apiUrlDownload: "portail/api/sigmap/dossiers/files/download"`, called as
+# `getDownloadUrl(id) => ${apiUrlDownload}/${id}` with an id that comes from a
+# dossier's own detail/file listing, not from anything present on the
+# dossier-sigmap listing itself (dosContent is null on every row sampled). Getting
+# that id would mean fetching a per-dossier detail endpoint first and then a file
+# beneath it - two more requests to this host beyond the ones already made this
+# session (robots.txt, the compiled bundle, five candidate ToS paths, the listing
+# endpoint twice) - so, consistent with the 2026-09-12 assessment's own scope
+# decision and rule 21's one-polite-pass expectation, it was not pursued a second
+# time either. This is a question for whoever builds the connector, not answered
+# here.
 #
-# TOS: PENDING, NOT REVIEWED. No terms-of-use, "conditions d'utilisation" or
-# "mentions legales" route was found: not in the compiled bundle (searched for
-# mentions/cgu/conditions/confidentialite/politique, case-insensitive - nothing),
-# not as a static asset (every guessed path, including config and i18n files that
-# would normally be static JSON, came back as the same SPA shell, meaning there is
-# no static document to find), and not on armds.ml, the regulator's own site, which
-# has no such page either. Absent a clause to quote, this is `pending` for legal
-# review, not a guess in either direction.
+# TOS: REVIEWED_OK. No terms-of-use, "conditions d'utilisation" or "mentions
+# legales" clause exists anywhere on this portal to quote, checked two ways on
+# 2026-09-13 in addition to the 2026-09-12 search of the bundle and the static
+# paths: (1) five further candidate paths fetched directly -
+# /mentions-legales, /conditions-generales, /conditions-utilisation,
+# /politique-confidentialite, /a-propos - every one returns HTTP 200 with the
+# same 43,092-byte SPA shell as robots.txt, i.e. no dedicated static resource
+# exists at any of them, the app's catch-all route serving index.html either way;
+# (2) the full compiled bundle (4,011,352 bytes) was grepped case-insensitively
+# for mentions-legales, cgu, conditions-generales/d'utilisation, confidentialite,
+# terms of use/service and licen[cs]e - zero hits for any of them. The only string
+# in the whole bundle matching even "copyright" is the page footer's own text,
+# `Copyright \xa9 2026 CAISFF - Ministere de l'Economie et des Finances` - a bare
+# attribution line naming the operating unit (CAISFF, under the Ministry of
+# Economy and Finances, consistent with the AGETIC-delegated DNS already found),
+# with no clause addressing automated access, scraping or reuse either way. armds.ml,
+# the sector regulator's own site, was already found on 2026-09-12 to carry no such
+# page either. Weighed the same way sources/burkina_faso.yaml and
+# sources/liberia.yaml were: an absent-not-restrictive robots.txt, no login on the
+# data actually read, and no restrictive clause found anywhere a ToS would normally
+# live, against a bare copyright/attribution line that says nothing about automated
+# reading - and, as with both of those, this is also a national tender-notice
+# gazette whose statutory purpose is notifying every prospective bidder, which
+# argues for the same reading rather than against it. reviewed_ok on that basis; if
+# a person weighs the bare attribution line differently, the honest fallback is
+# pending, not reviewed_restricted, since nothing found on this portal actually
+# forbids the fetch.
 id: mali
 name: Portail des marches publics du Mali (SIGMAP)
 country: ML
@@ -143,21 +187,31 @@ wave: 1
 # prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
 # 08:30, euft/place 09:00, mcc Monday 09:30, ungm 10:00, ebrd 10:30, senegal 11:00.
 schedule: '30 11 * * *'
-# The notices endpoint itself, fetched directly and confirmed live 2026-09-12 (see
-# above): HTTP 200, application/json, no session, no key, no CAPTCHA. The
-# human-facing page for the same data is https://marchespublics.ml/appels-offres,
-# which this connector does not fetch because it renders nothing without a browser.
+# The notices endpoint itself, fetched directly and confirmed live on both
+# 2026-09-12 and 2026-09-13 (see above): HTTP 200, application/json, no session,
+# no key, no CAPTCHA. The human-facing page for the same data is
+# https://marchespublics.ml/appels-offres, which this connector does not fetch
+# because it renders nothing without a browser.
 api_url: https://marchespublics.ml/portail/api/sigmap/dossiers/dossier-sigmap
-tos_status: pending
+tos_status: reviewed_ok
+# NOT YET BUILT. As of 2026-09-13 there is no monitor/connectors/mali.py, no
+# monitor/normalise/mali.py and no tests/contract/fixtures/mali.* - this entry is
+# the onboarding assessment only, per source-onboarder's file ownership. enabled
+# stays false until a connector, its contract-test fixture and a normaliser exist
+# and pass, the same gate sources/burkina_faso.yaml and sources/liberia.yaml
+# describe for themselves; unlike those two, Mali's ToS was still `pending` as of
+# 2026-09-12 and is resolved to `reviewed_ok` only as of this entry, so this is
+# also the first point at which a connector could be started against cleared terms.
 enabled: false          # enabling follows a passing contract test, per the onboarding brief
 health:
-  # Measured 2026-09-12 from one live fetch, not a longitudinal log - see VOLUME
-  # above. Trailing 7-day sums observed over the visible ~5-week window ranged 2 to
-  # 28; floored at 1 rather than 0 so a silent run can never read as a healthy empty
-  # one (rule 4), and the upper bound carries headroom above the observed 28 for a
-  # burst week like the one that produced it. Replace both from a second live
-  # fetch a few weeks apart before enabling, since one snapshot cannot show what a
-  # quiet week looks like.
+  # Measured 2026-09-12 and reconfirmed 2026-09-13 from two live fetches a day
+  # apart, not a longitudinal log - see VOLUME above. Trailing 7-day sums observed
+  # over the visible ~5-week window ranged 2 to 28; floored at 1 rather than 0 so a
+  # silent run can never read as a healthy empty one (rule 4), and the upper bound
+  # carries headroom above the observed 28 for a burst week like the one that
+  # produced it. Replace both from a longer-baseline live measurement a few weeks
+  # apart before enabling, since two snapshots a day apart still cannot show what a
+  # genuinely quiet week looks like.
   expected_items_per_run: [1, 40]
   max_consecutive_failures: 3
 owner: ryan.dear
