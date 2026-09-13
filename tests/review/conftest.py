@@ -22,6 +22,7 @@ import psycopg
 import pytest
 
 from monitor.stage.stager import FIXTURE_ID_FLOOR
+from tests.review.fixture_cleanup import safe_execute
 
 
 def url(env_var: str) -> str:
@@ -131,17 +132,45 @@ def staged(owner, review):
 
     yield candidate_id
 
+    # Each statement below is independent (`safe_execute` logs and moves on
+    # rather than raising), because a killed process never reaches this code at
+    # all: what a live process CAN still do, if one delete hits a lock or an
+    # unexpected row, is make sure that failure does not stop the rest of the
+    # teardown from running too. Order is still FK order; robustness is not a
+    # reason to guess at it.
     review.rollback()
-    owner.execute("delete from events where entity_id = %s", (candidate_id,))
-    owner.execute(
+    safe_execute(owner, "delete from events where entity_id = %s", (candidate_id,), context="staged: events")
+    safe_execute(
+        owner,
         "delete from events where entity_id in (select id from approved_records where candidate_id = %s)",
         (candidate_id,),
+        context="staged: approved_record events",
     )
-    owner.execute("update candidates set approved_record_id = null where id = %s", (candidate_id,))
-    owner.execute("delete from approved_records where candidate_id = %s", (candidate_id,))
-    owner.execute("delete from candidate_notices where candidate_id = %s", (candidate_id,))
-    owner.execute("delete from candidates where id = %s", (candidate_id,))
+    safe_execute(
+        owner,
+        "update candidates set approved_record_id = null where id = %s",
+        (candidate_id,),
+        context="staged: clear approved_record_id",
+    )
+    safe_execute(
+        owner,
+        "delete from approved_records where candidate_id = %s",
+        (candidate_id,),
+        context="staged: approved_records",
+    )
+    safe_execute(
+        owner,
+        "delete from candidate_notices where candidate_id = %s",
+        (candidate_id,),
+        context="staged: candidate_notices",
+    )
+    safe_execute(owner, "delete from candidates where id = %s", (candidate_id,), context="staged: candidates")
     for notice_id in notice_ids:
-        owner.execute("delete from notices where id = %s", (notice_id,))
-    owner.execute("delete from notices_raw where source_id in (%s, %s)", (national, donor))
-    owner.execute("delete from sources where id in (%s, %s)", (national, donor))
+        safe_execute(owner, "delete from notices where id = %s", (notice_id,), context="staged: notices")
+    safe_execute(
+        owner,
+        "delete from notices_raw where source_id in (%s, %s)",
+        (national, donor),
+        context="staged: notices_raw",
+    )
+    safe_execute(owner, "delete from sources where id in (%s, %s)", (national, donor), context="staged: sources")

@@ -79,6 +79,7 @@ from review.export import (
     render_backlog,
     spec_markdown,
 )
+from tests.review.fixture_cleanup import safe_execute
 
 pytestmark = pytest.mark.roles
 
@@ -197,15 +198,40 @@ def approved(owner, review):
 
     yield Batch(operator=operator, candidate_ids=tuple(candidate_ids), record_ids=record_ids)
 
+    # Every statement below is its own `safe_execute` call for the reason
+    # tests/review/conftest.py's `staged` fixture gives: a killed process never
+    # reaches this code at all, but a live one that hits a lock or a row already
+    # gone on one table should not abandon cleanup on the tables after it. Order
+    # is still FK order.
     review.rollback()
-    owner.execute("delete from events where entity_id = any(%s::text[])", (list(candidate_ids) + list(record_ids),))
-    owner.execute("update candidates set approved_record_id = null where id = any(%s::text[])", (candidate_ids,))
-    owner.execute("delete from approved_records where id = any(%s::text[])", (list(record_ids),))
+    safe_execute(
+        owner,
+        "delete from events where entity_id = any(%s::text[])",
+        (list(candidate_ids) + list(record_ids),),
+        context="approved: candidate and record events",
+    )
+    safe_execute(
+        owner,
+        "update candidates set approved_record_id = null where id = any(%s::text[])",
+        (candidate_ids,),
+        context="approved: clear approved_record_id",
+    )
+    safe_execute(
+        owner,
+        "delete from approved_records where id = any(%s::text[])",
+        (list(record_ids),),
+        context="approved: approved_records",
+    )
     batch_ids = [
         row[0] for row in owner.execute("select batch_id from export_batches where operator = %s", (operator,))
     ]
     # A re-export's event names the batch, so it is not caught by the record ids above.
-    owner.execute("delete from events where entity_type = 'export_batch' and entity_id = any(%s::text[])", (batch_ids,))
+    safe_execute(
+        owner,
+        "delete from events where entity_type = 'export_batch' and entity_id = any(%s::text[])",
+        (batch_ids,),
+        context="approved: export_batch events",
+    )
     # Release EVERY record stamped with these batches, not only this fixture's.
     #
     # `export` takes every approved record with a null `exported_at`, which is what the
@@ -219,16 +245,32 @@ def approved(owner, review):
     # first. Clearing the stamp rather than deleting the row: a record this fixture did
     # not create is not this fixture's to delete, and putting it back in the backlog is
     # exactly where it was before the export ran.
-    owner.execute(
+    safe_execute(
+        owner,
         "update approved_records set export_batch = null, exported_at = null where export_batch = any(%s::text[])",
         (batch_ids,),
+        context="approved: release stamped records",
     )
-    owner.execute("delete from export_batches where operator = %s", (operator,))
-    owner.execute("delete from candidate_notices where candidate_id = any(%s::text[])", (candidate_ids,))
-    owner.execute("delete from candidates where id = any(%s::text[])", (candidate_ids,))
-    owner.execute("delete from notices where id = any(%s::uuid[])", (notice_ids,))
-    owner.execute("delete from notices_raw where source_id = any(%s::text[])", (source_ids,))
-    owner.execute("delete from sources where id = any(%s::text[])", (source_ids,))
+    safe_execute(
+        owner, "delete from export_batches where operator = %s", (operator,), context="approved: export_batches"
+    )
+    safe_execute(
+        owner,
+        "delete from candidate_notices where candidate_id = any(%s::text[])",
+        (candidate_ids,),
+        context="approved: candidate_notices",
+    )
+    safe_execute(
+        owner, "delete from candidates where id = any(%s::text[])", (candidate_ids,), context="approved: candidates"
+    )
+    safe_execute(owner, "delete from notices where id = any(%s::uuid[])", (notice_ids,), context="approved: notices")
+    safe_execute(
+        owner,
+        "delete from notices_raw where source_id = any(%s::text[])",
+        (source_ids,),
+        context="approved: notices_raw",
+    )
+    safe_execute(owner, "delete from sources where id = any(%s::text[])", (source_ids,), context="approved: sources")
 
 
 @pytest.fixture
