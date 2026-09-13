@@ -141,7 +141,7 @@ def function_names() -> dict[str, str]:
 QUEUE = """
     select c.id, c.score, c.title_en, c.buyer, c.country, c.region, c.language,
            c.deadline_at, c.estimated_value, c.value_currency, c.estimated_value_usd,
-           c.value_rate, c.value_rate_date, c.system_names, n.source_id,
+           c.value_rate, c.value_rate_date, c.system_names, c.value_note, n.source_id,
            count(cn.notice_id) as notices
     from candidates c
     join notices n on n.id = c.primary_notice_id
@@ -183,7 +183,7 @@ CANDIDATE = """
            c.admin_level, c.summary_en, c.matched_functions, c.system_names,
            c.procurement_type, c.estimated_value, c.value_currency, c.estimated_value_usd,
            c.value_rate, c.value_rate_date, c.eligibility_flags, c.deadline_at,
-           c.reviewer, c.rejection_reason, c.approved_record_id
+           c.reviewer, c.rejection_reason, c.approved_record_id, c.value_note
     from candidates c
     where c.id = %s
 """
@@ -220,9 +220,13 @@ def queue(request: Request, region: str = "") -> HTMLResponse:
     # page and the export's Pricing Notes through monitor.stage.record.value_narrative,
     # so the queue list, the candidate page and the CSV cannot say three different
     # things about the same candidate's value (rule 1). Never "USD" as a literal here:
-    # the currency comes from the row, per column 9.
+    # the currency comes from the row, per column 9. Column 14 is value_note
+    # (migration 016): a lot-only BOAMP candidate states no procedure total but did
+    # state something, and this reviewer must not read "not stated" for it either.
     sentences = record_defaults()["sentences"]
-    pending = [row + (value_narrative(row[9], row[8], row[10], row[11], row[12], sentences),) for row in pending]
+    pending = [
+        row + (value_narrative(row[9], row[8], row[10], row[11], row[12], sentences, note=row[14]),) for row in pending
+    ]
 
     regions = sorted({row[5] for row in pending})
     shown = [row for row in pending if not region or row[5] == region]
@@ -263,10 +267,14 @@ def candidate(request: Request, candidate_id: str, error: str = "") -> HTMLRespo
     ]
 
     # Columns 13-17 are estimated_value, value_currency, estimated_value_usd, value_rate,
-    # value_rate_date. One sentence, shared with the queue list and the export's Pricing
-    # Notes through monitor.stage.record.value_narrative, so a reviewer reading the
-    # candidate page and BD reading the CSV are never told two different things (rule 1).
-    value_text = value_narrative(row[14], row[13], row[15], row[16], row[17], record_defaults()["sentences"])
+    # value_rate_date; column 23 is value_note (migration 016). One sentence, shared with
+    # the queue list and the export's Pricing Notes through monitor.stage.record.value_narrative,
+    # so a reviewer reading the candidate page and BD reading the CSV are never told two
+    # different things (rule 1). A lot-only candidate states no procedure total but did
+    # state something, and value_narrative reads that verbatim in place of "not stated".
+    value_text = value_narrative(
+        row[14], row[13], row[15], row[16], row[17], record_defaults()["sentences"], note=row[23]
+    )
 
     return templates.TemplateResponse(
         request,

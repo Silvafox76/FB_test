@@ -48,10 +48,11 @@
       <td>{{ c[4] }}</td>
       <td>{{ c[5] }}</td>
       <td>{{ c[7].date() if c[7] else '—' }}</td>
-      {# c[16] is value_narrative's sentence, appended in review/app.py's queue()
-         handler: the currency comes from the row, never a literal in this template. #}
-      <td class="num">{{ c[16] }}</td>
-      <td>{{ c[15] }}</td>
+      {# c[17] is value_narrative's sentence, appended in review/app.py's queue()
+         handler: the currency comes from the row, never a literal in this template.
+         It reads a lot-only candidate's value_note verbatim in place of "not stated". #}
+      <td class="num">{{ c[17] }}</td>
+      <td>{{ c[16] }}</td>
     </tr>
   {% endfor %}
   </tbody>

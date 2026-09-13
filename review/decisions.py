@@ -102,7 +102,7 @@ SELECT_CANDIDATE = """
     select c.id, c.title_en, c.buyer, c.country, c.region, c.admin_level, c.score,
            c.summary_en, c.matched_functions, c.system_names, c.procurement_type,
            c.estimated_value, c.value_currency, c.estimated_value_usd, c.value_rate,
-           c.value_rate_date, c.eligibility_flags, c.deadline_at, c.status
+           c.value_rate_date, c.eligibility_flags, c.deadline_at, c.status, c.value_note
     from candidates c
     where c.id = %s
 """
@@ -146,6 +146,7 @@ def load_candidate(conn: psycopg.Connection, candidate_id: str) -> tuple[RecordC
         value_rate_date=row[15],
         eligibility_flags=tuple(row[16] or ()),
         deadline_at=deadline,
+        value_note=row[19] or "",
     )
     return candidate, row[18]
 

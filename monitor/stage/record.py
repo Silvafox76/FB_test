@@ -89,6 +89,13 @@ class RecordCandidate:
     eligibility_flags: tuple[str, ...]
     deadline_at: date | None
     finance_project_id: str = ""
+    # What the source published about a value that carries no procedure total
+    # (BOAMP's lot-only notices; migration 016). Empty whenever a total exists or
+    # the notice states no value at all. Read verbatim, never reworded here: the
+    # sentence itself is the source's own phrasing, composed in the normaliser
+    # from `sources/<id>.yaml`'s `value_note` (rule 6), and this module's job is
+    # only to decide where it is honest to show it in place of "not stated".
+    value_note: str = ""
 
 
 class RecordDefaultsError(ValueError):
@@ -271,26 +278,31 @@ def value_narrative(
     rate: Decimal | float | None,
     rate_date: date | None,
     sentences: dict,
+    note: str = "",
 ) -> str:
     """The one honest sentence describing a value, wherever it is shown.
 
-    Four cases, matched to what a reviewer must be able to tell apart at a
-    glance: no value in the notice at all; a value published in the fx target
-    currency itself (`monitor/fx/config.py`'s `target_currency`), which converts
-    through the identity rate and so has nothing to derive — "USD 4,200,000 ≈
-    USD 4,200,000 at 1.0000 USD/USD" is the same number twice with an equation
-    in between, not information; a value with no USD figure because no
-    `fx_rates` row covers the currency (a documented absence, not an error); and
-    a value in another currency with the USD figure and the exact rate that
-    produced it, so a reviewer can check the arithmetic rather than trust it.
-    The candidate page, the queue list and (through `pricing_value_note`) the
-    export's Pricing Notes all read this, so the four cannot say different
-    things about the same candidate (rule 1). Never "USD" as a literal anywhere
-    else: the currency always comes from the row, and the target to compare it
-    against always comes from `config/fx.yaml` (rule 6).
+    Five cases, matched to what a reviewer must be able to tell apart at a
+    glance: no value in the notice at all and nothing else published about it
+    either; no procedure total but a per-source note on what was published
+    instead (BOAMP's lot-only notices, `note`, carried verbatim rather than
+    reworded here — the sentence is the source's own phrasing, not this
+    module's); a value published in the fx target currency itself
+    (`monitor/fx/config.py`'s `target_currency`), which converts through the
+    identity rate and so has nothing to derive — "USD 4,200,000 ≈ USD
+    4,200,000 at 1.0000 USD/USD" is the same number twice with an equation in
+    between, not information; a value with no USD figure because no
+    `fx_rates` row covers the currency (a documented absence, not an error);
+    and a value in another currency with the USD figure and the exact rate
+    that produced it, so a reviewer can check the arithmetic rather than trust
+    it. The candidate page, the queue list and (through `pricing_value_note`)
+    the export's Pricing Notes all read this, so the five cannot say
+    different things about the same candidate (rule 1). Never "USD" as a
+    literal anywhere else: the currency always comes from the row, and the
+    target to compare it against always comes from `config/fx.yaml` (rule 6).
     """
     if amount is None:
-        return sentences["value_not_stated"]
+        return note if note else sentences["value_not_stated"]
     if usd is None:
         return sentences["value_no_usd"].format(currency=currency, amount=amount)
     if currency == load_fx().target_currency:
@@ -319,7 +331,13 @@ def pricing_value_note(candidate: RecordCandidate, value_basis: str, sentences: 
     column already holds exactly what was published — there is no conversion to
     hold back, and this falls through to `value_narrative`'s plain identity
     sentence rather than "published as USD 4,200,000 at 1.0000 USD/USD", which
-    would say nothing `pricing_notes` doesn't already say once.
+    would say nothing `pricing_notes` doesn't already say once. And unless there
+    is no procedure total but `candidate.value_note` says what was published
+    instead (BOAMP's lot-only notices), in which case `estimated_value` is None
+    so neither branch above ever fires and this falls through to
+    `value_narrative`, which reads the note verbatim in place of "not stated" —
+    `value_basis` has nothing to decide there, because there is no total to
+    choose a currency for.
     """
     identity = candidate.value_currency == load_fx().target_currency
     if (
@@ -341,6 +359,7 @@ def pricing_value_note(candidate: RecordCandidate, value_basis: str, sentences: 
         candidate.value_rate,
         candidate.value_rate_date,
         sentences,
+        note=candidate.value_note,
     )
 
 
