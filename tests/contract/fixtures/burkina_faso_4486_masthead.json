@@ -1,0 +1,31 @@
+{
+  "recorded_on": "2026-09-13",
+  "purpose": "Proves the normaliser's published_at rule on a second real issue: the date is the line printing the issue's own number (from the URL's file name) beside a weekday-dd-month-yyyy date. Issue 4486 is the one the first live run failed on, because its page footers split the issue stamp onto its own line and print the stale 'N° 4106(bis) - Vendredi 28 mars 2025' template stamp, so a footer-based rule found nothing. Page 1 carries the masthead line; pages 50-51 are the first two AVIS pages, so the mapper has two notices to segment behind that masthead.",
+  "source_issue": {
+    "issue_title": "Quotidien n°4486 – Vendredi 11 septembre 2026",
+    "source_href": "http://dgcmef.gov.bf/sites/default/files/2026-09/Quotidien%20n%C2%B04486_0.pdf",
+    "full_issue_bytes": 3357715,
+    "full_issue_pages": 98,
+    "full_issue_sha256": "08f7d7e038b890dee6b69a847660df0a5eef6ee49f2f2f7bddf8618ca33402cf",
+    "fetched_note": "Fetched by the connector on 2026-09-12 into the session scratchpad (bf_4486_0.pdf); not fetched again for this fixture."
+  },
+  "masthead_line_verbatim": "IFU : 00003223T                   N° 4486 – Vendredi 11 septembre 2026",
+  "masthead_line_note": "Page 1, as pdftotext -layout emits it once stripped: the issue stamp shares its line with the masthead sidebar's IFU number, which is why the rule searches within a line rather than matching a whole one. En dash on this issue; 4477 and 4478 print a hyphen.",
+  "extraction": {
+    "tool": "qpdf 11.9.0",
+    "command": "qpdf --pages bf_4486_0.pdf 1,50-51 -- --remove-unreferenced-resources=yes bf_4486_0.pdf burkina_faso_4486_masthead.pdf",
+    "pages": "1 (masthead and first results page), 50-51 (the first two AVIS pages: two 'Avis de demande de prix' notices, both headed PRIMATURE)",
+    "pages_extracted": 3,
+    "file": "burkina_faso_4486_masthead.pdf",
+    "bytes": 1077825,
+    "sha256": "dc7c4e79f64b11f54c5ce541da812b6c2cae47bac8e7fbd6b65c3ee2f8c6deb7",
+    "text_layer_chars": 13035,
+    "avis_start_note": "The issue's own contents page (page 2) lists 'Marches de fournitures et services courants ... P. 49' as the first AVIS entry, but page 49 is still RESULTATS PROVISOIRES (a synthese for a demande de prix, conformity findings) and the first centred notice marker is on page 50. Same off-by-one the 4478 manifest recorded at the other end of its AVIS range: the printed contents page number and the real section boundary are not always the same page.",
+    "footer_note": "Every page of this issue prints its footer on two lines: 'N°3827 – lundi 04 Mars 2024   <page>' then 'N° 4486 – Vendredi 11 septembre 2026' on the next line; 4471 does the same, 4477, 4478 and 4483 print both stamps and the page number on one line. Both layouts are stripped from notice bodies by the normaliser's FOOTER pattern."
+  },
+  "expected": {
+    "issue_number_from_url": "4486",
+    "published_at": "2026-09-11T00:00:00+00:00",
+    "notices": 2
+  }
+}

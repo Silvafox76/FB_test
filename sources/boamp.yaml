@@ -68,6 +68,19 @@ tos_status: reviewed_ok
 #                  STATUT RECTIFICATIF, and it keeps its deadline. Known gap: a
 #                  national-format deadline change is not tracked in this pilot.
 exclude_notice_types: [ATTRIBUTION, MODIFICATION, RECTIFICATIF]
+# The phrasing of `notices.value_note` for the one shape BOAMP publishes that the
+# value columns cannot hold: an eForms notice stating an amount on its lots and no
+# procedure total (22 of the 323 eForms payloads held on 2026-09-13; measured in
+# monitor/normalise/boamp.py). The figures are quoted exactly as the XML gives
+# them and nothing is summed; only the sentence around them lives here. English,
+# because the reviewer reads it in the review app beside the English sentences of
+# config/record_defaults.yaml. All four keys are required; the normaliser raises
+# naming a missing one rather than supplying a default.
+value_note:
+  lot_only: 'Published per lot, no total: {lots}'
+  lot_valued: 'lot {number} {amount} {currency}'
+  lot_unvalued: 'lot {number} not published'
+  separator: '; '
 enabled: true          # step 13: fixture recorded 2026-09-12, 29 contract tests passing,
                        # live fetch 585 seen / 584 new / 0 failed
 health:

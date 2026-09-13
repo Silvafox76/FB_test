@@ -150,7 +150,7 @@ tos_status: reviewed_ok
 # the pilot's only other West African national sources with cleared terms - so all
 # three sit two-thirds built while the 1.0 geography weight market currently has
 # zero live national feeds.
-enabled: false
+enabled: true            # 2026-09-13: 76 mapper tests; six real issues map clean; one live pass stored 126 notices, inside [10, 160]
 health:
   # Not notices yielded by a live run - the connector itself exists and passes 29
   # contract-test cases against its fixtures (see BLOCKED ON THE NORMALISER

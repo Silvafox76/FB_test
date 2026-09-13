@@ -133,7 +133,7 @@ def test_pass_one_fills_a_notice_from_its_stored_payload(db_conn, tmp_path: Path
     # outcome and the two counts that no unrelated row could ever affect.
     assert counts.updated == 1
     assert counts.skipped_mapper_error == 0
-    assert notice_values[notice_id] == (Decimal("4428444.00"), "UAH")
+    assert notice_values[notice_id] == (Decimal("4428444.00"), "UAH", "")
 
     row = db_conn.execute("select estimated_value, value_currency from notices where id = %s", (notice_id,)).fetchone()
     assert row == (Decimal("4428444.00"), "UAH")
@@ -175,7 +175,7 @@ def test_pass_one_logs_and_skips_a_missing_payload(db_conn, tmp_path: Path):
     assert counts.skipped_no_payload >= 1
     assert counts.updated == 0
     # The row is left exactly as it was, not guessed at.
-    assert notice_values[notice_id] == (None, None)
+    assert notice_values[notice_id] == (None, None, "")
     row = db_conn.execute("select estimated_value, value_currency from notices where id = %s", (notice_id,)).fetchone()
     assert row == (None, None)
 
@@ -196,7 +196,7 @@ def test_pass_one_logs_and_skips_a_raising_mapper(db_conn, tmp_path: Path):
 
     assert counts.skipped_mapper_error == 1
     assert counts.updated == 0
-    assert notice_values[notice_id] == (None, None)
+    assert notice_values[notice_id] == (None, None, "")
 
 
 def test_pass_one_skips_a_source_with_no_connector(db_conn, tmp_path: Path):
@@ -232,7 +232,7 @@ def test_pass_one_skips_a_source_with_no_connector(db_conn, tmp_path: Path):
     counts, notice_values = backfill_notices(db_conn, tmp_path)
 
     assert counts.skipped_no_connector >= 1
-    assert notice_values[notice_id] == (None, None)
+    assert notice_values[notice_id] == (None, None, "")
 
 
 def test_pass_two_converts_a_candidate_at_the_stored_rate(db_conn, tmp_path: Path):
@@ -318,5 +318,12 @@ def test_pass_two_running_twice_changes_nothing(db_conn, tmp_path: Path):
     first = backfill_candidates(db_conn, notice_values)
     second = backfill_candidates(db_conn, notice_values)
 
-    assert first.updated == 1
+    # `first.updated` is at least this fixture's candidate and, on a database that
+    # already holds converted candidates, every one of those too: `_store_a_rate_day`
+    # replaces today's rates inside this rolled-back transaction, so their USD figure
+    # is recomputed against it. Until 2026-09-13 this asserted exactly 1, which held
+    # only while no candidate had been converted yet. Idempotency is the second line.
+    assert first.updated >= 1
     assert second.updated == 0
+    row = db_conn.execute("select estimated_value_usd from candidates where id = %s", (CANDIDATE_ID,)).fetchone()
+    assert row == (Decimal("10625.00"),)

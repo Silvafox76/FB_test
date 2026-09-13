@@ -19,7 +19,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 # --- vocabularies ------------------------------------------------------------
 # Closed sets, because an unknown value is a defect and not a new category the
@@ -119,6 +119,14 @@ class Source(BaseModel):
     # what to keep, so nothing is read and then thrown away. Empty means ask for
     # everything the other query terms match.
     exclude_notice_types: list[str] = Field(default_factory=list)
+    # The per-source phrasing of `Notice.value_note`: the sentence around figures a
+    # source publishes in a form the value columns cannot hold (BOAMP's per-lot
+    # amounts with no total). Empty for every source that publishes one figure or
+    # none. YAML only, like `schedule`; the normaliser that uses it checks the keys
+    # it needs are present rather than defaulting any of them. Carried verbatim:
+    # STRICT strips whitespace from every string, and a separator of '; ' would
+    # lose its space and run the lots together.
+    value_note: dict[str, Annotated[str, StringConstraints(strip_whitespace=False)]] = Field(default_factory=dict)
     enabled: bool = False
     owner: str = Field(min_length=1)
     expected_min: int = Field(ge=0)
@@ -236,6 +244,12 @@ class Notice(BaseModel):
     # checked below so the second cannot be stored as the first.
     estimated_value: Decimal | None = None
     value_currency: str | None = None
+    # What the notice published about its value when the pair above cannot carry
+    # it: BOAMP states per-lot amounts with no overall total on 22 of 323 eForms
+    # notices, and "no value" would be false for them. Derived by rule in the
+    # normaliser, quoting the published figures; never a sum or a converted
+    # number. Empty when estimated_value says it all (migration 016).
+    value_note: str = ""
     body: str = ""
     filter_result: str = ""
     status: NoticeStatus = "detected"
@@ -339,6 +353,10 @@ class Candidate(BaseModel):
     estimated_value_usd: int | None = None
     value_rate: Decimal | None = None
     value_rate_date: date | None = None
+    # Carried from the primary notice at staging: what was published about the
+    # value when estimated_value is None but the notice did state figures, per
+    # lot. Empty otherwise (migration 016).
+    value_note: str = ""
     eligibility_flags: list[EligibilityFlag] = Field(default_factory=list)
     deadline_at: datetime | None = None
     # Set only by the reviewer's decision transaction. The trigger in

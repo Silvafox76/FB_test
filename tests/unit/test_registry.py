@@ -67,10 +67,15 @@ def test_every_enabled_source_is_a_feed_connector():
     being onboarded, so the guard is gone and only the scoped assertion remains.
     Enabling a browser source is still a deliberate act that fails this test until
     the line below is changed with it.
+
+    `PageConnector` joined the allowed set on 2026-09-13 with Ghana, whose listing
+    is server-rendered HTML walked page by page with httpx - the same client a
+    FeedConnector uses and no browser, which is the thing this test guards against.
     """
     running = {source.connector_class for source in load_sources() if source.enabled}
 
-    assert running == {"FeedConnector"}
+    assert running <= {"FeedConnector", "PageConnector"}
+    assert "BrowserConnector" not in running
 
 
 def test_a_misspelled_field_fails_naming_the_field(sources_copy):

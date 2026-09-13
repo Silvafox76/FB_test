@@ -27,6 +27,7 @@ import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -44,7 +45,16 @@ from monitor.connectors.boamp import (
     parse_document,
 )
 from monitor.models import Source
-from monitor.normalise.boamp import ADMIN_LEVEL, COUNTRY, FORMATS, LANGUAGE, format_paths, map_notice
+from monitor.normalise.boamp import (
+    ADMIN_LEVEL,
+    COUNTRY,
+    FORMATS,
+    LANGUAGE,
+    VALUE_NOTE_KEYS,
+    format_paths,
+    map_notice,
+    value_note_phrasing,
+)
 
 pytestmark = pytest.mark.contract
 
@@ -363,6 +373,115 @@ def test_a_notice_with_only_lot_values_carries_no_estimated_value(document):
 
     assert notice.estimated_value is None
     assert notice.value_currency is None
+
+
+# --- value_note: what the lots published when there is no total (migration 016) --
+
+
+def test_a_notice_with_only_lot_values_says_so_in_its_value_note(document):
+    """The fixture's one lot-only tender: lot 1 states 440000 EUR, lot 2 states
+    nothing, and no procedure total is published. "Not stated" would be false;
+    the note quotes what was stated, lot by lot, exactly as the XML gives the
+    figure, and sums nothing."""
+    notice = mapped(document, "26-87466.xml").notice
+
+    assert notice.value_note == "Published per lot, no total: lot 1 440000 EUR; lot 2 not published"
+    assert notice.estimated_value is None, "the note is beside the value columns, never a number in them"
+
+
+def test_several_valued_lots_are_each_quoted_in_order(document):
+    """26-87795.xml states five lot values and a procedure total. With the total
+    removed it is the 8-lot shape the corpus holds 2 of, at fixture scale: every
+    lot's figure, in document order, none of them added up (873000 is what the
+    publisher wrote as the total, and it does not appear here)."""
+    xml = document["notices"]["26-87795.xml"]
+    total = '<cbc:EstimatedOverallContractAmount currencyID="EUR">873000</cbc:EstimatedOverallContractAmount>'
+    assert xml.count(total) == 1, "the procedure total appears once in the recorded file"
+
+    notice = map_notice({"day": document["day"], "xml": xml.replace(total, "", 1)}).notice
+
+    assert notice.value_note == (
+        "Published per lot, no total: lot 1 341000 EUR; lot 2 225000 EUR; lot 3 50000 EUR; "
+        "lot 4 67000 EUR; lot 5 190000 EUR"
+    )
+    assert "873" not in notice.value_note
+    assert notice.estimated_value is None
+
+
+def test_a_lot_figure_with_a_fraction_is_quoted_as_written(document):
+    """26-87569.xml's lots state 68055.56 each. With its total removed, the figure
+    is carried with the publisher's own decimal point and digits, not rounded
+    or regrouped: the record carries what the tender said."""
+    xml = document["notices"]["26-87569.xml"]
+    total = '<cbc:EstimatedOverallContractAmount currencyID="EUR">245000</cbc:EstimatedOverallContractAmount>'
+    assert xml.count(total) == 1
+
+    notice = map_notice({"day": document["day"], "xml": xml.replace(total, "", 1)}).notice
+
+    assert notice.value_note == (
+        "Published per lot, no total: lot 1 68055.56 EUR; lot 2 68055.56 EUR; lot 3 68055.56 EUR"
+    )
+
+
+def test_the_note_phrasing_comes_from_the_registry_and_every_key_is_required(source):
+    """Rule 6: the sentence around the figures is sources/boamp.yaml's, and a
+    missing key is named rather than defaulted in Python."""
+    assert set(VALUE_NOTE_KEYS) <= set(source.value_note)
+    assert value_note_phrasing() == source.value_note
+
+    incomplete = Source.model_validate({**yaml.safe_load(SOURCE_YAML.read_text(encoding="utf-8"))})
+    incomplete.value_note.pop("separator")
+    value_note_phrasing.cache_clear()
+    try:
+        with (
+            patch("monitor.normalise.boamp.load_sources", return_value=[incomplete]),
+            pytest.raises(ValueError, match="missing the key 'separator'"),
+        ):
+            value_note_phrasing()
+    finally:
+        value_note_phrasing.cache_clear()
+
+
+def test_a_published_procedure_total_leaves_the_value_note_empty(document):
+    """When the total is published it is the record, whatever the lots say -
+    26-87569.xml's lots disagree with its total, and the note must not offer
+    them beside it."""
+    for name in PROCEDURE_VALUES:
+        assert mapped(document, name).notice.value_note == "", name
+
+
+def test_lots_stating_zero_are_as_unstated_as_lots_stating_nothing(document):
+    """26-87490.xml: procedure 0.00, lot 1 0.00, lots 2 to 4 nothing. The same
+    zero rule as `published_value`, so no note claims a value was published."""
+    assert mapped(document, "26-87490.xml").notice.value_note == ""
+
+
+def test_every_national_format_notice_carries_an_empty_value_note(document, roots, source):
+    """FNSimple, MAPA and DSP have no lots and no value element."""
+    excluded = frozenset(source.exclude_notice_types)
+    for name, root in roots.items():
+        if format_paths(root, reference=name).lots is None and notice_nature(root, reference=name) not in excluded:
+            assert mapped(document, name).notice.value_note == "", name
+
+
+def test_a_lot_id_of_an_unmeasured_shape_raises_rather_than_being_numbered_by_guess(document):
+    """958 of the 959 recorded lot ids are LOT-NNNN (the other is a LotsGroup,
+    skipped by its own scheme). A new shape is a changed flux (rule 4)."""
+    xml = document["notices"]["26-87466.xml"].replace('schemeName="Lot">LOT-0001<', 'schemeName="Lot">TRANCHE-1<', 1)
+    assert "TRANCHE-1" in xml
+
+    with pytest.raises(ValueError, match="TRANCHE-1"):
+        map_notice({"day": document["day"], "xml": xml})
+
+
+def test_a_lot_id_declaring_an_unknown_scheme_raises_rather_than_vanishing_from_the_note(document):
+    """`Lot` and `LotsGroup` are the two schemes the recorded corpus declares. A
+    third is a changed flux (rule 4), and until 2026-09-13 it was silently skipped."""
+    xml = document["notices"]["26-87466.xml"].replace('schemeName="Lot">LOT-0001<', 'schemeName="Tranche">LOT-0001<', 1)
+    assert 'schemeName="Tranche"' in xml
+
+    with pytest.raises(ValueError, match="'Tranche'"):
+        map_notice({"day": document["day"], "xml": xml})
 
 
 def test_a_procedure_total_that_differs_from_its_lot_sum_carries_the_procedure_total(document):

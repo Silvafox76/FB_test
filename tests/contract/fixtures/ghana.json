@@ -1,0 +1,24 @@
+{
+  "list_url": "https://www.ghaneps.gov.gh/epps/quickSearchAction.do?searchSelect=6",
+  "recorded_on": "2026-09-13",
+  "recorded_with_user_agent": "FreeBalance-OpportunityMonitor/0.1 (+contact email, from MONITOR_USER_AGENT)",
+  "note": "Two pages recorded, each fetched anonymously with no cookie jar and no prior request, one polite GET per page, both needed to cover the 7-day window measured this session (16 in-window rows: all 10 of page 1 plus the first 6 of page 2). ghana.html is page 1 (34,708 bytes) and ghana_page2.html is page 2 (36,966 bytes), both stored verbatim except that curl's own TLS CONNECT banner lines were never part of the body. The only byte-level variation seen across three separate page-1 fetches was the page's own live clock display (`<p class=\"Time\">HH:MM:SS GMT</p>`), which the parser never reads.",
+  "pages": {
+    "1": {
+      "file": "ghana.html",
+      "url": "https://www.ghaneps.gov.gh/epps/quickSearchAction.do?searchSelect=6",
+      "bytes": 34708,
+      "displaying": "1-10"
+    },
+    "2": {
+      "file": "ghana_page2.html",
+      "url": "https://www.ghaneps.gov.gh/epps/quickSearchAction.do?d-3680175-p=2&searchSelect=6",
+      "bytes": 36966,
+      "displaying": "11-20"
+    }
+  },
+  "total_results": 69,
+  "total_pages": 7,
+  "window_cutoff_used_when_recorded": "2026-09-06T00:00:00+00:00",
+  "in_window_row_count": 16
+}

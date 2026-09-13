@@ -1,0 +1,1215 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+        <!-- ceproc.ok -->
+    
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+    
+
+    <head>
+        <title>GHANEPS - Advanced Search</title>
+
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        
+        <meta name="Description" content="e-Procurement platform home page"/>
+		<meta content="e-Procurement platform - Home page" name="Title"/>
+		<meta content="57" name="Type"/>
+		<meta content="DOCUMENTS/COMM/EN" name="Reference"/>
+		<meta content="European Dynamics" name="Creator"/>
+		<meta name="Language" content="En"/>
+		<meta content="25" name="Classification"/>
+		<meta content="tenders, e-procurement, documents, european law, legislation, economic operator, tenderer, procurement, contract, contracting authority, supplier, awarding authority, institutions, european union, eu" name="Keywords"/>
+        
+
+        <link rel="shortcut icon"   type="image/ico" href="images/favicon.ico" />
+
+        <link rel="stylesheet" type="text/css" href="/epps/css/screen.css" media="screen, projection" />
+        <!--[if IE]>
+        <link rel="stylesheet"	type="text/css" href="/epps/css/ie-fix.css" media="screen, projection" />
+        <![endif]-->
+        <!--[if IE 7]>
+        <link rel="stylesheet"	type="text/css" href="/epps/css/ie-fix-7.css" media="screen, projection" />
+        <![endif]-->
+        <!--[if lt IE 7]>
+        <link rel="stylesheet"	type="text/css" href="/epps/css/ie-fix-lt7.css" media="screen, projection" />
+        
+        <script type="text/javascript" src="/epps/scripts/buttonfix.js"></script>
+
+        <![endif]-->
+        <link rel="stylesheet" type="text/css" href="/epps/css/font-awesome.css" media="screen" />
+        <link rel="stylesheet" type="text/css" href="/epps/css/font-awesome.min.css" media="screen" />        
+        <link rel="stylesheet" type="text/css" href="/epps/css/print.css" media="print" />
+        <script type="text/javascript" src="/epps/scripts/jquery.min.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jquery-migrate-1.2.1.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jquery.formatCurrency-1.4.0.min.js"></script>
+        
+
+<script>
+	const PAGE_LITERAL = 'Page';
+	const RESULTS_PER_PAGE_LITERAL = 'Results per page';
+	const ERROR_MSG_LITERAL = 'An error has occurred';
+	const WARNING_MSG_LITERAL = 'Warning';
+	const GOTO_PAGE_LITERAL = 'Goto page';
+    const RESULTS_PER_PAGE_OPTIONS_LITERAL = ["10","20","50","100"]
+</script>
+		<script type="text/javascript"> 
+            var INVALID_CHARACTERS = '<>&%';
+		</script>
+        <script type="text/javascript" src="/epps/scripts/common.js"></script>
+        <script type="text/javascript">
+        //<![CDATA[
+        var $j = jQuery.noConflict();
+        //]]>
+        </script>
+
+        <script type="text/javascript">
+        //<![CDATA[
+        jQuery(function($){
+            $.datepicker.regional["en"] = {
+                clearText: "Clear", 
+                clearStatus: "Erase the current date",
+                closeText: "Close", 
+                closeStatus: "Close without change",
+                prevText: "&#x3c;Prev", 
+                prevStatus: "Show the previous month",
+                nextText: "Next&#x3e;", 
+                nextStatus: "Show the next month",
+                    currentText: "Today", 
+                    currentStatus: "Show the current month",
+                    monthNames: ["January","February",
+                                "March", "April",
+                                "May","June",
+                                "July","August",
+                                "September", "October",
+                                "November","December"],
+                    monthNamesShort: ["Jan", "Feb", 
+                                "Mar", "Apr", 
+                                "May", "Jun", 
+                                "Jul", "Aug", 
+                                "Sep", "Oct", 
+                                "Nov", "Dec"],
+                    monthStatus: "Show a different month", 
+                    yearStatus: "Show a different year",
+                    weekHeader: "Wk", 
+                    weekStatus: "Week of the Year",
+                    dayNames: ["Sunday", "Monday", 
+                        "Tuesday", "Wednesday", 
+                        "Thursday", "Friday", 
+                        "Saturday"],
+                    dayNamesShort: ["Sun", "Mon", 
+                        "Tue", "Wed", 
+                        "Thu", "Fri", 
+                        "Sat"],
+                    dayNamesMin: ["Su","Mo",
+                        "Tu", "We",
+                        "Th","Fr",
+            "Sa"],
+                    dayStatus: "Set DD as first week day", 
+                    dateStatus: "Select DD, M d",
+                    dateFormat: "mm/dd/yy", 
+                    firstDay: 1, 
+                    initStatus: "Select a Date", isRTL: false};
+                $.datepicker.setDefaults($.datepicker.regional["en"]);
+            }); 
+        //]]>
+        </script>
+        <script type="text/javascript" src="/epps/scripts/jquery.cookie.js"></script>
+        <script type="text/javascript" src="/epps/scripts/popup.js"></script>
+        <script type="text/javascript" src="/epps/scripts/tender.structure.js"></script>	
+        <script type="text/javascript" src="/epps/scripts/add.criteria.js"></script>
+        <script type="text/javascript" src="/epps/scripts/ui.datepicker.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jqComm.js"></script>
+        <script type="text/javascript" src="/epps/scripts/tabber-minimized.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jqForm.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jqTableSet.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jqModal.js"></script>
+        <script type="text/javascript" src="/epps/scripts/jqDnR.js"></script>
+        <script type="text/javascript" src="/epps/scripts/staticValidatorScript.js"></script>
+        <script type="text/javascript" src="/epps/scripts/iframe.js"></script>
+        <script type="text/javascript">
+	        /*@cc_on
+			if (document && document.execCommand) {
+				try { 
+					document.execCommand("BackgroundImageCache",false, true); 
+				}
+				catch (e) {}
+			}
+			@*/
+        </script>	
+        
+        <script type="text/javascript">
+        //<![CDATA[
+        $j('document').ready(function(ev){
+			$j('#Content').showHideMenu("/epps");
+			$j('.Menu').showHideBox();
+            $j('#ToggleSubmenu').toggleCfTVisibility({hide:"Hide Menu", show:"Show Menu"});	
+            $j("#ShowCFTInfo").toggleNextDiv();					
+            $j('.tabber').tabify();
+            $j('.lottabber').tabify({ MenuClass:'ScrollList', ActiveClass:'Selected'});
+             $j('.lotstabber').tabify({ MenuClass:'LotList', ActiveClass:'Selected'});
+            $j("table").tableZebra();
+            $j('.countdown').textCountdown({remaining_text: " remaining characters"});
+            $j("button[id='MClose']").hideAlert();
+            $j("form").prepareForm();
+        });
+
+        function jcv_handleErrors(messages, focusField) {
+            if (focusField && focusField != null) {
+                var doFocus = true;
+                if (focusField.disabled || focusField.type == 'hidden') {
+                    doFocus = false;
+                }
+                if (doFocus &&
+                        focusField.style &&
+                        focusField.style.visibility &&
+                        focusField.style.visibility == 'hidden') {
+                    doFocus = false;
+                }
+                if (doFocus) {
+                    focusField.focus();
+                }
+            }
+
+            if ($j("#Message")) {
+                $j("#Message").remove();
+            }
+            var mesagesCont = document.createElement("div");
+            $j(mesagesCont)
+                .attr("id", "Message")
+                .addClass("Error");
+            var errorMSG = document.createElement("p");
+            $j(errorMSG)
+                .html("<strong>An error has occurred:</strong>");
+            var msg = document.createElement("ul");
+            for (i=0; i< messages.length; i++){
+                $j(msg)
+                    .append("<li>" + messages[i] + "</li>");
+            }
+            var closeP = document.createElement("p");
+            $j(closeP)
+                .addClass("Buttons")
+                .html("<button id=\"MClose\" type=\"submit\">Close</button>");
+            $j(mesagesCont)
+                .append(errorMSG)
+                .append(msg)
+                .append(closeP);
+            $j(mesagesCont).find("button").click(function() {
+                $j("#Message").remove();
+            });
+            $j("#Content h2")
+                .after(mesagesCont);
+        } 
+        //]]>
+        </script>	
+        
+        <script type="text/javascript">
+        //<![CDATA[
+        $j("document").ready(function(ev){
+			// fix IE7/IE6 pagination issue
+        	$j("div .THSort").each(function() {
+        		try {
+	        		var hrefValue = $j(this).parent("a").attr("href");
+					if (hrefValue != null && hrefValue.indexOf("javascript:" != -1)) {
+						var sJsFunction = hrefValue.substring("javascript:".length, hrefValue.length);
+						var jsFunction = new Function(sJsFunction);
+						$j(this).children("img").click(jsFunction);
+					}
+        		} catch (err) {}
+        	});
+        });
+        //]]>
+        </script>	
+        
+		<script type="text/javascript">
+
+			function setParentHref(link){
+				 window.location.href=link;
+			}
+		</script>
+    </head>
+	
+    <body>
+    
+    	
+
+
+
+
+
+
+
+    	
+        <div id="Container">
+            
+
+
+
+
+
+<div id="YPOLogo">
+	<h1 title="Electronic Tendering System">GHANEPS <span></span></h1>
+</div>
+<!-- YPOLogo // -->
+
+
+<div id="SystemTitle">
+	<p>Ghana Electronic Procurement System</p>
+</div>
+<!-- SystemTitle // -->
+
+            
+
+
+
+
+
+
+
+<script type="text/javascript" language="JavaScript">
+//<![CDATA[
+function openPopup(url) {    
+    newwindow=window.open(url,'name','height=550,width=810,scrollbars=yes,resizable=yes,left=60,top=10');
+    if (window.focus) {
+        newwindow.focus();
+    } 
+}
+
+    $j('document').ready(function(ev){
+    	$j("a.PopUp").click(function(){
+    		PopUpOpts = {
+        		windowname: 'popupwindow',
+        		width:		810,
+        		height:		600,
+        		scroll:		1,
+        		resizable:	0
+        	};
+           	$j(this).PopUp(this.href, PopUpOpts); 
+            return false; 
+        }); 
+    })    
+//]]>
+</script>
+
+
+
+
+<div id="GlobalNav">
+    <ul>
+        
+
+        <li class="First" id="Homepage">
+            <a href="/epps/home.do">Homepage</a>
+        </li>
+        <li id="About">
+            <a href="/epps/DisplayHeaderStaticTextAction.do" class="PopUp">About</a>
+        </li>
+        <li id="FAQ">           
+             <a href="/epps/viewInfo.do?selectedItem=viewInfo.do%3Fsection%3Dfaq&amp;section=faq">User Guides</a>
+        </li>
+        <li id="Help">
+            <a href="/epps/viewInfo.do?isPopup=true&amp;section=userManual" class="PopUp">Help</a>
+        </li>
+        
+        <li class="Last" id="Contact">
+            <a href="/epps/PrepareContactUsAction.do" class="PopUp">Contact Us</a>
+        </li>
+    </ul>
+</div><!-- Global_nav // -->
+
+            
+
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+	function checkSubmit() {
+		var	quicSearchForm = document.forms["quickSearchForm"];
+		var col = document.getElementsByName("searchSelect")[0];
+		if (col.selectedIndex != 0) {
+			if(checkInputField(quicSearchForm))quicSearchForm.submit();
+    	}
+    	return false;
+	}
+	
+	function checkInputField(form){
+		var input = form[1].value;
+		if(containForbidenChars(input)){
+			form[1].value = '*';
+			alert("An invalid character was provided for search. Invalid characters include: <, >, &, % .");
+			return false;
+		}
+		return true;
+	}
+	
+	function containForbidenChars(input){
+    	return input.indexOf("<")!=-1 || input.indexOf(">")!=-1 || input.indexOf("%")!=-1 || input.indexOf("&")!=-1;
+    }
+	
+	$j(document).ready(function(){
+		$j('#SearchInput').mouseover(function() {
+		   $j(this).attr('title', "Tip: provide a relevant term within asterisks, eg. *consultancy*");
+
+	  	});
+	});
+	
+	function advancedSearch() {
+    	if(true){
+            window.location.href = "/epps/prepareAdvancedSearch.do?type=cftFTS";
+    	} else {
+            window.location.href = "/epps/prepareAdvancedSearch.do?type=cft";
+    	}
+    }
+
+</script>
+
+
+
+
+<div id="Search">
+    <p class="Time"> 
+        14:24:19 GMT
+    </p>
+    
+    <form id="quickSearchForm" method="post" action="/epps/quickSearchAction.do" onsubmit="javascript: return checkSubmit()" target="_self">
+        <p>
+            <label for="SearchSelect">Search:</label> 
+            <select name="searchSelect"><option value="Select...">Select</option>
+                
+			    
+			    	
+			       	
+					  <option value="7" selected="selected">Tenders</option>
+			       	
+			    
+                <option value="2">Organisation</option>
+				  
+				
+				<option value="5">APP</option></select>
+            <input type="text" name="searchInput" value="" id="SearchInput" class="Text" />
+            <input type="submit" value="Search" class="SearchBTN" />
+            <button type="button" onclick="advancedSearch();" class="AdvancedSearchBTN">Advanced Search</button>
+            <a href="/epps/quickSearchAction.do?searchSelect=6" class="CurrentTenders">Current Tenders</a>
+        </p>
+    </form>
+    
+     
+</div><!-- Search -->
+
+
+            <div id="Main">
+                <div id="Navigation">
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+$j(document).ready(function() {
+
+     $j('#loginButton').click(function(event) {
+            $j.cookie('loginButton', null);
+            $j.cookie('loginButton', 'enabled');
+            if ($j.cookie('loginButton')) {
+            } else {
+
+              $j.cookie('loginButton', null);
+              
+              alert("Please enable session cookies for using this site with your web browser.");
+              event.preventDefault();
+            }
+          });
+
+});
+
+$j(document).ready(function () {
+    $j("#Username").attr("autocomplete","off");
+    });
+
+
+</script>
+
+
+
+
+<div class="Menu">
+    <p><span>Log In</span></p>
+    <div class="MenuContent" id="LoginMenuContent">
+    
+        
+        
+            <ul>
+                <li>
+                    <a href="/epps/authenticate/login">Log In</a>
+                </li>
+            </ul>
+        
+        
+        
+
+        <ul>
+            <li>
+                <a href="/epps/forgotPassword.do">Forgot your password?</a>
+            </li>
+            <li>
+                <a href="/epps/prepareRegisterEOOrg.do?registerEO=true">Register as a Supplier</a>
+            </li>
+        </ul>
+    
+
+     
+      
+            
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+<!--
+$j('document').ready(function(ev){
+	var contextRoot = "/epps";
+	var selectedItem = escape("null");
+	$j('.MenuContent li').find('a').each(function() {
+		var link = this.href;
+		var item = escape(link.substring(link.indexOf(contextRoot) + contextRoot.length + 1));
+		// check if this <a> is seleted item and add css class 'Selected'
+		if (item == selectedItem) {
+			$j(this).parent().addClass('Selected');	
+		}
+		// prepare links
+		if (link.indexOf('?') != -1) {
+			this.href = link + '&selectedItem=' + item;
+		} else {
+			this.href = link + '?selectedItem=' + item;
+		}
+	});
+});
+	
+//-->
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="Menu">
+    <p><span>Information</span></p>
+    <div class="MenuContent" id="InfoMenuContent">
+        <ul>
+    
+         
+	       	
+	        
+	        <li>
+ 				<a href="/epps/app/searchPlan.do?searchType=advanced">Annual Procurement Plan</a>
+        	</li>
+	        
+	        <li>
+ 				<a href="/epps/quickSearchAction.do?searchSelect=6">Current Tenders</a>
+        	</li>
+        	
+        	<li>
+ 				<a href="/epps/viewAllAwardedContracts.do">Awarded Contracts</a>
+        	</li>
+        	
+        	<li>
+        	   
+   			 <a href="/epps/notices/viewPublishedNotices.do?formId=320">Bidding Advertisements</a>  
+   			 </li>
+        	<li>
+ 				<a href="/epps/common/viewOpenedTenders.do">Opened Bid Details</a>
+        	</li>
+        	
+            <li>
+               <a href="/epps/viewInfo.do?section=newItems">Public Notice</a>
+            </li>
+
+            <li>
+              <a href="/epps/definition/walkthroughs.index.do">Supplier Training Videos</a>
+            </li>
+            <li>
+              <a href="/epps/viewInfo.do?section=faq">User Guides</a>
+            </li>
+            
+            
+            <li>
+            	<a href="/epps/viewInfo.do?section=statistics">Statistics</a>
+            </li>
+            
+            <li>
+            	<a href="/epps/viewInfo.do?section=calendar">Calendar</a>
+            </li>
+            
+         	
+        </ul>
+    </div><!-- MenuContent -->
+</div><!-- Menu // -->
+
+
+
+                </div><!-- Navigation -->
+
+                <div id="Content">
+                	
+
+
+
+
+<noscript>
+	<div class="NoScript">
+		<p>To enjoy the full functionality of this application, please ensure that Javascript is enabled in your browser.</p>
+	</div>
+</noscript>
+
+
+                    
+                    
+                        
+                    
+
+
+
+
+
+
+
+	
+	<h2>Simple search</h2>
+
+
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    
+
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+    $j('document').ready(function(ev){
+        $j("#T01").tableSet({hidden: [8,9], icon: "/epps/images/sh_icon.gif"});
+    });
+
+    $j('document').ready(function(ev){
+        $j("#btnAddSelectedCft").click(function() {
+            var opener = window.opener;
+            var selBox = $j("input[type='radio']:checked").val();
+            if (selBox != null || selBox !="" || selBox != 'undefined'){
+                opener.addSelectedEntry(selBox);
+                window.close();
+            }else{
+                alert('???prompt.select.atleast.one.entry???');
+            }
+        });
+    });
+
+    function addSelectedEntries() {
+        $j('[id^=selectedCft]').each(function() {
+            if ($j(this).is(":checked")) {
+                var optionValue = $j(this).val();
+                var optionTitle = $j(this).attr("title");
+                window.opener.submitCfts(optionValue, optionTitle);
+            }
+        });
+        window.close();
+    }
+</script>
+
+
+<form name="searchCfTWorkspaceForm" method="post" action="/epps/viewCFTSAction.do" target="_self">
+
+    <input type="hidden" name="isExport" value="true">
+    <input type="hidden" name="isFTS" value="true">
+    <input type="hidden" name="isQuickSearch" value="true">
+    <input type="hidden" name="freeText" value="">
+    <input type="hidden" name="uniqueId" value="">
+    <input type="hidden" name="title" value="">
+    <input type="hidden" name="status" value="">
+    <input type="hidden" name="description" value="">
+    <input type="hidden" name="contractType" value="">
+    <input type="hidden" name="procedure" value="">
+    <input type="hidden" name="nuts" value="">
+    <input type="hidden" name="estimatedValueMin" value="">
+    <input type="hidden" name="estimatedValueMax" value="">
+    <input type="hidden" name="unspscLabels" value="">
+    <input type="hidden" name="tenderOpeningFromDate" value="">
+    <input type="hidden" name="tenderOpeningUntilDate" value="">
+    <input type="hidden" name="submissionFromDate" value="">
+    <input type="hidden" name="submissionUntilDate" value="">
+    <input type="hidden" name="publicationFromDate" value="">
+    <input type="hidden" name="publicationUntilDate" value="">
+    <input type="hidden" name="contractAuthority" value="">
+    <input type="hidden" name="captcha" value="">
+    
+    
+		<div class="SearchResults">
+			<h3>Search Results</h3>
+			<div class="Tabular Hscroll" id="CFTResults">
+				
+<table id="T01">
+<thead>
+<tr>
+<th>#</th>
+<th>Tender Title<a href="?d-3680175-s=title.keyword&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=title.keyword&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th>
+<th>Procuring Entity<a href="?d-3680175-s=caName.keyword&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=caName.keyword&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th>
+<th>Info</th>
+<th>Bids Submission Deadline<a href="?d-3680175-s=submissionDeadline&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=submissionDeadline&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th>
+<th>Procedure<a href="?d-3680175-s=procedure&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=procedure&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th>
+<th>Status<a href="?d-3680175-s=status&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=status&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th>
+<th>Notice PDF  </th>
+<th>Publication Date<a href="?d-3680175-s=datePublished&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><a href="?d-3680175-s=datePublished&amp;d-3680175-o=2&amp;d-3680175-n=1&amp;d-3680175-p=1&amp;searchSelect=6"><div class="THSort"><img src="./images/ascending.gif" alt="Sort ascending"><img src="./images/descending.gif" alt="Sort descending" class="Descending"></div></a></th></tr></thead>
+<tbody>
+<tr>
+<td>1</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3403640">Construction of Akim Oda Branch Manager&#039;s bungalow at Akim Swedru</a>
+						
+						
+					</td>
+<td>
+						Social Security And National Insurance Trust
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='Construction of Akim Oda Branch Manager&#039;s bungalow at Akim Swedru.' />
+						
+					</td>
+<td>
+						
+							Fri Oct 02 10:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3403640"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 15:58:07 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>2</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3557053">Construction of 2-Storey Municipal Health Directorate office (Phase II) at Nkoranza</a>
+						
+						
+					</td>
+<td>
+						NKORANZA SOUTH MUNICIPAL ASSEMBLY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='Construction of 2-Storey Municipal Health Directorate office (Phase II) at Nkoranza' />
+						
+					</td>
+<td>
+						
+							Wed Sep 30 13:30:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3557053"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 15:48:55 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>3</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3517574">Pick Up - Double Cabin 4x4</a>
+						
+						
+					</td>
+<td>
+						Ghana Water Company Limited
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='SUPPLY AND DELIVERY OF 15NO. DOUBLE CABIN PICK UP VEHICLE' />
+						
+					</td>
+<td>
+						
+							Wed Sep 30 11:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3517574"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 15:40:52 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>4</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3550143">Supply of 207 Hexagonal Tables and chairs for KGs</a>
+						
+						
+					</td>
+<td>
+						HO WEST DISTRICT ASSEMBLY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='SUPPLY AND DELIVERY OF 207 HEXAGONAL TABLES AND CHAIRS FOR KGs' />
+						
+					</td>
+<td>
+						
+							Sat Sep 26 00:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3550143"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 10:41:47 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>5</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3543412">Procurement of Desktop Computers, Laptops, UPS, Printer and Scanners</a>
+						
+						
+					</td>
+<td>
+						Nursing and Midwifery Council Of Ghana
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='Procurement of Desktop Computers, Laptops, UPS, Printer and Scanners' />
+						
+					</td>
+<td>
+						
+							Wed Sep 30 10:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3543412"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 09:19:12 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>6</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3543368">Procurement of Pick- Up</a>
+						
+						
+					</td>
+<td>
+						Nursing and Midwifery Council Of Ghana
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='Procurement of Pick- Up' />
+						
+					</td>
+<td>
+						
+							Wed Sep 30 10:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3543368"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Fri Sep 11 09:01:22 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>7</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3525188">Procurement and supply of  250No.KG Hexagonal Tables</a>
+						
+						
+					</td>
+<td>
+						AKATSI SOUTH MUNICIPAL ASSEMBLY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='PROCUREMENT AND SUPPLY OF 250NO.KG HEXAGONAL TABLES FOR AKATSI SOUTH MUNICIPAL ASSEMBLY' />
+						
+					</td>
+<td>
+						
+							Thu Sep 24 12:30:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3525188"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Wed Sep 09 22:08:25 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>8</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3530752">Procurement of Furniture and Fittings</a>
+						
+						
+					</td>
+<td>
+						OKAIKWEI NORTH MUNICIPAL ASSEMBLY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='The OKAIKWEI NORTH MUNICIPAL ASSEMBLY intends to apply part of its budgetary allocation to fund eligible payments under the contract for GR/ONMA/GD/12/26 PROCUREMENT OF FURNITURE FOR SCHOOLS IN THE MUNICIPALIY' />
+						
+					</td>
+<td>
+						
+							Thu Sep 24 08:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3530752"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Tue Sep 08 20:06:58 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>9</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3521842">Procurement of 1280 No. Mono Desks for JHS</a>
+						
+						
+					</td>
+<td>
+						BOSOMTWE DISTRICT ASSEMBLY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='MONO DESK 585 PIECES
+DUAL DESK 515 PIECES
+HEXAGONAL TABLE AND 8CHAIRS 80PIECES
+TEACHERS TABLE AND CHAIR 100PIECES' />
+						
+					</td>
+<td>
+						
+							Wed Sep 23 12:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3521842"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Tue Sep 08 15:34:41 GMT 2026						
+						
+					</td></tr>
+<tr>
+<td>10</td>
+<td style="display:block; text-align:left">
+						
+							<a href="/epps/cft/prepareViewCfTWS.do?resourceId=3529675">PROCUREMENT OF MOTOR VEHICLE</a>
+						
+						
+					</td>
+<td>
+						MENTAL HEALTH AUTHORITY
+					</td>
+<td>
+						
+						<img src="/epps/images/icon_information.gif" alt="Description" title='Mental Health Authority, invites sealed Tenders from eligible Tenderers (Manufacturers, Wholesalers and Dealers) for the procurement of the vehicle' />
+						
+					</td>
+<td>
+						
+							Thu Sep 24 12:00:00 GMT 2026				
+						
+					</td>
+<td>
+						
+							
+							National Competitive Tendering
+						
+					</td>
+<td>
+						
+						Bid Submission
+					</td>
+<td>
+						
+							<a href="/epps/cft/downloadNoticeForAdvSearch.do?resourceId=3529675"><img src="/epps/images/acrobat.gif" alt="Specific Procurement Notice PDF" title="Specific Procurement Notice PDF" /></a>
+						
+					</td>
+<td>
+						
+							Tue Sep 08 13:58:13 GMT 2026						
+						
+					</td></tr></tbody></table><input type="hidden" name="tableUid" value="searchCft"><div class="Pagination"><p class="Results">69 results in total.    Displaying: <strong>1-10</strong></p><p class="PageNav">Page <strong>1</strong> of <strong>7</strong><button type="button" class="SearchBtn Disabled" title="First">&laquo;</button><button type="button" class="SearchBtn Disabled" title="Previous">&lsaquo;</button><button type="button" class="SearchBtn" title="Next" onclick=window.location.href=this.getAttribute("href") href="?d-3680175-p=2&amp;searchSelect=6">&rsaquo;</button><button type="button" class="SearchBtn" title="Last" onclick=window.location.href=this.getAttribute("href") href="?d-3680175-p=7&amp;searchSelect=6">&raquo;</button></p><p class="PageNav"><script type="text/javascript">writePageSelection("7","?d-3680175-p=&amp;searchSelect=6",this);</script></p></div>
+			</div><!-- end "CFTResults" -->
+		</div><!-- end SearchResults -->
+        
+        
+            
+        
+	
+</form>
+
+                </div><!-- Content -->
+                <div class="clear"></div>
+            </div><!-- Main -->
+
+            
+
+
+<div id="Footer">
+    <p id="UpdateInfo">	
+	Last Update: 
+	
+	13 September 2026
+        
+    </p>
+    <p id="CopyrightInfo">
+        &copy;2026 European Dynamics		
+    </p>
+    <ul>
+
+    </ul>
+</div><!-- Footer // -->
+
+            <br style="clear:both; width:100%;" />
+        </div><!-- Container -->
+    </body>
+</html>

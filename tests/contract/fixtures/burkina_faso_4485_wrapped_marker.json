@@ -1,0 +1,34 @@
+{
+  "recorded_on": "2026-09-13",
+  "purpose": "Pins the one head form the second live run raised on: a notice heading wrapped over two centred lines, both beginning with a marker phrase ('AVIS A MANIFESTATION D’INTERET EN VUE D’UNE' over 'DEMANDE DE PROPOSITIONS ALLEGEE'). The page has a complete head above it - section line, buyer, blank, title - so the rule the normaliser states is that a centred phrase line directly beneath a marker line is that heading's continuation, not a second notice. One page is enough: its own footer prints the issue stamp the published_at rule reads.",
+  "source_issue": {
+    "issue_title": "Quotidien n°4485 – Jeudi 10 septembre 2026",
+    "source_href": "http://dgcmef.gov.bf/sites/default/files/2026-09/Quotidien%20n%C2%B04485_0.pdf",
+    "full_issue_bytes": 2674299,
+    "full_issue_pages": 73,
+    "full_issue_sha256": "58f918641c84115fbde9b1a12885b28e57f6f943c4d41e7d96ca281b4c585ce6",
+    "fetched_note": "Filed by the connector under storage/burkina_faso/<sha256>.pdf during the second live run of 2026-09-13, copied to the session scratchpad for extraction; storage/ was not edited."
+  },
+  "heading_lines_verbatim": [
+    "AVIS A MANIFESTATION D’INTERET EN VUE D’UNE",
+    "DEMANDE DE PROPOSITIONS ALLEGEE"
+  ],
+  "head_note": "Page 43 of the issue, in reading order once stripped: 'Prestations intellectuelles' (section), 'MINISTERE DE LA CONSTRUCTION DE LA PATRIE' (buyer), blank, 'Recrutement d’un cabinet pour la mise en œuvre des emprunts du PRéBBO' (title), the two heading lines above, then 'N°2026-034/MCP/SG/DMP/SMT-PI du 03/09/2026'. Measured across the six issues read on 2026-09-12/13 (4471, 4477, 4478, 4483, 4485, 4486; 241 marker lines): this is the only heading that wraps.",
+  "extraction": {
+    "tool": "qpdf 11.9.0",
+    "command": "qpdf --pages bf_4485.pdf 43 -- --remove-unreferenced-resources=yes bf_4485.pdf burkina_faso_4485_wrapped_marker.pdf",
+    "pages": "43 (the whole notice; it fits one page)",
+    "pages_extracted": 1,
+    "file": "burkina_faso_4485_wrapped_marker.pdf",
+    "bytes": 539767,
+    "sha256": "5d024844f83e6e47b7d1679ec9c876edfd5b7a545b41acc7b4374c67c8910896",
+    "text_layer_chars": 6171,
+    "footer_note": "Two-line footer layout like 4471 and 4486: 'N°3827 – lundi 04 Mars 2024   43' then 'N° 4485 – Jeudi 10 septembre 2026'; the second line is what dates the notice."
+  },
+  "expected": {
+    "issue_number_from_url": "4485",
+    "published_at": "2026-09-10T00:00:00+00:00",
+    "notices": 1,
+    "external_id": "2026-034/MCP/SG/DMP/SMT-PI"
+  }
+}

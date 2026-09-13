@@ -96,6 +96,7 @@ def seeded(db_conn, owner):
         deadline=None,
         value=None,
         currency=None,
+        value_note="",
     ):
         content_hash = f"sha256:{uuid.uuid4().hex}"
         db_conn.execute(
@@ -108,12 +109,13 @@ def seeded(db_conn, owner):
         notice_id = db_conn.execute(
             """
             insert into notices (content_hash, source_id, url, title, country, admin_level,
-                                 language, status, deadline_at, estimated_value, value_currency)
+                                 language, status, deadline_at, estimated_value, value_currency,
+                                 value_note)
             values (%s, %s, 'https://example.invalid/n', %s, %s, 'national', 'en', 'scored', %s,
-                    %s, %s)
+                    %s, %s, %s)
             returning id
             """,
-            (content_hash, source_id, title, country, deadline, value, currency),
+            (content_hash, source_id, title, country, deadline, value, currency, value_note),
         ).fetchone()[0]
         db_conn.execute(
             """
@@ -536,6 +538,39 @@ def test_a_notice_stating_no_value_stages_with_nothing_rather_than_a_zero(db_con
     ).fetchone()
 
     assert row == (None, None, None)
+
+
+def test_a_notice_with_only_lot_values_stages_its_note_beside_empty_value_columns(db_conn, seeded):
+    """Migration 016. The lot-only BOAMP shape: no figure the columns can carry,
+    so nothing is converted and nothing is summed, and the note travels onto the
+    candidate as the notice published it."""
+    source_id, scored_notice = seeded
+    note = "Published per lot, no total: lot 1 440000 EUR; lot 2 not published"
+    scored_notice(80, "Lot-only French tender", country="FR", value_note=note)
+
+    _store_a_rate_day(db_conn)
+    run(db_conn)
+
+    row = db_conn.execute(
+        """
+        select c.value_note, c.estimated_value, c.value_currency, c.estimated_value_usd, c.value_rate
+        from candidates c join notices n on n.id = c.primary_notice_id
+        where n.source_id = %s
+        """,
+        (source_id,),
+    ).fetchone()
+
+    assert row == (note, None, None, None, None)
+
+
+def test_a_notice_with_nothing_to_note_stages_an_empty_note(db_conn, seeded):
+    source_id, scored_notice = seeded
+    scored_notice(80, "Treasury system", value=Decimal("4428444.00"), currency="UAH")
+
+    _store_a_rate_day(db_conn)
+    run(db_conn)
+
+    assert _rows(db_conn, source_id, "value_note") == [""]
 
 
 # Staleness itself is tested where it lives, in tests/unit/test_fx_config_and_store.py:

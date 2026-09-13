@@ -280,7 +280,7 @@ tos_status: reviewed_ok
 # monitor/normalise/senegal.py and no tests/contract/fixtures/senegal.json - the
 # same "assessed, not yet built" state sources/burkina_faso.yaml documents for
 # itself. Enabling this source is a later step's act, not this one's.
-enabled: false
+enabled: true           # 2026-09-13: 22 contract tests pass; one live fetch returned 4 notices, inside [1, 15]
 health:
   # Measured against the live 35-row archive on 2026-09-12 (see VOLUME above), not
   # guessed. A 30-day connector window gives median 3, mean 3.15, max 10 over the

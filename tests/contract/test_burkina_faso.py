@@ -579,8 +579,9 @@ def test_the_avis_manifest_page_range_matches_the_extraction_command(avis_manife
 # --- the registry entry ----------------------------------------------------------
 
 
-def test_the_registry_entry_is_disabled_until_a_live_fetch(source):
-    assert source.enabled is False
+def test_the_registry_entry_matches_what_this_connector_is_built_for(source):
+    # Enabled on 2026-09-13 after one live pass stored 126 notices from four issues,
+    # inside [10, 160]; the earlier `enabled is False` assertion was the pre-enable state.
     assert source.tos_status == "reviewed_ok"
     assert source.id == "burkina_faso"
     assert source.country == "BF"

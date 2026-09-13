@@ -25,6 +25,8 @@ Two deliberate exceptions to "failures raise" (rule 3) live here, both narrow:
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -36,25 +38,34 @@ import yaml
 
 from monitor.connectors.base import ConnectorError
 from monitor.connectors.boamp import BoampConnector
+from monitor.connectors.burkina_faso import BurkinaFasoConnector
 from monitor.connectors.doe import DoeConnector
 from monitor.connectors.ebrd import EbrdConnector
 from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
+from monitor.connectors.ghana import GhanaConnector
 from monitor.connectors.liberia import LiberiaConnector
+from monitor.connectors.mali import MaliConnector
 from monitor.connectors.prozorro import ProzorroConnector
+from monitor.connectors.senegal import SenegalConnector
 from monitor.connectors.sierra_leone import SierraLeoneConnector
 from monitor.connectors.ted import TedConnector
 from monitor.connectors.worldbank import WorldBankConnector
 from monitor.connectors.worldbank_pipeline import WorldBankPipelineConnector
 from monitor.health import source_health
-from monitor.models import Source, Translation
+from monitor.models import RawNotice, Source, Translation
 from monitor.normalise import boamp as boamp_normalise
+from monitor.normalise import burkina_faso as burkina_faso_normalise
 from monitor.normalise import doe as doe_normalise
 from monitor.normalise import ebrd as ebrd_normalise
 from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
+from monitor.normalise import ghana as ghana_normalise
 from monitor.normalise import liberia as liberia_normalise
+from monitor.normalise import mali as mali_normalise
+from monitor.normalise import ocr
 from monitor.normalise import prozorro as prozorro_normalise
+from monitor.normalise import senegal as senegal_normalise
 from monitor.normalise import sierra_leone as sierra_leone_normalise
 from monitor.normalise import ted as ted_normalise
 from monitor.normalise import worldbank as worldbank_normalise
@@ -82,6 +93,12 @@ CONNECTORS = {
     "ebrd": (EbrdConnector, ebrd_normalise.map_notice),
     "sierra_leone": (SierraLeoneConnector, sierra_leone_normalise.map_notice),
     "liberia": (LiberiaConnector, liberia_normalise.map_notice),
+    "mali": (MaliConnector, mali_normalise.map_notice),
+    "senegal": (SenegalConnector, senegal_normalise.map_notice),
+    "ghana": (GhanaConnector, ghana_normalise.map_notice),
+    # One RawNotice per bulletin issue, many notices out (decision 51): the one
+    # mapper in this table that returns a list.
+    "burkina_faso": (BurkinaFasoConnector, burkina_faso_normalise.map_notices),
 }
 
 # Built, fixture-tested, and deliberately absent from the table above. Listed here
@@ -92,24 +109,9 @@ CONNECTORS = {
 #           signature and no file in this repository is one. Wiring it would let
 #           `monitor run` fetch it, so the permission to run is what is withheld;
 #           the connector and its 43 contract tests stay.
-#   burkina_faso
-#           NOT A MISSING NORMALISER, and calling it one was wrong. This connector
-#           yields one `RawNotice` per BULLETIN PDF - base64, `mime:
-#           "application/pdf"` - not one per notice, and its own docstring flags the
-#           consequence. Three things have to be decided before a mapper is worth
-#           writing, and none is a normaliser's to decide:
-#             - `_store_notice` below does `json.loads(payload)` unconditionally and
-#               `store_payload` always writes a `.json` suffix, so a PDF payload
-#               fails before any mapper is reached.
-#             - the mapper contract is one `RawNotice` to one `MappedNotice`, and a
-#               bulletin holds thirty-odd pages of dossier notices. Splitting them is
-#               a one-to-many step this table has no shape for.
-#             - `sources/burkina_faso.yaml` declares `expected_items_per_run:
-#               [10, 160]`, counted as dossier references INSIDE an issue, while
-#               `fetch()` would report 1 or 2 issues. Health would read every run as
-#               a failure.
-#           So this is an architectural decision about the acquire stage, not a
-#           module anyone can just add.
+#   burkina_faso was in this list until 2026-09-13: see decision 51 and the
+#           table entry above. The acquire stage decodes by declared mime and a
+#           mapper may return a list, which is what a bulletin needed.
 #
 #
 # LIBERIA AND SIERRA LEONE WERE IN THIS LIST UNTIL 2026-09-12, both for the same
@@ -202,13 +204,56 @@ def build_connector(source: Source):
     return connector_class(source, cpv_prefixes()), mapper
 
 
-def store_payload(source_id: str, content_hash: str, payload: str) -> str:
-    """Write the raw payload and return its repository-relative path."""
+def store_payload(source_id: str, key: str, payload: str | bytes, suffix: str = "json") -> str:
+    """Write a raw payload under `key` and return its repository-relative path.
+
+    `key` is the notice's content hash when a payload is one notice, which is every
+    JSON source and was the only case until 2026-09-13; it is the payload's own
+    hash when one payload holds many notices, a PDF bulletin, so the file is
+    written once and every notice it yields points at it. `suffix` follows the
+    mime, so a stored bulletin is a readable `.pdf` and not JSON-named bytes.
+    """
     directory = STORAGE / source_id
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{content_hash}.json"
-    path.write_text(payload, encoding="utf-8")
+    path = directory / f"{key}.{suffix}"
+    if isinstance(payload, bytes):
+        path.write_bytes(payload)
+    else:
+        path.write_text(payload, encoding="utf-8")
     return str(path.relative_to(REPO))
+
+
+# What a connector's payload is, by the mime it declared, and how it becomes the
+# document a mapper reads. Dispatch on a declared field, the way monitor/fx/convert.py
+# dispatches on a currency's kind: one correct path per mime and no second attempt
+# (rule 1). A mime with no decoder raises, because a connector declaring one is a
+# change in the source and not something to read around (rule 4).
+#
+# Each decoder returns the document and, for a payload that is filed once for many
+# notices, the path it was filed at; None means "file it per notice at insert".
+
+
+def _decode_json(source: Source, raw: RawNotice) -> tuple[object, str | None]:
+    return json.loads(raw.payload), None
+
+
+def _decode_pdf(source: Source, raw: RawNotice) -> tuple[object, str | None]:
+    # A bulletin is one payload holding thirty-odd dossier notices (decision 51). It
+    # is filed once under its own hash, before it is read, because `ocr.extract`
+    # runs pdftotext against a path; the text-layer-or-Textract choice is that
+    # module's and is not repeated here.
+    # The mapper gets the issue's own URL beside its text: a bulletin notice has
+    # no page of its own, so every notice from an issue opens the issue, the way
+    # every Mali notice opens the shared listing.
+    data = base64.b64decode(raw.payload)
+    stored = store_payload(source.id, hashlib.sha256(data).hexdigest(), data, suffix="pdf")
+    return {"url": raw.url, "text": ocr.extract(REPO / stored).text}, stored
+
+
+DECODERS = {
+    "application/json": _decode_json,
+    "application/pdf": _decode_pdf,
+}
 
 
 def fetch_source(conn: psycopg.Connection, source: Source) -> FetchResult:
@@ -222,13 +267,17 @@ def fetch_source(conn: psycopg.Connection, source: Source) -> FetchResult:
     conn.commit()
     bound = log.bind(source_id=source.id, run_id=str(run_id))
 
+    # `seen` counts NOTICES mapped, not payloads fetched. For every JSON source the
+    # two are the same number, as they always were; for a bulletin source one
+    # payload maps to its dossier notices, and that is the count the registry's
+    # expected_items_per_run describes (decision 51).
     seen = new = 0
     try:
         raw_notices = connector.fetch()
         for raw in raw_notices:
-            seen += 1
-            if _store_notice(conn, source, raw.payload, mapper, raw.url, raw.mime):
-                new += 1
+            mapped, inserted = _store_notices(conn, source, raw, mapper)
+            seen += mapped
+            new += inserted
     except (ConnectorError, NormaliseError) as error:
         # The run is recorded failed and the source goes unhealthy. Rolled back
         # first so a half-stored page does not survive as though it were complete.
@@ -255,13 +304,44 @@ def fetch_source(conn: psycopg.Connection, source: Source) -> FetchResult:
     return FetchResult(source.id, seen=seen, new=new, failed=False)
 
 
-def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: str) -> bool:
-    """Insert one notice if its content hash is new. Returns whether it was new."""
-    document = json.loads(payload)
+def _reference(document: object, url: str) -> str:
+    """What to name in a NormaliseError: the notice's own number where it has one."""
+    if isinstance(document, dict):
+        return str(document.get("publication-number", url))
+    return url
+
+
+def _store_notices(conn, source: Source, raw: RawNotice, mapper) -> tuple[int, int]:
+    """Decode one payload, map it to its notices, insert the new ones.
+
+    Returns (notices mapped, notices new). A JSON row maps to one notice; a bulletin
+    maps to every dossier notice inside it. Which it is, the mapper says by what it
+    returns - one `MappedNotice` or a list - and nothing here infers it from the
+    mime. A mapper that returns an empty list from a payload that decoded is a
+    zero-yield on a source that normally yields, which rule 4 treats as a failure.
+    """
+    if raw.mime not in DECODERS:
+        raise NormaliseError(source.id, raw.url, ValueError(f"no decoder for mime {raw.mime!r}"))
+    document, stored = DECODERS[raw.mime](source, raw)
+
     try:
         mapped = mapper(document)
     except Exception as cause:  # noqa: BLE001 - re-raised with the source and notice attached
-        raise NormaliseError(source.id, str(document.get("publication-number", url)), cause) from cause
+        raise NormaliseError(source.id, _reference(document, raw.url), cause) from cause
+
+    items = mapped if isinstance(mapped, list) else [mapped]
+    if not items:
+        raise NormaliseError(source.id, raw.url, ValueError("mapper returned no notices from a payload that decoded"))
+
+    new = 0
+    for item in items:
+        if _insert_notice(conn, source, item, raw, stored):
+            new += 1
+    return len(items), new
+
+
+def _insert_notice(conn, source: Source, mapped, raw: RawNotice, stored: str | None) -> bool:
+    """Insert one mapped notice if its content hash is new. Returns whether it was new."""
     notice = mapped.notice
 
     # Scoped to the source (migration 007). The hash is still the change-detection
@@ -274,7 +354,10 @@ def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: st
     if existing:
         return False
 
-    storage_path = store_payload(source.id, notice.content_hash, payload)
+    # A one-notice payload is filed under the notice's hash at this point, as it
+    # always was; a many-notice payload was filed once by its decoder.
+    storage_path = stored or store_payload(source.id, notice.content_hash, raw.payload)
+    url, mime = raw.url, raw.mime
     conn.execute(
         """
         insert into notices_raw (content_hash, source_id, url, storage_path, mime)
@@ -286,11 +369,11 @@ def _store_notice(conn, source: Source, payload: str, mapper, url: str, mime: st
         """
         insert into notices (content_hash, source_id, external_id, url, title, buyer, country,
                              admin_level, published_at, deadline_at, language, language_confidence,
-                             cpv_codes, estimated_value, value_currency, body, status)
+                             cpv_codes, estimated_value, value_currency, value_note, body, status)
         values (%(content_hash)s, %(source_id)s, %(external_id)s, %(url)s, %(title)s, %(buyer)s,
                 %(country)s, %(admin_level)s, %(published_at)s, %(deadline_at)s, %(language)s,
                 %(language_confidence)s, %(cpv_codes)s, %(estimated_value)s, %(value_currency)s,
-                %(body)s, %(status)s)
+                %(value_note)s, %(body)s, %(status)s)
         returning id
         """,
         notice.model_dump(exclude={"filter_result"}),

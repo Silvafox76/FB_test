@@ -121,6 +121,24 @@ the column is USD, and turning one into the other needs a dated rate, which is
 what staging applies (migration 012) to every source that states a value, this
 one now included.
 
+**Those lot-only notices carry a `value_note` instead, saying what was published.**
+"Not stated" was false for them: the value is stated, per lot. Re-measured on
+2026-09-13 with `published_value`'s own rule (a positive amount, so a lot stating
+`0.00` is as unstated as a missing one): 22 of the 323 eForms payloads state a
+positive amount on at least one lot and none at procedure level, every one of
+them EUR, from 1 to 8 lots each, and 2 of the 22 leave some lots unvalued. The
+note quotes each lot's figure exactly as the XML gives it - `440000`, not a
+grouped rendering, which is the review app's choice to make - and names the lots
+that state none, so `value_note` on 26-87466.xml of the fixture reads "Published
+per lot, no total: lot 1 440000 EUR; lot 2 not published". The sentence around
+the figures is `value_note` in `sources/boamp.yaml`, read through the registry
+(rule 6); the figures themselves are the notice's. It is empty whenever the
+procedure total is published, however the lots are valued: the total is the
+record then, and the 12 disagreeing notices are the reason the lots are not
+offered beside it. Lot ids are `LOT-NNNN` on 958 of the 959 recorded
+`ProcurementProjectLot` elements; the one other is a `LotsGroup`, which is not a
+lot, states no amount, and is skipped by its own declared scheme.
+
 `DESCRIPTEURS` (BOAMP's own 375-term subject vocabulary) and `ANNONCE_ANTERIEUR`
 (the annonce a correction corrects) are both read by nothing here: `Notice` has no
 column for either. They are noted so the step that adds one does not go looking.
@@ -132,6 +150,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from functools import lru_cache
 
 import structlog
 
@@ -148,6 +167,7 @@ from monitor.normalise.dates import parse_deadline, parse_published
 from monitor.normalise.hashing import content_hash
 from monitor.normalise.mapped import MappedNotice
 from monitor.normalise.value import published_value
+from monitor.registry import load_sources
 
 log = structlog.get_logger(__name__)
 
@@ -176,6 +196,29 @@ DEADLINE = "GESTION/INDEXATION/DATE_LIMITE_REPONSE"
 # format with `%f`, and 43 of the 281 recorded deadlines carry one.
 FRACTION = re.compile(r"(?<=:\d\d)\.\d+")
 
+# Inside one eForms `ProcurementProjectLot`: its id, and the value it states for
+# itself. The value path is the same element name as the procedure-level one in
+# `FORMATS["EFORMS"].value`, one level down, which is why neither is searched
+# with `.//`.
+LOT_ID = f"{CBC}ID"
+LOT_VALUE = f"{CAC}ProcurementProject/{CAC}RequestedTenderTotal/{CBC}EstimatedOverallContractAmount"
+# eForms declares on the id itself whether the element is a lot or a group of
+# lots (`schemeName`); only a lot states a lot value.
+LOT_SCHEME = "Lot"
+# The other scheme the recorded corpus declares: one `LotsGroup` per notice that
+# groups lots and carries no value of its own. Read as a closed set so a third
+# scheme, or a lot with no id at all, raises instead of vanishing from the note.
+LOT_SCHEMES = frozenset({LOT_SCHEME, "LotsGroup"})
+# Every lot id on the recorded day. A lot whose id is another shape raises rather
+# than being numbered by guess.
+LOT_NUMBER = re.compile(r"^LOT-(?P<number>\d{4})$")
+
+# The keys `value_note` in sources/boamp.yaml must carry: the sentence around the
+# lot figures, one valued lot, one unvalued lot, and what separates lots. The
+# strings themselves live only there (rule 6); `value_note_phrasing` raises on a
+# missing key rather than supplying one.
+VALUE_NOTE_KEYS = ("lot_only", "lot_valued", "lot_unvalued", "separator")
+
 
 @dataclass(frozen=True)
 class FormatPaths:
@@ -202,7 +245,11 @@ class FormatPaths:
     None for the three national formats, which have no value element in their
     schema at all - recorded once here rather than discovered per notice - and,
     for EFORMS, it is deliberately the procedure-level path only: see the module
-    docstring for why the lot-level path beside it is never read or summed.
+    docstring for why the lot-level path beside it is never summed.
+
+    `lots` is the path to each lot element, read only to say what the lots
+    published when the procedure total is absent (`value_note`). None for the
+    three national formats, for the same reason as `value`.
     """
 
     document: dict[str, str]
@@ -210,6 +257,7 @@ class FormatPaths:
     description: str
     cpv: tuple[str, ...]
     value: str | None
+    lots: str | None
 
 
 # Keyed on the single child element of `DONNEES`, which is the format the document
@@ -237,10 +285,11 @@ FORMATS = {
         cpv=(f".//{CBC}ItemClassificationCode",),
         # The procedure-level total only. Its sibling under each
         # `ProcurementProjectLot` is the same element name one level down and is
-        # deliberately not read here or anywhere else in this module - see the
-        # module docstring for the 24 notices that state only a lot value and the
-        # 12 where the procedure total disagrees with the lots' sum.
+        # never summed into this figure - see the module docstring for the 22
+        # notices that state only lot values, which carry a `value_note` instead,
+        # and the 12 where the procedure total disagrees with the lots' sum.
         value=f"{CAC}ProcurementProject/{CAC}RequestedTenderTotal/{CBC}EstimatedOverallContractAmount",
+        lots=f"{CAC}ProcurementProjectLot",
     ),
     "FNSimple": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -252,6 +301,7 @@ FORMATS = {
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
         # No value element anywhere in the schema; see the module docstring.
         value=None,
+        lots=None,
     ),
     "MAPA": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -263,6 +313,7 @@ FORMATS = {
         cpv=(),
         # No value element anywhere in the schema; see the module docstring.
         value=None,
+        lots=None,
     ),
     "DSP": FormatPaths(
         # The national formats put every nature in `initial`. No PRE-INFORMATION has
@@ -274,6 +325,7 @@ FORMATS = {
         cpv=(".//objetPrincipal/classPrincipale", ".//objetComplementaire/classPrincipale"),
         # No value element anywhere in the schema; see the module docstring.
         value=None,
+        lots=None,
     ),
 }
 
@@ -298,6 +350,9 @@ def map_notice(raw: dict) -> MappedNotice:
         raise ValueError(f"{idweb}: {paths.title} is empty; a notice with no title cannot be mapped")
     body = text_of(document, paths.description)
     value, value_currency = procedure_value(document, paths)
+    # Only where no procedure total is published: the total is the record when
+    # there is one, and the lots are not offered beside it.
+    value_note = lot_value_note(document, paths, reference=idweb) if value is None else ""
 
     notice = Notice(
         content_hash=content_hash(title, body),
@@ -322,6 +377,9 @@ def map_notice(raw: dict) -> MappedNotice:
         # the module docstring.
         estimated_value=value,
         value_currency=value_currency,
+        # What the lots published when the procedure total is absent; see the
+        # module docstring. Quoted, never summed.
+        value_note=value_note,
         body=body,
         status="detected",
     )
@@ -414,6 +472,90 @@ def procedure_value(document, paths: FormatPaths) -> tuple[Decimal | None, str |
     if element is None:
         return None, None
     return published_value(element.text, element.get("currencyID"), source_id=SOURCE_ID)
+
+
+def lot_value_note(document, paths: FormatPaths, *, reference: str) -> str:
+    """What the lots published about their value, or empty when none states one.
+
+    Called only when the procedure total is absent. Each lot's figure is quoted
+    exactly as the XML gives it - `440000` or `68055.56`, never grouped or
+    rounded here - after the same rule as the procedure figure has said it is a
+    price (`published_value`, so a lot stating `0.00` is unstated and a currency
+    that is not ISO 4217 raises). A lot that states none is named as such, so the
+    note says exactly what was published and nothing is summed (rule 9). Empty
+    for the three national formats, which have no lots, and for an eForms notice
+    whose lots all state nothing - 197 of the 323 recorded.
+
+    A lot whose id is not `LOT-NNNN` raises: it is numbered from that id, and on
+    the recorded day every lot carried one. The single `LotsGroup` element is
+    skipped by the scheme the document declares on its own id, not by its shape;
+    an id declaring any other scheme, or a lot with no id, raises (rule 4), the
+    same closed-set reading `format_paths` gives an unknown format.
+    """
+    if paths.lots is None:
+        return ""
+    phrasing = value_note_phrasing()
+
+    parts: list[str] = []
+    valued = False
+    for lot in document.findall(paths.lots):
+        identifier = lot.find(LOT_ID)
+        if identifier is None:
+            raise ValueError(f"boamp {reference}: a ProcurementProjectLot has no cbc:ID")
+        scheme = identifier.get("schemeName")
+        if scheme not in LOT_SCHEMES:
+            raise ValueError(
+                f"boamp {reference}: lot id {identifier.text!r} declares scheme {scheme!r}, "
+                f"not one of {sorted(LOT_SCHEMES)}"
+            )
+        if scheme != LOT_SCHEME:
+            continue
+        number = lot_number(identifier.text or "", reference=reference)
+
+        amount, currency = (None, None)
+        element = lot.find(LOT_VALUE)
+        if element is not None:
+            amount, currency = published_value(element.text, element.get("currencyID"), source_id=SOURCE_ID)
+
+        if amount is None:
+            parts.append(phrasing["lot_unvalued"].format(number=number))
+        else:
+            valued = True
+            parts.append(phrasing["lot_valued"].format(number=number, amount=element.text.strip(), currency=currency))
+
+    if not valued:
+        return ""
+    return phrasing["lot_only"].format(lots=phrasing["separator"].join(parts))
+
+
+@lru_cache(maxsize=1)
+def value_note_phrasing() -> dict[str, str]:
+    """`value_note` from sources/boamp.yaml, read through the registry once.
+
+    The registry is the authority for the source's row, the way `NOTICE_URL` is
+    the connector's; the phrasing is read from the same `Source` the fetch runs
+    against rather than repeated here. Every key in `VALUE_NOTE_KEYS` must be
+    present: a missing one raises naming it, because a default written here would
+    be the placeholder string rule 6 keeps out of `.py` files.
+    """
+    source = next(candidate for candidate in load_sources() if candidate.id == SOURCE_ID)
+    for key in VALUE_NOTE_KEYS:
+        if key not in source.value_note:
+            raise ValueError(
+                f"sources/{SOURCE_ID}.yaml: value_note is missing the key {key!r} (needs {VALUE_NOTE_KEYS})"
+            )
+    return source.value_note
+
+
+def lot_number(identifier: str, *, reference: str) -> int:
+    """`LOT-0001` -> 1. Any other shape raises rather than being numbered by guess."""
+    match = LOT_NUMBER.match(identifier.strip())
+    if match is None:
+        raise ValueError(
+            f"{reference}: lot id {identifier!r} is not the LOT-NNNN shape every recorded lot carries; "
+            "extend LOT_NUMBER in monitor/normalise/boamp.py once the new shape is measured"
+        )
+    return int(match.group("number"))
 
 
 def published_at(root, *, day: date, idweb: str, url: str) -> datetime:

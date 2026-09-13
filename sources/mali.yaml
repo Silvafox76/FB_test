@@ -202,7 +202,7 @@ tos_status: reviewed_ok
 # describe for themselves; unlike those two, Mali's ToS was still `pending` as of
 # 2026-09-12 and is resolved to `reviewed_ok` only as of this entry, so this is
 # also the first point at which a connector could be started against cleared terms.
-enabled: false          # enabling follows a passing contract test, per the onboarding brief
+enabled: true           # 2026-09-13: 19 contract tests pass; one live fetch returned 26 notices, inside [1, 40]
 health:
   # Measured 2026-09-12 and reconfirmed 2026-09-13 from two live fetches a day
   # apart, not a longitudinal log - see VOLUME above. Trailing 7-day sums observed

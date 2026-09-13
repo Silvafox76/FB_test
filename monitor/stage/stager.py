@@ -130,7 +130,7 @@ SELECT_SCORED = """
     select n.id, n.source_id, n.content_hash, n.country, n.admin_level, n.language, n.buyer,
            s.relevance, s.title_en, s.summary_en, s.matched_functions, s.system_names,
            s.procurement_type, n.estimated_value, n.value_currency, s.eligibility_flags,
-           s.deadline_at, n.deadline_at
+           s.deadline_at, n.deadline_at, n.value_note
     from notices n
     join current_score s on s.notice_id = n.id
     where n.status = 'scored'
@@ -285,9 +285,10 @@ def _insert_candidate(
         insert into candidates (id, primary_notice_id, score, status, region, language, title_en,
                                 buyer, country, admin_level, summary_en, matched_functions,
                                 system_names, procurement_type, estimated_value, value_currency,
-                                estimated_value_usd, value_rate, value_rate_date,
+                                estimated_value_usd, value_rate, value_rate_date, value_note,
                                 eligibility_flags, deadline_at)
-        values (%s, %s, %s, 'scored', %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        values (%s, %s, %s, 'scored', %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s)
         """,
         (
             candidate_id,
@@ -308,6 +309,9 @@ def _insert_candidate(
             converted.amount if converted else None,
             converted.rate if converted else None,
             converted.rate_date if converted else None,
+            # What the notice published about its value when the columns above
+            # cannot carry it (migration 016). Carried as text, beside the figures.
+            row[18],
             list(row[15] or []),
             deadline,
         ),

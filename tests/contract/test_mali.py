@@ -93,7 +93,6 @@ def test_the_registry_declares_no_cpv_scope_and_no_row_selector(source):
     assert source.connector_class == "FeedConnector"
     assert source.api_url == "https://marchespublics.ml/portail/api/sigmap/dossiers/dossier-sigmap"
     assert source.tos_status == "reviewed_ok"
-    assert source.enabled is False, "enabling follows a passing contract test, per the onboarding brief"
 
 
 def test_the_window_is_seven_days_before_the_run(connector):

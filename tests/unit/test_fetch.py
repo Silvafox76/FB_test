@@ -65,16 +65,24 @@ def test_every_wired_source_is_enabled_and_every_enabled_source_is_wired():
 def test_a_mapper_failure_is_wrapped_with_the_source_and_the_notice():
     """A mapper is built to raise; it has to become that source's failure."""
     import json as json_module
+    from datetime import UTC, datetime
 
-    from monitor.fetch import NormaliseError, _store_notice
+    from monitor.fetch import NormaliseError, _store_notices
+    from monitor.models import RawNotice
 
     def exploding_mapper(document):
         raise ValueError("unknown country code 'ZZZ'")
 
-    payload = json_module.dumps({"publication-number": "619297-2026"})
+    raw = RawNotice(
+        source_id="ted",
+        url="https://x.invalid",
+        fetched_at=datetime.now(UTC),
+        mime="application/json",
+        payload=json_module.dumps({"publication-number": "619297-2026"}),
+    )
 
     with pytest.raises(NormaliseError) as raised:
-        _store_notice(None, source("ted"), payload, exploding_mapper, "https://x.invalid", "application/json")
+        _store_notices(None, source("ted"), raw, exploding_mapper)
 
     message = str(raised.value)
     assert "ted" in message

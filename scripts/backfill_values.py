@@ -56,7 +56,7 @@ REPO = Path(__file__).resolve().parent.parent
 DEFAULT_STORAGE = REPO / "storage"
 
 SELECT_NOTICES = """
-    select id, source_id, content_hash, estimated_value, value_currency
+    select id, source_id, content_hash, estimated_value, value_currency, value_note
     from notices
     order by id
 """
@@ -66,9 +66,11 @@ SELECT_NOTICES = """
 # actual changes rather than every row this pass looked at.
 UPDATE_NOTICE = """
     update notices
-       set estimated_value = %(value)s, value_currency = %(currency)s
+       set estimated_value = %(value)s, value_currency = %(currency)s, value_note = %(note)s
      where id = %(id)s
-       and (estimated_value is distinct from %(value)s or value_currency is distinct from %(currency)s)
+       and (estimated_value is distinct from %(value)s
+            or value_currency is distinct from %(currency)s
+            or value_note is distinct from %(note)s)
 """
 
 SELECT_CANDIDATES = """
@@ -81,12 +83,14 @@ UPDATE_CANDIDATE = """
     update candidates
        set estimated_value = %(value)s,
            value_currency = %(currency)s,
+           value_note = %(note)s,
            estimated_value_usd = %(usd)s,
            value_rate = %(rate)s,
            value_rate_date = %(rate_date)s
      where id = %(id)s
        and (estimated_value is distinct from %(value)s
             or value_currency is distinct from %(currency)s
+            or value_note is distinct from %(note)s
             or estimated_value_usd is distinct from %(usd)s
             or value_rate is distinct from %(rate)s
             or value_rate_date is distinct from %(rate_date)s)
@@ -130,12 +134,12 @@ def backfill_notices(conn, storage_root: Path, connectors: dict | None = None) -
     examined = updated = skipped_no_connector = skipped_no_payload = skipped_mapper_error = 0
     notice_values: dict = {}
 
-    for notice_id, source_id, content_hash, existing_value, existing_currency in conn.execute(
+    for notice_id, source_id, content_hash, existing_value, existing_currency, existing_note in conn.execute(
         SELECT_NOTICES
     ).fetchall():
         examined += 1
         bound = log.bind(source_id=source_id, content_hash=content_hash)
-        notice_values[notice_id] = (existing_value, existing_currency)
+        notice_values[notice_id] = (existing_value, existing_currency, existing_note)
 
         if source_id not in connectors:
             # The disabled sources named in monitor/fetch.py's CONNECTORS comment.
@@ -176,9 +180,12 @@ def backfill_notices(conn, storage_root: Path, connectors: dict | None = None) -
 
         value = mapped.notice.estimated_value
         currency = mapped.notice.value_currency
-        notice_values[notice_id] = (value, currency)
+        # The lot-only note (migration 016) rides with the value: same mapper, same
+        # sweep, so the 22 BOAMP notices stored before it existed get it here.
+        note = mapped.notice.value_note
+        notice_values[notice_id] = (value, currency, note)
 
-        cursor = conn.execute(UPDATE_NOTICE, {"id": notice_id, "value": value, "currency": currency})
+        cursor = conn.execute(UPDATE_NOTICE, {"id": notice_id, "value": value, "currency": currency, "note": note})
         if cursor.rowcount:
             updated += 1
             bound.debug("backfill_notice_updated", value=str(value), currency=currency)
@@ -211,7 +218,7 @@ def backfill_candidates(conn, notice_values: dict) -> CandidateCounts:
 
     for candidate_id, primary_notice_id in conn.execute(SELECT_CANDIDATES).fetchall():
         examined += 1
-        value, currency = notice_values.get(primary_notice_id, (None, None))
+        value, currency, note = notice_values.get(primary_notice_id, (None, None, ""))
 
         usd = rate = rate_date = None
         if value is None or currency is None:
@@ -232,6 +239,7 @@ def backfill_candidates(conn, notice_values: dict) -> CandidateCounts:
                 "id": candidate_id,
                 "value": value,
                 "currency": currency,
+                "note": note,
                 "usd": usd,
                 "rate": rate,
                 "rate_date": rate_date,

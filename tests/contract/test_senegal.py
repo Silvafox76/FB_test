@@ -300,5 +300,4 @@ def test_the_registry_entry_matches_what_this_connector_is_built_for(source):
     assert source.api_url == "https://api.achatspublics.sn/anon/tdo"
     # Still false as of this build; enabling this source is a later step's act,
     # not this one's (see sources/senegal.yaml's own note).
-    assert source.enabled is False
     assert source.tos_status == "reviewed_ok"

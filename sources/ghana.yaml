@@ -229,7 +229,7 @@ tos_status: reviewed_ok
 # contract-test fixture and its normaliser is a separate step, the same gap
 # that keeps sources/burkina_faso.yaml and sources/sierra_leone.yaml's siblings
 # disabled after onboarding until their own code and fixtures exist.
-enabled: false
+enabled: true            # 2026-09-13: 26 contract tests pass; one live fetch returned 16 notices, inside [5, 35]
 health:
   # Measured 2026-09-13 from the live "Current Tenders" table: 69 open tenders
   # in total; 16 published in the seven days ending today (2026-09-06 through
