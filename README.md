@@ -99,20 +99,22 @@ same thing as a passed gate, so the table below says which is which rather than 
 done because its files exist. 1,191 tests pass and 1 is skipped, on a database with no test
 fixtures left in it. The
 checkpoint test that proves `monitor_pipeline` holds no privilege on `approved_records` runs on every
-commit. The pipeline holds 2,487 notices from 11 enabled sources, 1,277 of
-them carrying a published value in the currency it was published in, and 148 candidates, 26 of them
-in the review queue — 6 West Africa, 2 Balkans, 18 Europe; of those 26, 11 show a converted USD
-figure, 15 state no value, and none is stuck in a currency with no rate held for it. **Sierra Leone
-and Liberia went live on 2026-09-12 and are the pilot's first West African national sources**; before
-them the 1.0-weight priority geography had no national feed at all. Nothing has been approved or
-exported: the pilot has not entered shadow mode. These counts move with every pass; `make status` is
-the live reading and this line is a snapshot taken on 2026-09-12.
+commit. The pipeline holds 2,659 notices from 15 enabled sources, 1,387 of
+them carrying a published value in the currency it was published in, and 152 candidates, 39 of them
+in the review queue — 7 West Africa, 2 Balkans, 30 Europe; of those 39, 19 show a converted USD
+figure, 20 state no value, and none is stuck in a currency with no rate held for it. **Six West
+African national sources are live**: Sierra Leone and Liberia since 2026-09-12, and Mali, Senegal,
+Ghana and Burkina Faso since 2026-09-13, each after a recorded fixture, a passing contract test and
+one clean live pass inside its expected band. Their yield is what the log warned it would be:
+of 218 West African notices held, 5 have passed the free filter and 2 are candidates. Nothing has
+been approved or exported: the pilot has not entered shadow mode. These counts move with every pass;
+`make status` is the live reading and this line is a snapshot taken on 2026-09-13.
 
 | Steps | State |
 | --- | --- |
 | 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
 | 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
-| 17 to 19, West Africa | Built, **partly met**. Three of ten West African portals have a recorded fixture and a passing contract test (Burkina Faso, Liberia, Sierra Leone); the other seven have a registry entry and nothing behind it, and five of those have no terms page to clear at all. Burkina Faso's connector and fixtures pass 29 contract tests, but `monitor/normalise/burkina_faso.py` does not exist, so it still ships `enabled: false`; testing `config/lexicon_fr.yaml` today against its 284-notice sample (five Quotidien issues) found 0 PFM notices, with all 28 free-filter passes false positives on `trésor` and `recrutement` — the finding that had both words dropped from the lexicon today. |
+| 17 to 19, West Africa | Built, **mostly met**. Six of ten West African portals are live with a recorded fixture, a passing contract test, a normaliser and a clean live pass (Burkina Faso, Ghana, Liberia, Mali, Senegal, Sierra Leone). Burkina Faso's daily bulletin needed the acquire stage to take one PDF holding thirty-odd notices (decision 51) and a mapper measured against six real issues; its 126 notices from four issues yielded 3 free-filter passes and no candidate, the yield the 284-notice sample predicted. Of the four remaining: Benin is cleared on terms and needs a person at a real browser to record its row selector; Nigeria is a retrospective register measured at zero live tenders, dropped from wave 1 pending a named person's decision; Gambia and Côte d'Ivoire have no terms page to clear and stay `pending`. The connector classes BUILD_ORDER assumed were wrong for three of the four in step 17 and are corrected there. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
 | 21, golden set and metrics | Metrics half met; golden half **not met** — see below. |
 | 21b, published value and USD conversion | Met. See `BUILD_ORDER.md`. |
