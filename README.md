@@ -116,7 +116,7 @@ been approved or exported: the pilot has not entered shadow mode. These counts m
 | 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
 | 17 to 19, West Africa | Built, **mostly met**. Six of ten West African portals are live with a recorded fixture, a passing contract test, a normaliser and a clean live pass (Burkina Faso, Ghana, Liberia, Mali, Senegal, Sierra Leone). Burkina Faso's daily bulletin needed the acquire stage to take one PDF holding thirty-odd notices (decision 51) and a mapper measured against six real issues; its 126 notices from four issues yielded 3 free-filter passes and no candidate, the yield the 284-notice sample predicted. Of the four remaining: Benin is cleared on terms and needs a person at a real browser to record its row selector; Nigeria is a retrospective register measured at zero live tenders, dropped from wave 1 pending a named person's decision; Gambia and Côte d'Ivoire have no terms page to clear and stay `pending`. The connector classes BUILD_ORDER assumed were wrong for three of the four in step 17 and are corrected there. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
-| 21, golden set and metrics | Metrics half met; golden half **not met** — see below. |
+| 21, golden set and metrics | Metrics half met. Golden half measured on 2026-09-16 and **not met**: precision 50% on live scores (33% on a fresh re-score) against a gate of 60%, recall 69% (56%). See below. |
 | 21b, published value and USD conversion | Met. See `BUILD_ORDER.md`. |
 | 22, security review | Met. Eleven findings, two closed early, two deferred with an owner and a date. |
 | 25, wave 2 | Out of order — its gates at steps 23 and 24 have not run. Both connectors ship `enabled: false`. |
@@ -128,13 +128,19 @@ on.
 
 **Three things worth knowing before trusting any number this system produces.**
 
-*The golden set has no labels.* It is 150 stratified notices across 8 sources and 19 languages,
-straddling the free filter so it can measure what the filter drops as well as what the scorer keeps —
-and every label is empty. `make golden` refuses to compute a figure until a person fills them in, by
-design: a set labelled by the same family of model it measures would score well against its own
-opinion, and a real regression would read as agreement. **So precision and recall are unmeasured, and
-any claim about this system's accuracy today has no measurement behind it.** It needs roughly two
-hours from a named labeller, and it is the single largest unmeasured thing in the pilot.
+*The golden set is labelled and the scorer misses the gate.* 150 stratified notices across 8 sources and
+19 languages were labelled by hand on 2026-09-16: 16 relevant, 134 not, every row with a reasoned note
+(`tests/golden/golden.csv`; the labels are human by design, since a set labelled by the model it measures
+would score well against its own opinion). Measured against the staging threshold of 25: **50% precision
+and 69% recall on the pipeline's live scores; 33% and 56% on the harness's fresh re-score of the same
+notices with the same prompt** (`tests/golden/history.csv`). The gate is 60% precision. The free filter
+dropped none of the 16 relevant, so every error is the scorer's, and the errors have a shape: nine of the
+eleven false positives are services about finance (audits, outsourced accounting, consultancy) that the
+labeller excludes and the scorer does not yet tell apart from finance software. No threshold reaches 60 on
+both numbers, so the lever is the prompt, and by the harness's own rule the numbers are reported and a
+person decides. Decision 57 in `docs/open_decisions.md` has the rest: two labels that contradict their own
+notes, five "worth monitoring" positives the metric counts as bids, and six scope questions the notes turn
+on.
 
 *The staging threshold is 25, not 60.* `config/thresholds.yaml` is authoritative and carries the
 reasoning: 60 could not be tuned because the scorer's scores cluster on a small number of round

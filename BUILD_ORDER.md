@@ -341,6 +341,8 @@ Build: 150 notices (60 relevant, 90 not) drawn from TED, Prozorro, World Bank, S
 
 Accept: `make golden` on the 150-notice set reports precision above 60 percent, schema validity above 99 percent; `make metrics` produces a report with no manual steps.
 
+**Measured 2026-09-16, not met.** The 150 were labelled by one BD reviewer (16 relevant, 134 not, not the 60/90 split planned, which is what the corpus actually contains). `make golden` reports precision 33.3% and recall 56.2% at 25 on a fresh re-score, schema validity 100%; the pipeline's live scores on the same notices give 50% and 69%. The free filter drops no relevant notice. The scorer's false positives are mostly finance *services* rather than finance software, and five of the sixteen positives are "worth monitoring" rather than a bid, so the gate as written measures a boundary nobody has drawn. Decision 57 lists what a person decides before the prompt is touched. The set was drawn before any West African portal was live and holds none; a second draw follows two weeks of those sources.
+
 ---
 
 ### Step 21b. Published value and USD conversion (2026-09-12)
