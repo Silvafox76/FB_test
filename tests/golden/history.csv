@@ -1,0 +1,2 @@
+at,prompt_version,model,threshold,labelled,scored,parked,precision,recall,schema_validity,mean_cost_usd
+2026-09-16T17:22:21+00:00,c5c2adbe1f2a,claude-haiku-4-5,25,150,150,0,0.3333,0.5625,1.0000,0.003101
