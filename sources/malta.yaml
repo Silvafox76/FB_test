@@ -1,0 +1,302 @@
+# Malta's national e-procurement portal, e-PPS (Electronic Public Procurement
+# System), www.etenders.gov.mt, run by the Department of Contracts (DOC) on
+# infrastructure operated by MITA. Same European Dynamics EPPS product family as
+# GHANEPS (sources/ghana.yaml) and Liberia's eGP (sources/liberia.yaml): same
+# `/epps/` context path, the same Struts/JSP page furniture, and the same
+# Angular OCDS visualisation shell at `/ocds/...`. country MT, geography weight
+# 0.6 (config/thresholds.yaml's EU/EEA/UK/CH band; MT is already listed there
+# under `regions: MT: Europe`).
+#
+# WHY NOW. A BD lead found two live notices this pilot should have surfaced:
+# `cft/prepareViewCfTWS.do?resourceId=13974341` (accounting/payroll services for
+# NCPE, EUR 55,500, published 2026-07-29) and `resourceId=13851814` (a corporate
+# ERP solution for WasteServ Malta, EUR 3,561,080, CPV 72511000, published
+# 2026-06-19). Both were fetched directly this session (2026-09-18, one polite
+# anonymous GET each, identified user agent) to see what they actually carry and
+# what that implies about what Malta adds over TED, which already reads MT's
+# above-threshold notices. See VALUE OVER TED below: it settles that question
+# with the two examples themselves, and MEASUREMENT NOT POSSIBLE explains why a
+# systematic 7/30-day CPV count could not be produced.
+#
+# THE HEADLINE FINDING: THIS SOURCE HAS NO WORKING ROUTE TODAY, ON EITHER OF THE
+# TWO GROUNDS THAT MATTER. Not a probe that came up empty - two independent
+# blockers, one contractual and one technical, each sufficient on its own:
+#   1. The General Terms of Use forbid automated access to the Services in terms
+#      that name exactly what a connector would do (clause 2.4, quoted in full
+#      under TERMS OF USE below).
+#   2. Independent of the ToS, every search entry point the site publishes
+#      requires solving a CAPTCHA before it will return a result set (see PUBLIC
+#      HTML LISTING below) - and rule 21 forbids CAPTCHA solving regardless of
+#      what the terms say.
+# The one route that is both technically read-only-capable and favourably
+# licensed - the OCDS API DOC's own Publication Policy commits to - exists but
+# errors on every call (see OCDS below), the identical finding
+# sources/ghana.yaml recorded against the same vendor's Ghana deployment. So
+# `enabled: false` here is not "not built yet"; it is "no lawful, working path
+# in exists to build against."
+#
+# ROBOTS.TXT, fetched 2026-09-18 with the identified user agent.
+#   https://www.etenders.gov.mt/robots.txt -> HTTP 302 (the app's generic
+#   catch-all for an unmapped path, same as ghaneps.gov.gh and
+#   eprocurement.ppcc.gov.lr's bare-domain behaviour in sources/ghana.yaml and
+#   sources/liberia.yaml - not a robots file).
+#   https://www.etenders.gov.mt/epps/robots.txt -> HTTP 200, reads in full:
+#     User-agent: Yandex
+#     Disallow: /
+#
+#     User-Agent: MJ12bot
+#     Crawl-Delay:   30
+#   Byte-identical to GHANEPS's and Liberia's own `/epps/robots.txt` - the same
+#   European Dynamics deployment default. Nothing here names a generic client,
+#   disallows a listing path, or sets a crawl delay that binds a non-Yandex,
+#   non-MJ12bot agent. Permissive on its own terms; it is the ToS and the
+#   CAPTCHA below that block this source, not robots.txt.
+#
+# TERMS OF USE. Linked from every page's footer ("Terms of Use" ->
+# `/epps/PrepareTermsOfUseAction.do`, a popup whose only content is a button
+# that downloads `/epps/docs/eTenders_Terms_of_Use.pdf`, "General Terms of Use",
+# Date Issued 30/05/2018, fetched and read in full with `pdftotext`).
+#   Clause 2.2 permits reading and reproducing what the site publishes, subject
+#   to attribution and non-endorsement: "You are permitted to view, print and
+#   download information from the Website ... it may be reproduced without
+#   charge or further permission from the Government of Malta provided that ...
+#   the Government of Malta is identified as the source."  That clause, taken
+#   alone, would read like sources/ghana.yaml's reviewed_ok absence-of-
+#   restriction finding. It is not taken alone.
+#   Clause 2.4 is the restriction and it is explicit about the acquisition
+#   method, not just about reuse of what is acquired: "You may not use any
+#   'deep-link', 'page-scrape', 'robot', 'spider' or other automatic device,
+#   program, algorithm or methodology, or any similar or equivalent manual
+#   process, to access, acquire, copy or monitor any portion of the Services or
+#   any Content, or in any way reproduce or circumvent the navigational
+#   structure or presentation of the Services or any Content, to obtain or
+#   attempt to obtain any materials, documents or information through any means
+#   not purposely made available through the Services. The GoM reserves the
+#   right to bar any such activity." This is a harder restriction than
+#   sources/simap.yaml's AGB clause 5, which binds only what happens to data
+#   after a permitted fetch: clause 2.4 forbids the fetch itself when done by
+#   any "automatic device." tos_status: reviewed_restricted on this clause, and
+#   this is the position that governs any route actually usable today.
+#   Clause 2.7 separately forbids "an unreasonable or disproportionately large
+#   load" - moot here since no automated load of any size is permitted under
+#   2.4, but noted for whoever revisits this file.
+#
+# OCDS - THE ROUTE THAT WOULD BE reviewed_ok IF IT WORKED, AND DOES NOT WORK.
+# The footer's "OCDS policy" popup (`/epps/PrepareOcdsPolicyAction.do`) links
+# two documents, both fetched and read in full on 2026-09-18:
+#   `docs/DoC_OCDS_Publication_Policy_v1.0.docx` states DOC's own commitment:
+#   "Release packages will be published daily by DOC and record packages will
+#   be published weekly. The data contained in these packages is in JSON format
+#   as per the OCDS schema and can be downloaded by any interested person
+#   through a published API." This is exactly clause 2.4's own carve-out - data
+#   "purposely made available through the Services" - so a working OCDS fetch
+#   would not be the "automatic device ... to obtain materials ... through any
+#   means not purposely made available" clause 2.4 forbids; it would be reading
+#   the means DOC says it purposely provides.
+#   `docs/DoC_OCDS_License_v1.0.docx` states the license for that data: "DOC
+#   publishes the e-PPS data using the ODC Public Domain Dedication and License
+#   (ODC-PDDL). Under this license users of the data are allowed to: Share ...
+#   Create ... and Adapt". Public-domain terms, no attribution condition, no
+#   restriction on reuse - more permissive than simap's AGB clause 5 and than
+#   clause 2.2's attribution requirement above.
+#   THE ENDPOINT ITSELF: same Angular OCDS visualisation shell as Ghana and
+#   Liberia (`/ocds/report/home.action` -> HTTP 200, `ng-app="root"`,
+#   `contextPath = "/ocds"`, loads `/ocds/js/custom/controllers/
+#   RecordGridCtrl.js`, which names `POST /ocds/record/searchRecords.action`
+#   with a `{page, pagesize, sortField, sortDir}` body - read directly from the
+#   served JS, the same way sources/ghana.yaml read Ghana's). Tried three body
+#   shapes on 2026-09-18, the same three sources/ghana.yaml tried against
+#   GHANEPS: the exact `{page:1,pagesize:5,sortField:"",sortDir:""}` shape,
+#   explicit nulls for the sort fields, and page/pagesize alone. All three
+#   returned HTTP 500 with the identical generic body: "Server Encountered An
+#   Unexpected Condition". Not a request-shape guess that happened to be wrong -
+#   a backend that errors on this Malta deployment the same way it does on
+#   Ghana's, on a different European Dynamics customer instance. NOT THIS
+#   SOURCE per procedure step 3 ("stop at the first route that *works*"); rule 1
+#   forbids maintaining the CAPTCHA-walled HTML route as a second entry point
+#   once this one is chosen, so nothing here reads that route either. Someone
+#   with a longer path to MITA or European Dynamics support could confirm
+#   whether this is a standing misconfiguration, the way sources/liberia.yaml's
+#   own OCDS endpoint reset once and then worked fourteen minutes later.
+#
+# PUBLIC HTML LISTING - CAPTCHA ON EVERY ENTRY POINT, MEASURED, NOT ASSUMED.
+# GHANEPS's shape (an anonymous GET to a search-results action returning a
+# populated table) does NOT hold here. Two entry points fetched on 2026-09-18,
+# both server-rendered by the origin (no JavaScript executed):
+#   `/epps/prepareCurrentOpportunities.do?currentType=cft` (the home page's own
+#   "View the latest Calls for Tenders publications" link and the footer's
+#   "Latest CfTs" link) returns a "Simple search" page whose only body content
+#   is a form: `<input type="hidden" name="searchType" value="cftFTS">` plus a
+#   mandatory CAPTCHA field ("Please type the code shown below") backed by
+#   `/epps/genCaptcha/captcha.jpg`. There is no results table anywhere in the
+#   200-byte response and no rows to page through - the query has to be
+#   submitted, through the CAPTCHA, before any notice appears.
+#   `/epps/prepareAdvancedSearch.do?type=cftFTS&viewMode=searchOpened` (the
+#   footer's "Opened Tender Details" link, the other candidate quick-search
+#   entry point) is a longer form with more filters and the identical
+#   `<img id="CAPTCHA" src="/epps/genCaptcha/captcha.jpg">` mandatory field.
+# Both are forms, not listings, and both require solving a CAPTCHA to become a
+# listing. Rule 21 ("no CAPTCHA solving") rules this route out regardless of
+# what tos_status would otherwise say, and regardless of connector class:
+# BrowserConnector does not change this, since a browser still has to solve the
+# same CAPTCHA image a plain GET does. This is the fact that separates Malta
+# from Ghana: Ghana's listing needed no browser and no CAPTCHA; Malta's needs a
+# CAPTCHA and no browser would help with that.
+#
+# DETAIL PAGES ARE PUBLIC ONCE THE ID IS KNOWN, BUT THERE IS NO LAWFUL WAY TO
+# LEARN AN ID. Both of the BD lead's URLs, `cft/prepareViewCfTWS.do?
+# resourceId=13974341` and `resourceId=13851814`, answered HTTP 200 to a fresh,
+# cookie-free, anonymous GET (checked 2026-09-18) with the full notice detail:
+# title, contracting authority, CPV codes, estimated value, EU-threshold flag,
+# publication and deadline dates, and TED links where they exist (see VALUE
+# OVER TED below). The page shows a "Log in" button in its own nav, exactly
+# like GHANEPS and Liberia, but nothing on the page itself is gated. THIS IS
+# NOT A ROUTE: nothing on this host, in the OCDS policy, or anywhere else
+# publishes a mapping from a search to a resourceId that does not go through
+# the CAPTCHA above, and clause 2.4 itself names "circumvent the navigational
+# structure" and obtaining material "through any means not purposely made
+# available through the Services" as exactly what is forbidden. Incrementing or
+# guessing resourceId values would be doing precisely that, and rule 1 forbids
+# inventing a second path once the documented one (the search form) is found
+# blocked. No such enumeration was attempted.
+#
+# DOCUMENT DOWNLOAD / SESSION. Neither sampled detail page carries an anonymous
+# document-download link in its own markup: the `downloadCompetition.do` and
+# `downloadCftDocuments`-style actions are wired to the authenticated "Show CfT
+# Menu" dropdown (`commonAjaxCall.do?requestType=cftMenu`), not rendered as
+# reachable hrefs on the page fetched without a session - consistent with
+# GHANEPS and Liberia's own split between a public notice and a login-walled
+# document set. Not tested further: doing so would mean registering an Economic
+# Operator account, which this file does not do and which CLAUDE.md reserves
+# for a named FreeBalance person to decide, not this pipeline.
+#
+# LANGUAGE AND CODES. `<html lang="en">` on the home page, the Terms of Use
+# popup, and both sampled detail pages; the detail pages' own prose (titles,
+# descriptions, field labels) is fluent English throughout. No language
+# selector was found anywhere in the site's header or footer nav (checked on
+# the home page, the "Simple search" page and the "Relevant links" page) - this
+# reads as an English-only public interface, unlike a bilingual portal that
+# would carry a toggle. CPV codes ARE carried, unlike GHANEPS: both sampled
+# notices name two CPV codes each in a clearly labelled "CPV Codes:" field
+# (79211000 / 79211110 for the accounting-and-payroll notice, 72511000 /
+# 48451000 for the ERP notice) - both squarely inside the free filter's 48/72/79
+# pass bands (CLAUDE.md's CPV top-level codes). "Above or Below EU Threshold" is
+# also a named, structured field on the same page, not something a connector
+# would have to infer.
+#
+# MEASUREMENT NOT POSSIBLE - SAID PLAINLY RATHER THAN GUESSED. Procedure step 5
+# asks for a 7-day notice count and step "what does this add over TED" asks how
+# many recent CPV-48/72/79 notices sit below the TED threshold. Neither can be
+# produced here: there is no working listing (CAPTCHA) and no working feed
+# (OCDS 500s) to enumerate recent notices from, so there is no population to
+# count against. The two data points that exist are the BD lead's own finds,
+# below, and they are illustrative, not a sample - a real measurement needs
+# either DOC/MITA to fix the OCDS 500 or a named person's decision on the CAPTCHA
+# question, not a number invented from two rows.
+#
+# VALUE OVER TED - SETTLED BY THE TWO EXAMPLES THEMSELVES, EVEN WITHOUT A
+# VOLUME MEASUREMENT. Both detail pages carry an explicit "Above or Below EU
+# Threshold" field and a "TED links for published notices" field, read
+# verbatim:
+#   resourceId=13974341 (SPD4/2026/037, accounting/payroll services for NCPE,
+#   CPV 79211000 + 79211110, EUR 55,500, published 29/07/2026 09:21): "Above or
+#   Below EU Threshold: Below"; "TED links for published notices:" is empty.
+#   This is exactly the sub-threshold, TED-invisible layer CLAUDE.md's own
+#   framing expects - the EU procurement directives simply do not require a
+#   notice this size to reach TED, so TED cannot be missing it by a flaw, only
+#   by design, and Malta's own portal is the only public route to it.
+#   resourceId=13851814 (CT2173/2026, ERP solution for WasteServ Malta, CPV
+#   72511000 + 48451000, EUR 3,561,080, published 19/06/2026 04:10): "Above or
+#   Below EU Threshold: Above"; "TED links for published notices:" names TWO
+#   live TED notice URLs (TED:NOTICE:422146-2026 and TED:NOTICE:547650-2026).
+#   This notice is NOT a gap: it is already dual-published on TED, which
+#   sources/ted.yaml already reads, and the BD lead's framing of it as
+#   something "the pilot should have surfaced" is answered by this field, not
+#   by this source - if it is missing from the pipeline today the question is
+#   TED's own coverage or scoring, not a missing Malta connector.
+#   So the one confirmed marginal case is the sub-threshold notice, and the one
+#   route to it - the search form - is exactly the route this file finds
+#   blocked. Malta adds real, non-duplicate coverage in principle (small
+#   national PFM-adjacent tenders under the ~EUR 140,000-750,000 EU thresholds
+#   depending on category, which is real signal for a small-country buyer) and
+#   zero coverage in practice while both blockers above stand.
+#
+# WHAT A PERSON WOULD HAVE TO DO, matching sources/place.yaml's shape for the
+# same kind of finding:
+#   a. Ask DOC/MITA to fix the OCDS `searchRecords.action` 500 (the ODC-PDDL
+#      license already clears the reuse question; this is a bug report, not a
+#      negotiation) - the cleanest unblock, since it needs no policy exception.
+#   b. Obtain a written exception from DOC naming
+#      FreeBalance-OpportunityMonitor and the search endpoint, displacing
+#      clause 2.4 for this client the way sources/simap.yaml's AGB clause 4
+#      displaces its own general reproduction clause. Still leaves the CAPTCHA
+#      as a separate technical blocker unless DOC also names an exemption or an
+#      alternate machine-readable endpoint.
+#   c. A named FreeBalance person could register an Economic Operator account
+#      to see whether a logged-in session removes the CAPTCHA on search - NOT
+#      done here, and not this pipeline's decision (CLAUDE.md: never register
+#      an account on FreeBalance's behalf).
+#   d. Decide the coverage is not worth chasing given TED already covers MT's
+#      above-threshold notices and leave this file as the record of why.
+# None of a, b, c or d is this file's to take.
+#
+# INVENTORY: no tracked Source Inventory spreadsheet was found in this
+# repository to update alongside this file (checked: no file matching
+# `*inventory*` anywhere under the project root). Whoever holds that
+# spreadsheet outside this repository should update Malta's row to match this
+# entry - reviewed_restricted, no working route, enabled: false - so the two
+# do not disagree.
+id: malta
+name: Malta Electronic Public Procurement System (e-PPS)
+country: MT
+admin_level: national
+language: en
+stream: feed
+wave: 1
+# api, matching sources/place.yaml's precedent of labelling a source by the
+# route the platform itself commits to (DOC's Publication Policy: "can be
+# downloaded by any interested person through a published API") rather than by
+# whichever HTML page happened to answer a GET - here doubly apt, because the
+# alternative HTML route is CAPTCHA-walled and the ToS-favoured route is this
+# one. Unlike place.yaml this endpoint WAS probed rather than left untried, and
+# it 500s - see OCDS above.
+access: api
+connector: FeedConnector
+# UNMEASURED AND PROVISIONAL, the same status sources/place.yaml carries for the
+# same reason: no permitted or working fetch has ever been made, so there is no
+# real batch timing to set this from. 09:15 UTC (11:15 Europe/Malta CEST in
+# September) collides with nothing else currently in sources/.
+schedule: '15 9 * * *'
+# The confirmed-existing OCDS records endpoint (HTTP 200 on the Angular shell
+# that calls it, HTTP 500 on the endpoint itself - see OCDS above). Not a
+# documentation guess: read directly from the served
+# RecordGridCtrl.js the way sources/ghana.yaml read Ghana's identical file.
+api_url: https://www.etenders.gov.mt/ocds/record/searchRecords.action
+# reviewed_restricted on General Terms of Use (www.etenders.gov.mt, Date Issued
+# 30/05/2018) clause 2.4, which forbids "any 'deep-link', 'page-scrape',
+# 'robot', 'spider' or other automatic device ... to access, acquire, copy or
+# monitor any portion of the Services." This is the position that binds today,
+# because the one route clause 2.4 itself would treat as "purposely made
+# available" - the OCDS API under DoC_OCDS_License_v1.0.docx's ODC-PDDL terms -
+# does not currently work (HTTP 500 on every call tried; see OCDS above). If
+# that endpoint starts working, the license question for THAT route is already
+# answered (public domain, no restriction); this field would need reopening
+# then, not reused from this state.
+tos_status: reviewed_restricted
+# false, and not a step-away-from-true placeholder the way sources/ghana.yaml's
+# was before its connector existed: there is no connector to build against
+# while both blockers above stand (the ToS position on the only fetch that
+# would currently succeed, and the CAPTCHA on the only listing route, rule 21).
+# A named person's action (see WHAT A PERSON WOULD HAVE TO DO above) is what
+# stands between this file and a live connector, not more assessment.
+enabled: false
+health:
+  # UNMEASURED. No permitted or working fetch exists (see MEASUREMENT NOT
+  # POSSIBLE above), so this is a placeholder band and not an observation,
+  # floored above zero per rule 4 so a silent empty run could never read as
+  # healthy if this were ever enabled without being re-measured first. Malta is
+  # a single small country, so this is set far below sources/place.yaml's
+  # Spain-sized [1, 400] rather than copied from it.
+  expected_items_per_run: [1, 60]
+  max_consecutive_failures: 3
+owner: ryan.dear
