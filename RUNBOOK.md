@@ -93,7 +93,9 @@ decision to take out loud rather than a flag to flip.
 
 ### 3. The clock
 
-`deploy/README.md` is the authority here and this is the summary. Two commands on a
+`deploy/README.md` is the authority here and this is the summary. On a fresh host,
+`sudo deploy/host_setup.sh --repo <git-url>` does all of section 1 and this section
+in order, checked, and proves each unit with one run before the clock is trusted. Two commands on a
 timer, `monitor run` and `monitor status`, each appending to a log file:
 
 ```bash
@@ -941,8 +943,9 @@ operator who assumes otherwise will be wrong at a bad moment.
   timers are running, not before: a backfill into a pipeline that then goes dark again
   is theatre. The same gap exists for every other source; TED is the only one with a
   date-windowed query, so it is the only one this script can serve.
-- **No log rotation ships with the timers.** Fourteen weeks of hourly passes will need a
-  logrotate snippet or a person with `truncate`.
+- ~~**No log rotation ships with the timers.**~~ `deploy/host_setup.sh` writes
+  `/etc/logrotate.d/monitor` (weekly, eight kept, compressed, copytruncate so the
+  `append:` file handles the units hold stay valid). A host set up by hand still needs it.
 - **`make up` assumes Postgres is in Compose.** The pilot host and this checkout run it
   natively, where `make migrate && make seed` is the equivalent and `make up` fails at
   `docker compose up`.

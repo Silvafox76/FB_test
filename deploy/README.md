@@ -74,6 +74,21 @@ read only the sources whose window it is.
 
 ## Install the timers on the pilot host
 
+**The short way**, which does every step below in order, checks each before acting,
+and can be rerun after any failure:
+
+```bash
+sudo deploy/host_setup.sh --repo <git-url> --branch <branch>        # first run
+sudo deploy/host_setup.sh --repo <git-url> --branch <branch> --check  # print the plan, change nothing
+```
+
+It stops once, deliberately, after writing the empty environment file, and asks you
+to fill it in (rule 20: the script never sees a value); run it again and it resumes
+from Postgres, migrates, seeds, installs the units, enables the four timers and
+proves each service with one run by hand. Ubuntu 24.04 and native Postgres 16 are
+assumed; the steps it follows are the ones written out here.
+
+
 Conventions this file sets, to be matched by step 12's Terraform rather than
 invented again there: checkout at `/opt/monitor`, service account `monitor`,
 environment file at `/etc/monitor/monitor.env`, logs in `/var/log/monitor/`.
