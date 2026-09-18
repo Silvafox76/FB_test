@@ -66,14 +66,31 @@ run() {
     if [ "$CHECK" -eq 0 ]; then "$@"; fi
 }
 
+env_pairs() {
+    # KEY=VALUE pairs from the env file, read the way systemd's EnvironmentFile
+    # reads it and NOT the way a shell would: no expansion, no substitution, no
+    # execution, whole-line comments and blank lines skipped, a double-quoted value
+    # unwrapped. Sourcing the file with `.` would expand a `$` or a backtick inside
+    # a password (rule 20) and would disagree with the units that read the same
+    # file literally (rule 1: one parser for one file).
+    local line key value
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|\#*) continue ;; esac
+        key="${line%%=*}"; value="${line#*=}"
+        case "$value" in \"*\") value="${value#\"}"; value="${value%\"}" ;; esac
+        printf '%s=%s\0' "$key" "$value"
+    done < "$ENV_FILE"
+}
+
 as_monitor() {
-    # Run a command as the service user, in the checkout, with the env file loaded
-    # the way the systemd units load it (whole file, no shell expansion).
+    # Run a command as the service user, in the checkout, with the env file loaded.
     do_ "(as $SERVICE_USER, env loaded) $*"
     if [ "$CHECK" -eq 0 ]; then
+        local -a pairs=()
+        while IFS= read -r -d '' pair; do pairs+=("$pair"); done < <(env_pairs)
         sudo -u "$SERVICE_USER" env -i HOME="$(getent passwd "$SERVICE_USER" | cut -d: -f6)" \
-            PATH=/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1 \
-            bash -c "set -a; . '$ENV_FILE'; set +a; cd '$CHECKOUT' && exec \"\$@\"" _ "$@"
+            PATH=/usr/local/bin:/usr/bin:/bin PYTHONUNBUFFERED=1 "${pairs[@]}" \
+            bash -c "cd '$CHECKOUT' && exec \"\$@\"" _ "$@"
     fi
 }
 
@@ -249,7 +266,7 @@ if [ "$CHECK" -eq 0 ]; then
     systemctl list-timers 'monitor-*' --no-pager
     printf '\n   The first unattended pass is the next :00 UTC. Read it with:\n'
     printf '     tail -f /var/log/monitor/run.log\n'
-    printf '     sudo -u %s bash -c "set -a; . %s; set +a; cd %s && make status"\n' "$SERVICE_USER" "$ENV_FILE" "$CHECKOUT"
+    printf '     sudo systemctl start monitor-status.service && tail -n 40 /var/log/monitor/status.log\n'
     printf '   The review app is not a unit: a person starts it with `make review` on 127.0.0.1:8080 (rule 17).\n'
     printf '   Backfill the days the pipeline was not running, once, per RUNBOOK "Known gaps":\n'
     printf '     make backfill-ted FROM=2026-08-24 TO=2026-09-08 DRY=1\n'

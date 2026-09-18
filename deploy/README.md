@@ -111,8 +111,11 @@ sudo sh -c 'curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/loc
 sudo install -m 0644 /opt/monitor/deploy/systemd/monitor-*.service /etc/systemd/system/
 sudo install -m 0644 /opt/monitor/deploy/systemd/monitor-*.timer   /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now monitor-run.timer monitor-status.timer monitor-metrics.timer
+sudo systemctl enable --now monitor-run.timer monitor-status.timer monitor-metrics.timer monitor-fx.timer
 ```
+
+`monitor-fx.timer` is the fourth: the day's exchange rates at 09:00 UTC, which
+staging refuses to run without (`config/fx.yaml`, `max_rate_age_days`).
 
 Enable the **timers**, not the services. The `.service` units have no `[Install]`
 section: enabling a timer-driven service would run it once at boot and never
@@ -222,9 +225,10 @@ Whichever it is, one file per command holds the whole pass, and both streams are
 it in the order they happened.
 
 `/var/log/monitor` is created by systemd (`LogsDirectory=monitor`) before the
-first run; nothing needs to pre-create it. **No log rotation is shipped with these
-units.** Over a 14-week pilot at hourly, `run.log` will need either a logrotate
-snippet or a person with `truncate`; that decision is not made here.
+first run; nothing needs to pre-create it. **Log rotation is not in the units.**
+`deploy/host_setup.sh` writes `/etc/logrotate.d/monitor` (weekly, eight kept,
+compressed, `copytruncate` so the `append:` handles the units hold stay valid); a
+host set up by hand needs the same snippet or a person with `truncate`.
 
 ## Switching to the Monday per-source windows
 
