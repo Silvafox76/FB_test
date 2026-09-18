@@ -7,7 +7,7 @@ S ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs migrate seed filter translate score rescore stage golden-export test lint fmt fetch run status golden metrics review export
+.PHONY: help up down logs migrate seed filter translate score rescore stage golden-export backfill-ted test lint fmt fetch run status golden metrics review export
 
 help: ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -84,6 +84,10 @@ golden: ## Precision, recall and schema validity for the current prompt version
 
 golden-export: ## Write the unlabelled golden set for a person to label
 	uv run python -m monitor.cli golden --export
+
+backfill-ted: ## Fetch TED for a date range the scheduled pass never reached: make backfill-ted FROM=2026-08-24 TO=2026-09-08 [DRY=1]
+	@test -n "$(FROM)" -a -n "$(TO)" || { echo "usage: make backfill-ted FROM=YYYY-MM-DD TO=YYYY-MM-DD [DRY=1]"; exit 2; }
+	uv run python scripts/backfill_ted.py --from $(FROM) --to $(TO) $(if $(DRY),--dry-run,)
 
 # No arguments, no flags, no labelling step: the weekly job and this target are the
 # same command, so what a person runs on demand is what cron runs on Monday. It makes

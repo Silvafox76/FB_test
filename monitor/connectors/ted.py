@@ -118,7 +118,7 @@ class TedConnector(FeedConnector):
         # From config/thresholds.yaml, never hardcoded here (rule 6).
         self.cpv_prefixes = cpv_prefixes
 
-    def query(self, today: date | None = None) -> str:
+    def query(self, today: date | None = None, *, since: date | None = None, until: date | None = None) -> str:
         """CPV in the pass prefixes, published in the last two days.
 
         Dates are yyyymmdd with no separators and `field=value*` is the prefix
@@ -127,10 +127,18 @@ class TedConnector(FeedConnector):
         The notice types the registry excludes are dropped here rather than after
         the fetch. Measured on 2026-09-12: it takes a two-day window from 1,449
         matched to 822.
+
+        `since` and `until` name an explicit publication-date window and exist for
+        `scripts/backfill_ted.py` alone: the scheduled pass never passes them and
+        reads the trailing `LOOKBACK_DAYS`, so a notice published before the
+        pipeline's first pass is never fetched on its own (decision 59). A window is
+        a person's decision about a range of days, not a second path the pass takes.
         """
-        since = ((today or date.today()) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y%m%d")
+        start = since or ((today or date.today()) - timedelta(days=LOOKBACK_DAYS))
         prefixes = " OR ".join(f"classification-cpv={p}*" for p in self.cpv_prefixes)
-        query = f"({prefixes}) AND publication-date>={since}"
+        query = f"({prefixes}) AND publication-date>={start.strftime('%Y%m%d')}"
+        if until is not None:
+            query += f" AND publication-date<={until.strftime('%Y%m%d')}"
 
         excluded = self.source.exclude_notice_types
         if excluded:
@@ -139,8 +147,10 @@ class TedConnector(FeedConnector):
             query += f" AND NOT (notice-type IN ({' '.join(excluded)}))"
         return query
 
-    def fetch_raw(self, client: httpx.Client) -> list[RawNotice]:
-        query = self.query()
+    def fetch_raw(
+        self, client: httpx.Client, *, since: date | None = None, until: date | None = None
+    ) -> list[RawNotice]:
+        query = self.query(since=since, until=until)
         ceiling = self.source.expected_max
         raw_notices: list[RawNotice] = []
         total = 0

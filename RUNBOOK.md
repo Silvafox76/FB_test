@@ -926,9 +926,21 @@ operator who assumes otherwise will be wrong at a bad moment.
   future source needing one of those needs that module extended first.
 - **Logging is not JSON yet.** `structlog.configure` is never called, so lines land in
   the console format shown above and greps written against JSON keys find nothing.
-- **No precision or recall number exists for any prompt version**, because the golden
-  set is unlabelled. A prompt change can be verified as a version change and not as a
-  quality change until a person labels those 30 rows.
+- ~~**No precision or recall number exists for any prompt version.**~~ MEASURED 2026-09-16.
+  150 human labels; precision 50% on live scores and 30 to 38% across three fresh runs
+  against a gate of 60%, recall 56% on all three (`tests/golden/history.csv`, decisions
+  57 and 58). The number exists; it is not met.
+- **The scheduled TED pass reads the trailing two days and nothing else.** Anything
+  published while the pipeline was not running is never fetched on its own: the first
+  TED pass ran on 2026-09-11, and two contract notices published on 24 August that match
+  every clause of the query were traced as "missed" on 2026-09-18 (decision 59). The
+  one-off for that is `make backfill-ted FROM=YYYY-MM-DD TO=YYYY-MM-DD` (`DRY=1` first),
+  which walks the range day by day through the same connector, mapper and insert as
+  the pass, writes no `fetch_runs` row, touches no health, and stops at the first day
+  that fails; then `make filter score stage` takes the notices through. Run it once the
+  timers are running, not before: a backfill into a pipeline that then goes dark again
+  is theatre. The same gap exists for every other source; TED is the only one with a
+  date-windowed query, so it is the only one this script can serve.
 - **No log rotation ships with the timers.** Fourteen weeks of hourly passes will need a
   logrotate snippet or a person with `truncate`.
 - **`make up` assumes Postgres is in Compose.** The pilot host and this checkout run it
