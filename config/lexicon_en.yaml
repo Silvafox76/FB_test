@@ -42,6 +42,27 @@
 # blind to - 16 notices on the current corpus, including Spain's audits of public sector
 # entities and Latvia's EU fund certification. They are adjacent rather than core, which is
 # what the lower staging threshold in thresholds.yaml is now there to let a person judge.
+#
+# FOURTEEN PHRASES WERE ADDED ON 2026-09-19 FROM THE "MEGA WIN THEMES" DOCUMENT (BD, December
+# 2025), whose five themes each carry a "detection triggers" keyword list written for exactly
+# this kind of filter. Every keyword in it, 67 in all, was measured against the 2,700 notices
+# held (scratchpad measure_win_themes.py, same readable-text rule as measure_lexicon.py).
+# What was taken: the PFM-specific vocabulary from themes 1 and 3 - commitment accounting,
+# budget classification, accrual accounting, COFOG, government financial statistics, PEFA,
+# public expenditure management, government resource planning, GRP, FMIS, results-based
+# management, gender and climate budgeting, activity-based costing. Each matches ZERO notices
+# today, so each costs nothing at the filter now and exists for the reform-programme and West
+# African notices that write in this register (a PEFA-driven IFMIS tender does say PEFA).
+# What was NOT taken, with the measurement: `configuration` (42 hits, 33 new passes, 2 golden
+# relevant against 13 not - the decision-44 bare word again), `modernization` (20 new, school
+# furniture and computer equipment, none relevant), `interoperability` (10, 2 against 3),
+# `capacity building` (10, water and energy projects), `metadata` (publishing services), and
+# every keyword in themes 2, 4 and 5 (sovereignty, TCO, cloud native, API-first, ...), which
+# describe how FreeBalance sells rather than what a notice asks for. Themes and pain points
+# are proposal material and do not go into the prompt: the scorer judges the notice.
+# Placement: appended to each function's list, so `_functions_block()`'s window (first eight
+# English phrases) still shows the model the phrases it was tuned on; the deterministic
+# filter reads the whole list. prompt_version changes where a function was under the window.
 language: en
 functions:
   policy_management:
@@ -51,6 +72,8 @@ functions:
   - PFM reform
   - legal framework
   - financial management act
+  - public expenditure management
+  - PEFA
   budget_planning_formulation:
   - budget preparation
   - budget planning
@@ -59,6 +82,9 @@ functions:
   - budget calendar
   - macro-fiscal
   - planning and reporting
+  - budget classification
+  - COFOG
+  - government financial statistics
   public_accounts_management:
   - government accounting standards
   - chart of accounts
@@ -72,11 +98,15 @@ functions:
   - accounting software
   - accounting services
   - financial reporting
+  - accrual accounting
   performance_structures_implementation:
   - performance budgeting
   - chart of goals
   - results-based budgeting
   - output and outcome targets
+  - results-based management
+  - gender budgeting
+  - climate budgeting
   budget_and_appropriation_control:
   - appropriation control
   - budget control
@@ -89,6 +119,7 @@ functions:
   - encumbrance
   - pre-commitment
   - de-commitment
+  - commitment accounting
   budget_execution:
   - budget execution
   - warrant
@@ -129,11 +160,15 @@ functions:
   - financial information system
   - enterprise resource planning
   - ERP system
+  - FMIS
+  - government resource planning
+  - GRP
   cost_accounting:
   - cost accounting
   - project accounting
   - program budgeting
   - cost centre
+  - activity-based costing
   asset_inventory_management:
   - fixed assets
   - asset register

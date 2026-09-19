@@ -2,3 +2,4 @@ at,prompt_version,model,threshold,labelled,scored,parked,precision,recall,schema
 2026-09-16T17:22:21+00:00,c5c2adbe1f2a,claude-haiku-4-5,25,150,150,0,0.3333,0.5625,1.0000,0.003101
 2026-09-16T17:54:50+00:00,c5c2adbe1f2a,claude-haiku-4-5,25,150,150,0,0.3000,0.5625,1.0000,0.003186
 2026-09-16T18:06:15+00:00,c5c2adbe1f2a,claude-haiku-4-5,25,150,150,0,0.3750,0.5625,1.0000,0.003121
+2026-09-19T14:51:52+00:00,e62abf5d5bff,claude-haiku-4-5,25,150,150,0,0.3793,0.6875,1.0000,0.003161

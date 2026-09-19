@@ -60,6 +60,17 @@
 # rather than another guessed phrase. `nomination` in particular is generic enough (ministerial,
 # judicial, board appointments) to be the next `trésor` the moment a source starts publishing
 # appointment notices; it is kept only because it currently matches nothing to prove it wrong.
+#
+# TWELVE PHRASES WERE ADDED ON 2026-09-19, the French renderings of the PFM vocabulary taken
+# from the "Mega Win Themes" document (see lexicon_en.yaml for the measurement and what was
+# left out): comptabilité d'engagement, nomenclature budgétaire, comptabilité d'exercice,
+# comptabilité patrimoniale, COFOG, statistiques de finances publiques, PEFA, gestion des
+# dépenses publiques, budgétisation sensible au genre, budget vert, GRP, comptabilité par
+# activités. Each matches zero of the notices the fr lexicon reads today (GRP: one, already
+# passing). `renforcement des capacités`, `transfert de compétences` and `interopérabilité`
+# were measured and left out: the two new passes each would bring are a complaints-management
+# application and the Oùra ticketing system. Appended after the six-phrase window, so the
+# scorer's French block is unchanged except where a function had fewer than six.
 language: fr
 functions:
   policy_management:
@@ -68,12 +79,17 @@ functions:
   - réforme des finances publiques
   - cadre juridique
   - loi organique relative aux finances
+  - PEFA
+  - gestion des dépenses publiques
   budget_planning_formulation:
   - préparation du budget
   - planification budgétaire
   - cadre de dépenses à moyen terme
   - règles budgétaires
   - calendrier budgétaire
+  - nomenclature budgétaire
+  - COFOG
+  - statistiques de finances publiques
   public_accounts_management:
   - normes comptables publiques
   - plan comptable
@@ -84,10 +100,14 @@ functions:
   - portail budgétaire
   - services comptables
   - reporting financier
+  - comptabilité d'exercice
+  - comptabilité patrimoniale
   performance_structures_implementation:
   - budget de performance
   - budgétisation axée sur les résultats
   - objectifs de performance
+  - budgétisation sensible au genre
+  - budget vert
   budget_and_appropriation_control:
   - contrôle budgétaire
   - crédits budgétaires
@@ -97,6 +117,7 @@ functions:
   - contrôle des engagements
   - pré-engagement
   - bon de commande
+  - comptabilité d'engagement
   budget_execution:
   - exécution budgétaire
   - contrôle des dépenses
@@ -121,10 +142,12 @@ functions:
   - SIGFiP
   - AGFIS
   - KFMIS
+  - GRP
   cost_accounting:
   - comptabilité analytique
   - comptabilité de projet
   - centre de coût
+  - comptabilité par activités
   asset_inventory_management:
   - immobilisations
   - registre des actifs
