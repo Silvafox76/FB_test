@@ -1,20 +1,20 @@
 """Apply a reviewer's decisions from the review workbook they filled in.
 
 The reviewers' workbook (`make review-workbook`, 2026-09-18) carries one row per
-pending candidate and three columns for the reviewer: YOUR DECISION, YOUR REASON and
-Zoho checked. When it comes back, this script reads those columns and puts each
-decision through the single write path, `review/decisions.py`, as the named reviewer,
-connecting as `monitor_review` (rules 11 to 13). It is the same call the form makes;
-the workbook is the reviewer's instrument, not a second code path.
+pending candidate and two columns for the reviewer: YOUR DECISION and YOUR REASON.
+When it comes back, this script reads those columns and puts each decision through
+the single write path, `review/decisions.py`, as the named reviewer, connecting as
+`monitor_review` (rules 11 to 13). It is the same call the form makes; the workbook is
+the reviewer's instrument, not a second code path.
 
-What it does with each decision:
+What it does with each decision (two decisions, decision 69; "monitor" is an approval
+carrying a tag, reconfirmed at export):
   approve  -> decisions.approve(candidate, reviewer)
+  monitor  -> decisions.approve(candidate, reviewer, tag="monitor")
   reject   -> decisions.reject(candidate, reviewer, "<reason>: <why>") where <reason> is
               one of config/review.yaml's rejection_reasons and <why> is the workbook's
               own reasoning for that row, so the week 14 gate reads a stable vocabulary
               plus the evidence
-  monitor  -> nothing. There is no such status (decision 57's third label is still an
-              open question), so the row stays pending_review and is listed at the end
   blank    -> nothing, listed at the end
 
 A row whose "why" column is empty and whose YOUR REASON says only "see why column" is
@@ -42,11 +42,10 @@ DECISION_COLUMN = "YOUR DECISION"
 REASON_COLUMN = "YOUR REASON"
 WHY_COLUMN = "why"
 CANDIDATE_COLUMN = "candidate"
-ZOHO_COLUMN = "Zoho checked (Y/N)"
 
-# The workbook offers three words; the system has two statuses. "monitor" is recorded
-# here as a skip so the reviewer sees the row was read and deliberately left pending.
+# The workbook offers three words; the system has two decisions and one tag.
 ACTIONS = {"approve", "reject", "monitor"}
+MONITOR_TAG = "monitor"
 
 
 @dataclass(frozen=True)
@@ -55,14 +54,13 @@ class Row:
     decision: str  # lower-cased, stripped; "" when blank
     reason: str  # YOUR REASON as typed
     why: str  # the Monitor's own reasoning, endorsed when the reviewer points at it
-    zoho_checked: str
 
 
 def read_rows(path: Path) -> list[Row]:
     sheet = openpyxl.load_workbook(path, data_only=True)[SHEET]
     header = [cell.value for cell in sheet[1]]
     index = {name: i for i, name in enumerate(header)}
-    for name in (CANDIDATE_COLUMN, DECISION_COLUMN, REASON_COLUMN, WHY_COLUMN, ZOHO_COLUMN):
+    for name in (CANDIDATE_COLUMN, DECISION_COLUMN, REASON_COLUMN, WHY_COLUMN):
         if name not in index:
             raise ValueError(f"{path.name}: sheet {SHEET!r} has no column {name!r}")
     rows = []
@@ -76,7 +74,6 @@ def read_rows(path: Path) -> list[Row]:
                 decision=str(values[index[DECISION_COLUMN]] or "").strip().lower(),
                 reason=str(values[index[REASON_COLUMN]] or "").strip(),
                 why=str(values[index[WHY_COLUMN]] or "").strip(),
-                zoho_checked=str(values[index[ZOHO_COLUMN]] or "").strip(),
             )
         )
     return rows
@@ -101,7 +98,7 @@ def rejection_text(row: Row, category: str) -> str:
 
 
 def apply(rows: list[Row], reviewer: str, category: str, *, dry_run: bool) -> dict[str, list[str]]:
-    outcome: dict[str, list[str]] = {"approved": [], "rejected": [], "monitor": [], "blank": [], "refused": []}
+    outcome: dict[str, list[str]] = {"approved": [], "monitor": [], "rejected": [], "blank": [], "refused": []}
     unknown = [r for r in rows if r.decision and r.decision not in ACTIONS]
     if unknown:
         raise ValueError("unknown decisions: " + ", ".join(f"{r.candidate}={r.decision!r}" for r in unknown))
@@ -112,15 +109,16 @@ def apply(rows: list[Row], reviewer: str, category: str, *, dry_run: bool) -> di
             if not row.decision:
                 outcome["blank"].append(row.candidate)
                 continue
-            if row.decision == "monitor":
-                outcome["monitor"].append(row.candidate)
-                continue
             try:
                 if row.decision == "reject":
                     text = rejection_text(row, category)
                     if not dry_run:
                         reject(conn, row.candidate, reviewer, text)
                     outcome["rejected"].append(row.candidate)
+                elif row.decision == "monitor":
+                    if not dry_run:
+                        approve(conn, row.candidate, reviewer, tag=MONITOR_TAG)
+                    outcome["monitor"].append(row.candidate)
                 else:
                     if not dry_run:
                         approve(conn, row.candidate, reviewer)
@@ -153,14 +151,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{len(rows)} rows read from {args.workbook.name}; reviewer {args.reviewer}")
     for key in ("approved", "rejected"):
         print(f"  {label}{key}: {len(outcome[key])}  {' '.join(outcome[key])}")
-    print(f"  monitor, left pending (no such status): {len(outcome['monitor'])}  {' '.join(outcome['monitor'])}")
+    print(f"  {label}approved with tag {MONITOR_TAG}: {len(outcome['monitor'])}  {' '.join(outcome['monitor'])}")
     print(f"  blank, left pending: {len(outcome['blank'])}  {' '.join(outcome['blank'])}")
     for line in outcome["refused"]:
         print(f"  REFUSED {line}")
-    unchecked = [r.candidate for r in rows if r.decision == "approve" and r.zoho_checked.upper() != "Y"]
-    if unchecked:
-        print(f"  approved without 'Zoho checked = Y': {len(unchecked)}  {' '.join(unchecked)}")
-        print("  the duplicate check is the reviewer's only control; do it before the first export batch")
     return 1 if outcome["refused"] else 0
 
 

@@ -20,7 +20,7 @@ import yaml
 
 from monitor.registry.load import CONFIG_DIR
 from review import decisions
-from review.decisions import DecisionRefused, approve, reject, rejection_reasons
+from review.decisions import DecisionRefused, approval_tags, approve, reject, rejection_reasons
 
 pytestmark = pytest.mark.roles
 
@@ -241,3 +241,40 @@ def test_the_reason_list_is_config_not_code():
     reasons = rejection_reasons()
     assert "Not PFM" in reasons
     assert len(reasons) >= 5
+
+
+# --- decision 69: the monitor tag ----------------------------------------------
+
+
+def test_approve_with_the_monitor_tag_stores_it_and_the_event_says_so(review, staged):
+    record_id = approve(review, staged, "Ryan Dear", tag="monitor")
+
+    tag = review.execute("select review_tag from approved_records where id = %s", (record_id,)).fetchone()[0]
+    assert tag == "monitor"
+
+    approved_event = next(event for event in events_for(review, staged) if event[0] == "approved")
+    assert approved_event[3] == f"approved as {record_id}, tagged monitor"
+
+
+def test_approve_without_a_tag_stores_an_empty_string(review, staged):
+    record_id = approve(review, staged, "Ryan Dear")
+
+    tag = review.execute("select review_tag from approved_records where id = %s", (record_id,)).fetchone()[0]
+    assert tag == ""
+
+    approved_event = next(event for event in events_for(review, staged) if event[0] == "approved")
+    assert approved_event[3] == f"approved as {record_id}"
+    assert "tagged" not in approved_event[3]
+
+
+def test_approve_with_an_unknown_tag_is_refused_and_writes_nothing(review, staged):
+    with pytest.raises(DecisionRefused, match="not a tag an approval may carry"):
+        approve(review, staged, "Ryan Dear", tag="hot lead")
+
+    assert approved_count(review, staged) == 0
+    assert review.execute("select status from candidates where id = %s", (staged,)).fetchone()[0] == "pending_review"
+    assert events_for(review, staged) == []
+
+
+def test_the_tag_list_is_config_not_code():
+    assert approval_tags() == ["monitor"]

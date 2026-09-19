@@ -68,7 +68,7 @@ region is activated.
 | 4 "How an approved record reaches Zoho" | Title and vendor wording | "How an approved record leaves the system": unchanged mechanism, CRM-neutral |
 | 4, 5 Review app | Bound to localhost, reached over an SSM port forward, reviewer name typed | Unchanged for the pilot (67). At R0: private instance behind AWS Verified Access with OIDC to the company identity provider; identity from the signed assertion; authority by region (rules 23 to 25) |
 | 6 Deployment | "No inbound network path at all"; reviewer reaches the app through SSM | No public inbound path. The Verified Access endpoint is the only route to the review app. SSM stays for administration only |
-| 7 Data model | No region or user entities | `regions`, `region_countries`, `pilot_exceptions` (migration 017); `users`, `user_regions` (018); `candidates.region` a foreign key; decisions record `reviewer_user_id` |
+| 7 Data model | No region or user entities | `regions`, `region_countries`, `pilot_exceptions` (migration 018); `users`, `user_regions` (019); `candidates.region` a foreign key; decisions record `reviewer_user_id` |
 | 9.3 Pilot operations | One reviewer, two region views | Reviewers by region; the pilot region and the exception measured separately |
 | 9.5 The integration decision | The three options and the current read | Withdrawn. CRM integration is deferred with no design |
 | 10 Decision register | D2, D3, D10, D11, D28, D29, D30 wording that names Zoho components | Already superseded by D31; add 61 to 64 |

@@ -10,7 +10,7 @@
 <table>
   <thead>
     <tr><th>When</th><th>Status</th><th>Score</th><th>Candidate</th><th>Buyer</th>
-        <th>Country</th><th>Reviewer</th><th>Record</th><th>Exported</th></tr>
+        <th>Country</th><th>Reviewer</th><th>Record</th><th>Tag</th><th>Exported</th></tr>
   </thead>
   <tbody>
   {% for d in decided %}
@@ -24,6 +24,7 @@
       <td>{{ d[5] }}</td>
       <td>{{ d[6] }}</td>
       <td>{{ d[9] or '—' }}</td>
+      <td>{{ d[12] or '—' }}</td>
       <td>{{ d[11].date() if d[11] else '—' }}</td>
     </tr>
   {% endfor %}

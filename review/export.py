@@ -111,6 +111,16 @@ SELECT_UNEXPORTED = """
     order by id
 """
 
+SELECT_UNEXPORTED_SUBSET = """
+    select id, candidate_id, record, approved_by
+    from approved_records
+    where exported_at is null
+      and created_at >= %s
+      and created_at <  %s
+      and id = any(%s::text[])
+    order by id
+"""
+
 INSERT_BATCH = """
     insert into export_batches (batch_id, operator, row_count, range_from, range_to,
                                 file_path, manifest_path, sha256)
@@ -254,23 +264,50 @@ def next_batch_id(conn: psycopg.Connection) -> str:
     return f"B{conn.execute('select nextval(%s)', ('export_batch_id_seq',)).fetchone()[0]:04d}"
 
 
-def export(range_from: datetime, range_to: datetime, operator: str) -> str:
+def export(
+    range_from: datetime,
+    range_to: datetime,
+    operator: str,
+    record_ids: list[str] | None = None,
+) -> str:
     """Produce one batch from the approved records not yet exported. Returns its batch id.
 
     Connects as `monitor_review` through `db.connect` and as nothing else (rule 11). The
     range is on `approved_records.created_at`, the moment the reviewer approved, and it is
     half open: `range_from` inclusive, `range_to` exclusive.
+
+    **`record_ids` is the reconfirmation step (decision 69).** The export page now lists every
+    waiting record with its tag and the operator ticks or unticks it, so the batch is exactly
+    the ids posted rather than everything the range would otherwise match. `None` is the old
+    behaviour and every caller that never mentions this parameter is unaffected. An id that is
+    not waiting in this range — already exported, approved outside it, or not a real record —
+    is refused by name inside the same transaction that would have selected it, never silently
+    dropped from the batch: a smaller batch than the operator asked for is a batch nobody
+    reconfirmed. An empty list is refused too, because "select nothing" is not a batch.
     """
     operator = (operator or "").strip()
     if not operator:
         raise ExportRefused("an operator name is required: a batch records the person who produced it")
     if range_to <= range_from:
         raise ExportRefused(f"the range ends before it starts: {range_from.isoformat()} to {range_to.isoformat()}")
+    if record_ids is not None and not record_ids:
+        raise ExportRefused("nothing selected: at least one waiting record must be included in the batch")
 
     directory = export_dir()
 
     with db.connect("review") as conn, conn.transaction():
-        rows = conn.execute(SELECT_UNEXPORTED, (range_from, range_to)).fetchall()
+        if record_ids is None:
+            rows = conn.execute(SELECT_UNEXPORTED, (range_from, range_to)).fetchall()
+        else:
+            rows = conn.execute(SELECT_UNEXPORTED_SUBSET, (range_from, range_to, record_ids)).fetchall()
+            found = {row[0] for row in rows}
+            missing = [record_id for record_id in record_ids if record_id not in found]
+            if missing:
+                raise ExportRefused(
+                    f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} not waiting in this range "
+                    "(already exported, approved outside it, or not a real record); nothing was exported"
+                )
+
         batch_id = next_batch_id(conn)
         data = csv_bytes(rows, batch_id)
         sha256 = hashlib.sha256(data).hexdigest()
@@ -335,7 +372,7 @@ def day_range(range_from: str, range_to: str) -> tuple[datetime, datetime]:
 # --- the backlog: approved and not yet exported ---------------------------------
 
 SELECT_BACKLOG = """
-    select id, candidate_id, approved_by, created_at
+    select id, candidate_id, approved_by, created_at, review_tag
     from approved_records
     where exported_at is null
     order by created_at, id
@@ -346,12 +383,18 @@ READONLY_URL_ENV = "DATABASE_URL_READONLY"
 
 @dataclass(frozen=True)
 class Waiting:
-    """One approved record that has not left yet."""
+    """One approved record that has not left yet.
+
+    `review_tag` defaults to "" so every existing construction of this dataclass — the pure
+    arithmetic tests that build a `Backlog` by hand — keeps working unchanged; `backlog()`
+    below always supplies it from the row.
+    """
 
     record_id: str
     candidate_id: str
     approved_by: str
     approved_at: datetime
+    review_tag: str = ""
 
 
 @dataclass(frozen=True)

@@ -98,6 +98,17 @@ def rejection_reasons() -> list[str]:
     return list(review_config()["rejection_reasons"])
 
 
+def approval_tags() -> list[str]:
+    """Tags an approval may carry, beyond plain approval (decision 69). Config, not code (rule 6).
+
+    There are two decisions, approve and reject; a tag qualifies an approval without adding
+    a third. `migrations/017_review_tag.sql` carries the same list as a check constraint, so
+    a tag unknown to either is refused twice over — here before the transaction opens, and in
+    Postgres if this check were ever bypassed.
+    """
+    return list(review_config()["approval_tags"])
+
+
 SELECT_CANDIDATE = """
     select c.id, c.title_en, c.buyer, c.country, c.region, c.admin_level, c.score,
            c.summary_en, c.matched_functions, c.system_names, c.procurement_type,
@@ -219,15 +230,29 @@ def _same(before, after) -> bool:
     return str(before) == str(after)
 
 
-def approve(conn: psycopg.Connection, candidate_id: str, reviewer: str, edits: dict | None = None) -> str:
+def approve(
+    conn: psycopg.Connection, candidate_id: str, reviewer: str, edits: dict | None = None, tag: str = ""
+) -> str:
     """Approve one candidate. Returns the approved record's id.
 
     One transaction: build, edit, insert, transition, two events. A failure anywhere
     leaves the candidate pending_review and `approved_records` untouched.
+
+    `tag`, when not blank, must be one `approval_tags()` names (decision 69: "monitor" for
+    the pilot). Checked before the transaction opens, the same reason the reviewer-name check
+    above it is: so the reviewer sees a message rather than the database's check constraint,
+    and so nothing is built before the decision is known to be valid.
     """
     reviewer = (reviewer or "").strip()
     if not reviewer:
         raise DecisionRefused("a reviewer name is required: no candidate is approved by nobody")
+
+    tag = (tag or "").strip()
+    if tag and tag not in approval_tags():
+        allowed = approval_tags()
+        raise DecisionRefused(
+            f"{tag!r} is not a tag an approval may carry; config/review.yaml's approval_tags lists {allowed}"
+        )
 
     with conn.transaction():
         candidate, status = load_candidate(conn, candidate_id)
@@ -250,10 +275,10 @@ def approve(conn: psycopg.Connection, candidate_id: str, reviewer: str, edits: d
         record["monitor_candidate_id"] = candidate_id
         conn.execute(
             """
-            insert into approved_records (id, candidate_id, record, approved_by, edited)
-            values (%s, %s, %s::jsonb, %s, %s)
+            insert into approved_records (id, candidate_id, record, approved_by, edited, review_tag)
+            values (%s, %s, %s::jsonb, %s, %s, %s)
             """,
-            (record_id, candidate_id, json.dumps(record, default=json_safe), reviewer, edited),
+            (record_id, candidate_id, json.dumps(record, default=json_safe), reviewer, edited, tag),
         )
         conn.execute(
             """
@@ -263,7 +288,8 @@ def approve(conn: psycopg.Connection, candidate_id: str, reviewer: str, edits: d
             """,
             (reviewer, record_id, candidate_id),
         )
-        write_event(conn, "candidate", candidate_id, "approved", reviewer, "pending_review", f"approved as {record_id}")
+        approved_after = f"approved as {record_id}, tagged {tag}" if tag else f"approved as {record_id}"
+        write_event(conn, "candidate", candidate_id, "approved", reviewer, "pending_review", approved_after)
         write_event(
             conn,
             "approved_record",

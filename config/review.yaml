@@ -24,6 +24,15 @@ rejection_reasons:
   - Deadline already passed
   - Not enough information in the notice
 
+# Tags an approval may carry (decision 69, 2026-09-19). There are two decisions, approve
+# and reject; a tag qualifies an approval without adding a third. `monitor` marks a
+# record the reviewer wants kept in view rather than bid on now: it is approved, it
+# reaches the export page like any other, and the operator includes or excludes it
+# there after reconfirming relevance. Migration 017 carries the same list as a check
+# constraint; adding a tag is a config edit AND a migration, in that order.
+approval_tags:
+  - monitor
+
 # Queue sizing, shown on the queue page so the reviewer can see the session's shape
 # before starting. Six minutes is the working figure from Pilot Plan v0.4's
 # 30-minutes-a-day assumption; it is a display estimate and nothing depends on it.

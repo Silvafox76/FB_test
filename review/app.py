@@ -153,7 +153,8 @@ QUEUE = """
 
 DECIDED = """
     select c.id, c.status, c.score, c.title_en, c.buyer, c.country, c.reviewer,
-           c.rejection_reason, c.updated_at, c.approved_record_id, r.edited, r.exported_at
+           c.rejection_reason, c.updated_at, c.approved_record_id, r.edited, r.exported_at,
+           r.review_tag
     from candidates c
     left join approved_records r on r.id = c.approved_record_id
     where c.status in ('approved', 'rejected')
@@ -325,11 +326,12 @@ async def approve_candidate(request: Request, candidate_id: str) -> RedirectResp
     """
     form = await request.form()
     reviewer = str(form.get("reviewer", ""))
+    tag = str(form.get("tag", ""))
     edits = {key.removeprefix("field:"): str(value) for key, value in form.items() if key.startswith("field:")}
 
     with db.connect("review") as conn:
         try:
-            record_id = approve(conn, candidate_id, reviewer, edits)
+            record_id = approve(conn, candidate_id, reviewer, edits, tag)
         except DecisionRefused as refused:
             return RedirectResponse(f"/candidate/{candidate_id}?error={refused}", status_code=303)
 
@@ -434,15 +436,36 @@ def export_page(request: Request, batch: str = "", error: str = "", note: str = 
 
 
 @app.post("/export")
-def export_form(
-    range_from: Annotated[str, Form()] = "",
-    range_to: Annotated[str, Form()] = "",
-    operator: Annotated[str, Form()] = "",
-) -> RedirectResponse:
-    """Produce one batch. It writes a file and a row and it sends nothing anywhere (rules 16 to 18)."""
+async def export_form(request: Request) -> RedirectResponse:
+    """Produce one batch. It writes a file and a row and it sends nothing anywhere (rules 16 to 18).
+
+    The reconfirmation step (decision 69): each waiting row's checkbox is checked by default,
+    so ticking nothing off exports the whole range as before, and unticking one holds it back.
+    Read from the raw form rather than a `Form()` parameter for the same reason
+    `approve_candidate` does: a repeated checkbox name is a list, which FastAPI's declared
+    form parameters do not represent naturally.
+
+    **Untick-all must refuse, not fall back to the whole range.** An unchecked checkbox posts
+    nothing at all, so a form with every row unticked and a form with no rows to tick look
+    identical to this route: no `record_ids` field either way. `reconfirmed` is the hidden
+    field `export.html` renders only when the backlog has rows, so its presence is what tells
+    the two apart. `reconfirmed` present and no `record_ids`: the operator saw rows and ticked
+    none, so `[]` is passed and `export()` refuses it with "nothing selected", shown on the
+    page like any other refusal. `reconfirmed` absent: either nothing was waiting to show a
+    checkbox for, or the caller is not this form at all (`make export`, a script, an older
+    client), so `None` is passed and behaviour is unchanged.
+    """
+    form = await request.form()
+    range_from = str(form.get("range_from", ""))
+    range_to = str(form.get("range_to", ""))
+    operator = str(form.get("operator", ""))
+    checked = [str(value) for value in form.getlist("record_ids")]
+    reconfirmed = "reconfirmed" in form
+    record_ids = checked if (checked or reconfirmed) else None
+
     try:
         first, last = day_range(range_from, range_to)
-        batch_id = export(first, last, operator)
+        batch_id = export(first, last, operator, record_ids)
     except ExportRefused as refused:
         return RedirectResponse(f"/export?error={refused}", status_code=303)
 

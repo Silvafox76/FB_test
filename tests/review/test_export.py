@@ -858,6 +858,150 @@ def test_the_spec_table_is_the_csv_header_row():
     assert len(listed) == 73
 
 
+# --- decision 69: the export page as the reconfirmation step -------------------
+
+
+def test_export_with_none_is_unchanged(approved, exports_dir, review):
+    """The explicit case the step requires: passing `record_ids=None` behaves exactly as
+    calling `export` without it, which is every test above this one."""
+    batch_id = export(*today_range(), approved.operator, None)
+
+    assert {row[1] for row in stamps(review, approved.record_ids)} == {batch_id}
+    assert len(csv_rows(exports_dir, batch_id)) == 4, "a header and all three records"
+
+
+def test_export_with_a_subset_exports_only_those_and_leaves_the_rest_waiting(approved, exports_dir, review):
+    kept = approved.record_ids[0]
+    held_back = approved.record_ids[1:]
+
+    batch_id = export(*today_range(), approved.operator, [kept])
+
+    rows = csv_rows(exports_dir, batch_id)
+    assert len(rows) == 2, "a header and the one record selected"
+    assert values_of(rows, "monitor_candidate_id") == [
+        candidate_id
+        for candidate_id, record_id in zip(approved.candidate_ids, approved.record_ids, strict=True)
+        if record_id == kept
+    ]
+
+    stamped = dict(
+        (record_id, (batch, exported_at)) for record_id, batch, exported_at in stamps(review, approved.record_ids)
+    )
+    assert stamped[kept][0] == batch_id
+    assert stamped[kept][1] is not None
+    for record_id in held_back:
+        assert stamped[record_id] == (None, None), f"{record_id} should still be waiting"
+
+    waiting = {record.record_id for record in backlog(review).records}
+    assert set(held_back) <= waiting
+    assert kept not in waiting
+
+
+def test_export_with_an_id_outside_the_waiting_set_is_refused_and_writes_nothing(approved, exports_dir, review):
+    before_batches = review.execute("select count(*) from export_batches").fetchone()[0]
+
+    with pytest.raises(ExportRefused, match="not waiting in this range"):
+        export(*today_range(), approved.operator, [approved.record_ids[0], "R999999"])
+
+    assert review.execute("select count(*) from export_batches").fetchone()[0] == before_batches
+    assert list(exports_dir.iterdir()) == []
+    assert [row[1] for row in stamps(review, approved.record_ids)] == [None, None, None]
+
+
+def test_export_with_an_id_already_exported_in_range_is_refused(approved, exports_dir, review):
+    """An id that is real and in range but not *waiting* — already exported — is refused
+    the same way a made-up id is: reconfirmation only ever picks from what is waiting."""
+    already = approved.record_ids[0]
+    export(*today_range(), approved.operator, [already])
+
+    with pytest.raises(ExportRefused, match="not waiting in this range"):
+        export(*today_range(), approved.operator, [already, approved.record_ids[1]])
+
+
+def test_export_with_an_empty_list_is_refused(approved, exports_dir, review):
+    before_batches = review.execute("select count(*) from export_batches").fetchone()[0]
+
+    with pytest.raises(ExportRefused, match="nothing selected"):
+        export(*today_range(), approved.operator, [])
+
+    assert review.execute("select count(*) from export_batches").fetchone()[0] == before_batches
+    assert list(exports_dir.iterdir()) == []
+
+
+def test_the_backlog_carries_the_review_tag(approved, review, owner):
+    owner.execute("update approved_records set review_tag = 'monitor' where id = %s", (approved.record_ids[0],))
+
+    mine = {record.record_id: record.review_tag for record in backlog(review).records}
+    assert mine[approved.record_ids[0]] == "monitor"
+    assert mine[approved.record_ids[1]] == ""
+
+
+def test_the_export_page_lists_a_checkbox_and_tag_per_waiting_record(approved, exports_dir, client, owner):
+    owner.execute("update approved_records set review_tag = 'monitor' where id = %s", (approved.record_ids[0],))
+
+    page = client.get("/export").text
+
+    assert f'name="record_ids" value="{approved.record_ids[0]}"' in page
+    assert 'form="export-form"' in page
+    assert "monitor" in page
+
+
+def test_posting_a_subset_of_record_ids_through_the_form_exports_only_those(approved, exports_dir, client, review):
+    range_from, range_to = (datetime.now(UTC).date().isoformat(),) * 2
+    kept = approved.record_ids[0]
+
+    posted = client.post(
+        "/export",
+        data={
+            "range_from": range_from,
+            "range_to": range_to,
+            "operator": approved.operator,
+            "record_ids": [kept],
+        },
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+
+    batch_id = posted.headers["location"].removeprefix("/export?batch=")
+    assert len(csv_rows(exports_dir, batch_id)) == 2, "a header and the one record posted"
+    stamped = dict((row[0], row[1]) for row in stamps(review, approved.record_ids))
+    assert stamped[kept] == batch_id
+    for record_id in approved.record_ids[1:]:
+        assert stamped[record_id] is None
+
+
+def test_unticking_every_row_is_refused_not_the_whole_range(approved, exports_dir, client, review):
+    """`reconfirmed` present with no `record_ids` is every box unticked, not an empty form.
+
+    Without the hidden field this would be indistinguishable from a caller that never sent
+    checkboxes at all, and the route would fall back to exporting the whole range — exactly
+    what decision 69's reconfirmation step must not do.
+    """
+    range_from, range_to = (datetime.now(UTC).date().isoformat(),) * 2
+    before_batches = review.execute("select count(*) from export_batches").fetchone()[0]
+
+    posted = client.post(
+        "/export",
+        data={
+            "range_from": range_from,
+            "range_to": range_to,
+            "operator": approved.operator,
+            "reconfirmed": "1",
+        },
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+    assert "error=" in posted.headers["location"]
+    assert "nothing selected" in unquote(posted.headers["location"])
+
+    assert review.execute("select count(*) from export_batches").fetchone()[0] == before_batches
+    assert list(exports_dir.iterdir()) == []
+    assert [row[1] for row in stamps(review, approved.record_ids)] == [None, None, None]
+
+    page = client.get(posted.headers["location"]).text
+    assert "nothing selected" in page
+
+
 def test_a_category_appendix_e_does_not_define_is_refused(monkeypatch):
     """A new category is a document change, not a silent omission from the legend (rule 4)."""
     defaults = record_defaults()

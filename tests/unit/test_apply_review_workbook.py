@@ -13,7 +13,7 @@ import pytest
 from review.decisions import DecisionRefused
 from scripts.apply_review_workbook import Row, apply, read_rows, rejection_text
 
-HEADER = ["#", "candidate", "why", "YOUR DECISION", "YOUR REASON", "Zoho checked (Y/N)"]
+HEADER = ["#", "candidate", "why", "YOUR DECISION", "YOUR REASON"]
 
 
 def workbook(tmp_path, rows):
@@ -32,16 +32,15 @@ def test_reads_only_rows_with_a_candidate_and_normalises_the_decision(tmp_path):
     path = workbook(
         tmp_path,
         [
-            [1, "C000001", "not PFM", " Reject ", "See why column from Matthew", None],
-            [2, "C000002", "a real one", "APPROVE", "", "Y"],
-            [None, None, None, None, None, None],
+            [1, "C000001", "not PFM", " Reject ", "See why column from Matthew"],
+            [2, "C000002", "a real one", "APPROVE", ""],
+            [None, None, None, None, None],
         ],
     )
     rows = read_rows(path)
     assert [r.candidate for r in rows] == ["C000001", "C000002"]
     assert rows[0].decision == "reject"
     assert rows[1].decision == "approve"
-    assert rows[1].zoho_checked == "Y"
 
 
 def test_missing_column_is_refused(tmp_path):
@@ -56,34 +55,35 @@ def test_missing_column_is_refused(tmp_path):
 
 
 def test_rejection_text_uses_the_why_column_when_the_reviewer_points_at_it():
-    row = Row("C000001", "reject", "See why column from Matthew", "Outsourced audit service, not software.", "")
+    row = Row("C000001", "reject", "See why column from Matthew", "Outsourced audit service, not software.")
     assert rejection_text(row, "Not PFM") == "Not PFM: Outsourced audit service, not software."
 
 
 def test_rejection_text_keeps_the_reviewers_own_words_in_front():
-    row = Row("C000001", "reject", "False positive", "A housing company outsourcing payroll.", "")
+    row = Row("C000001", "reject", "False positive", "A housing company outsourcing payroll.")
     assert rejection_text(row, "Not PFM") == "Not PFM: False positive A housing company outsourcing payroll."
 
 
 def test_rejection_with_no_reason_anywhere_is_refused():
-    row = Row("C000001", "reject", "See why column", "", "")
+    row = Row("C000001", "reject", "See why column", "")
     with pytest.raises(DecisionRefused, match="no reason"):
         rejection_text(row, "Not PFM")
 
 
 def test_category_must_come_from_the_config_list():
-    row = Row("C000001", "reject", "", "why", "")
+    row = Row("C000001", "reject", "", "why")
     with pytest.raises(ValueError, match="rejection_reasons"):
         rejection_text(row, "Because")
 
 
 def test_dry_run_maps_every_decision_and_touches_nothing():
+    """ "monitor" is an approval with a tag (decision 69), so it lands in its own bucket."""
     rows = [
-        Row("C000001", "approve", "", "", ""),
-        Row("C000002", "reject", "See why column", "not PFM", ""),
-        Row("C000003", "monitor", "", "", ""),
-        Row("C000004", "", "", "", ""),
-        Row("C000005", "reject", "", "", ""),
+        Row("C000001", "approve", "", ""),
+        Row("C000002", "reject", "See why column", "not PFM"),
+        Row("C000003", "monitor", "", ""),
+        Row("C000004", "", "", ""),
+        Row("C000005", "reject", "", ""),
     ]
     outcome = apply(rows, "Matthew", "Not PFM", dry_run=True)
     assert outcome["approved"] == ["C000001"]
@@ -95,4 +95,4 @@ def test_dry_run_maps_every_decision_and_touches_nothing():
 
 def test_an_unknown_word_stops_the_whole_run():
     with pytest.raises(ValueError, match="unknown decisions"):
-        apply([Row("C000001", "maybe", "", "", "")], "Matthew", "Not PFM", dry_run=True)
+        apply([Row("C000001", "maybe", "", "")], "Matthew", "Not PFM", dry_run=True)

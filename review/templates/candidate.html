@@ -97,6 +97,11 @@
       <input type="text" name="reviewer" required autocomplete="off" placeholder="as it goes in the audit log and on the record">
     </label>
 
+    <label class="reviewer">
+      <input type="checkbox" name="tag" value="monitor">
+      Monitor: keep in view, reconfirm at export
+    </label>
+
     <details>
       <summary>Proposed record — {{ payload|length }} columns, all editable</summary>
       <p class="muted">

@@ -346,6 +346,44 @@ def test_the_audit_page_filters_by_entity(client, staged):
     assert "rejected" not in records or "approved_record" in records
 
 
+# --- decision 69: the monitor tag ----------------------------------------------
+
+
+def test_the_candidate_page_carries_the_monitor_tag_checkbox(client, staged):
+    page = client.get(f"/candidate/{staged}").text
+
+    assert 'name="tag" value="monitor"' in page
+    assert "Monitor: keep in view, reconfirm at export" in page
+
+
+def test_approving_through_the_form_with_the_monitor_tag_stores_it_and_shows_on_decided(client, review, staged):
+    posted = client.post(
+        f"/candidate/{staged}/approve",
+        data={"reviewer": "Ryan Dear", "tag": "monitor"},
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+
+    tag = review.execute("select review_tag from approved_records where candidate_id = %s", (staged,)).fetchone()[0]
+    assert tag == "monitor"
+
+    decided = client.get("/decided").text
+    assert staged in decided
+    assert "monitor" in decided
+
+
+def test_approving_through_the_form_without_the_tag_stores_an_empty_string(client, review, staged):
+    posted = client.post(
+        f"/candidate/{staged}/approve",
+        data={"reviewer": "Ryan Dear"},
+        follow_redirects=False,
+    )
+    assert posted.status_code == 303
+
+    tag = review.execute("select review_tag from approved_records where candidate_id = %s", (staged,)).fetchone()[0]
+    assert tag == ""
+
+
 def test_a_decided_candidate_shows_its_decision_instead_of_the_form(client, staged):
     client.post(f"/candidate/{staged}/approve", data={"reviewer": "Ryan Dear"}, follow_redirects=False)
 

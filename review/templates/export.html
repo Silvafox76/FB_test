@@ -5,7 +5,8 @@
 <p class="summary">
   The only way anything leaves the Monitor. The button writes a CSV and a manifest to disk and a
   batch row to the database. It sends nothing anywhere: there is no CRM connection here, and
-  nothing is ever read back in.
+  nothing is ever read back in. This is also the reconfirmation step: the operator reconfirms
+  each record below and unticks any to hold it back; a held record stays waiting.
 </p>
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
@@ -18,20 +19,29 @@
       <strong>{{ backlog.count }}</strong> approved record{{ 's' if backlog.count != 1 }} not yet exported.
       The oldest has waited <strong>{{ '%.1f'|format(backlog.age_days) }} days</strong>.
     </p>
-    {# Oldest first: the backlog is read as "what has been waiting longest", not as a list of the newest work. #}
+    {# Oldest first: the backlog is read as "what has been waiting longest", not as a list of the newest work.
+       Each checkbox is bound to the "export" form below by its id (the "form" attribute), rather than
+       nested inside it, so this table can sit here — first, where the operator reads it — and still post
+       with that form. Checked by default: an unmodified submission exports the whole range, as before. #}
     <table>
-      <thead><tr><th>Approved</th><th>Record</th><th>Candidate</th><th>Reviewer</th></tr></thead>
+      <thead><tr><th></th><th>Approved</th><th>Record</th><th>Candidate</th><th>Reviewer</th><th>Tag</th></tr></thead>
       <tbody>
       {% for waiting in backlog.records %}
         <tr>
+          <td><input type="checkbox" name="record_ids" value="{{ waiting.record_id }}" form="export-form" checked></td>
           <td>{{ waiting.approved_at.strftime('%Y-%m-%d %H:%M') }}</td>
           <td><span class="id">{{ waiting.record_id }}</span></td>
           <td><a href="/candidate/{{ waiting.candidate_id }}">{{ waiting.candidate_id }}</a></td>
           <td>{{ waiting.approved_by }}</td>
+          <td>{{ waiting.review_tag or '—' }}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
+    {# Present only when there is a backlog to reconfirm, so the route can tell "every row was
+       unticked" from "no rows were ever rendered" — the two cases a plain HTML form cannot
+       otherwise distinguish, since an unchecked checkbox posts nothing at all either way. #}
+    <input type="hidden" name="reconfirmed" value="1" form="export-form">
   {% else %}
     <p class="empty">Nothing is waiting. Every approved record has been exported.</p>
   {% endif %}
@@ -45,7 +55,7 @@
     duplicate that reaches a batch is logged as a finding and counted at the week 14 gate.
   </p>
 
-  <form method="post" action="/export">
+  <form method="post" action="/export" id="export-form">
     <label class="reviewer">
       Approved from (inclusive)
       <input type="date" name="range_from" value="{{ range_from }}" required>
