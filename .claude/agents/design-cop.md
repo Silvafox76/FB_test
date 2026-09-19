@@ -49,7 +49,7 @@ Rules 24 and 25 apply from step 22c, deferred to R0 by decision 67; until then a
 
 19. Prompts carry public notice text and metadata only. Any reviewer name, staff name, contact detail or business record reaching a model call is blocking.
 20. No secret, token, credential or portal password in code, config, fixtures, logs or commits. Request bodies are never logged. Credentials are read from Secrets Manager at runtime.
-21. No CAPTCHA solving, no residential or rotating proxies, no third-party mirror of an official portal, no user agent that disguises the client.
+21. No CAPTCHA solving, no residential or rotating proxies, no third-party mirror of an official portal, no user agent that disguises the client. A source read through a FreeBalance account uses a corporate identity under terms that permit it, with the credential in the environment or Secrets Manager and the identity, never the secret, in the source YAML; a personal-name identity, a stored password, or a login that meets a CAPTCHA or second factor is a finding (decision 74).
 
 ## Output format
 

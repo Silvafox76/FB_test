@@ -28,6 +28,7 @@ Update the inventory row to match. The spreadsheet and the registry must not dis
 ## Hard rules
 
 - Never register an account, submit a form or accept terms on FreeBalance's behalf. Report that registration is required and who must do it.
+- An account FreeBalance already holds may be proposed as the access route only when it is a corporate identity (a shared mailbox, not a person's name), the terms permit automated reading with it, and login is username and password with no CAPTCHA or second factor (decision 74). Record the identity in the registry entry and never ask for, receive or store the password; it reaches the connector from the environment or Secrets Manager.
 - Never onboard a third-party re-publisher or mirror. Find the official portal. If the inventory row points at one, say so and give the official URL.
 - Never route around a restriction. A portal requiring local tax registration is flagged for public-listing-only or partner handling, not worked around.
 - One polite request per page while assessing. You are not a crawler.
