@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<p class="filters">
+  <a class="filter {{ 'on' if not region }}" href="/">All <span class="muted">({{ all_pending }})</span></a>
+  {% for chip in chips %}
+    <a class="filter {{ 'on' if region == chip.name }}" href="/?region={{ chip.name|urlencode }}">
+      {{ chip.name }} <span class="muted">({{ chip.pending }})</span>
+    </a>
+  {% endfor %}
+</p>
+
+<div class="figures">
+  <div class="figure"><span class="figure-value">{{ held }}</span><span class="figure-label">Notices held</span></div>
+  <div class="figure">
+    <span class="figure-value">{{ passed }}</span><span class="figure-label">Passed the free filter</span>
+  </div>
+  <div class="figure"><span class="figure-value">{{ scored }}</span><span class="figure-label">Scored</span></div>
+  <div class="figure">
+    <span class="figure-value">{{ in_review }}</span><span class="figure-label">Candidates in review</span>
+  </div>
+  <div class="figure"><span class="figure-value">{{ pending }}</span><span class="figure-label">Pending</span></div>
+  <div class="figure">
+    <span class="figure-value">{{ approved }}</span>
+    <span class="figure-label">Approved ({{ tagged_approved }} tagged)</span>
+  </div>
+  <div class="figure"><span class="figure-value">{{ rejected }}</span><span class="figure-label">Rejected</span></div>
+  <div class="figure">
+    <span class="figure-value">{{ waiting_export }}</span><span class="figure-label">Waiting to export</span>
+  </div>
+  <div class="figure">
+    {% if decided %}
+      <span class="figure-value">{{ '%.0f'|format(100 * approved / decided) }}%</span>
+      <span class="figure-label">Precision at the queue ({{ approved }} of {{ decided }})</span>
+    {% else %}
+      <span class="figure-value">—</span>
+      <span class="figure-label">Precision at the queue (nothing decided)</span>
+    {% endif %}
+  </div>
+</div>
+
+<h2>Top countries</h2>
+{% if not countries %}
+  <p class="empty">Nothing in this selection yet.</p>
+{% else %}
+<table>
+  <thead>
+    <tr><th>Country</th><th>Notices</th><th>Candidates</th><th>Approved</th></tr>
+  </thead>
+  <tbody>
+  {% for row in countries %}
+    <tr>
+      <td>{{ row[0] }}</td>
+      <td class="num">{{ row[1] }}</td>
+      <td class="num">{{ row[2] }}</td>
+      <td class="num">{{ row[3] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Sources covering this selection</h2>
+{% if not sources %}
+  <p class="empty">No source covers this selection.</p>
+{% else %}
+<table>
+  <thead>
+    <tr><th>Source</th><th>Health</th><th>Notices</th><th>Candidates</th><th>Enabled</th></tr>
+  </thead>
+  <tbody>
+  {% for s in sources %}
+    <tr class="health-{{ s.state }}">
+      <td>{{ s.name }} <span class="id">{{ s.id }}</span></td>
+      <td>{{ s.state }}</td>
+      <td class="num">{{ s.notices }}</td>
+      <td class="num">{{ s.candidates }}</td>
+      <td>{{ 'yes' if s.enabled else 'no' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<p class="summary">
+  Last completed fetch across these sources:
+  {% if last_fetch %}{{ last_fetch.strftime('%Y-%m-%d %H:%M') }} UTC{% else %}none yet{% endif %}.
+  Today's model calls (global, not per region): {{ calls_today }}, cost USD {{ '%.2f'|format(cost_today) }}.
+</p>
+
+<p class="summary">
+  <a href="/queue?region={{ region|urlencode }}">Queue for this region</a> ·
+  <a href="/decided">Decided</a> ·
+  <a href="/export">Export</a>
+</p>
+{% endblock %}

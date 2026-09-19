@@ -59,8 +59,18 @@ def per_source_daily_cap() -> int:
     return int(_config()["per_source_daily_cap"])
 
 
+def regions_config() -> dict[str, str]:
+    """Country code -> region name, plus the `default` key, as `config/thresholds.yaml` states it.
+
+    The one public reading of the block (rule 23): the stager stamps candidates with it and
+    the review app's dashboard groups by it, so both see the same mapping. Moves to
+    `config/regions.yaml` at step 22b without either caller changing.
+    """
+    return dict(_config()["regions"])
+
+
 def region_for(country: str) -> str:
-    regions = _config()["regions"]
+    regions = regions_config()
     return regions.get(country, regions["default"])
 
 

@@ -128,7 +128,7 @@ def staged_with_value(owner, review):
 
 
 def test_the_queue_lists_the_staged_candidate_with_its_minutes(client, staged):
-    page = client.get("/").text
+    page = client.get("/queue").text
 
     assert staged in page
     assert "minutes of review" in page
@@ -137,15 +137,15 @@ def test_the_queue_lists_the_staged_candidate_with_its_minutes(client, staged):
 
 def test_the_region_filter_selects_rather_than_decorates(client, staged):
     """The fixture is West Africa, so filtering to Europe must drop it."""
-    assert staged in client.get("/?region=West+Africa").text
-    assert staged not in client.get("/?region=Europe").text
+    assert staged in client.get("/queue?region=West+Africa").text
+    assert staged not in client.get("/queue?region=Europe").text
 
 
 def test_the_queue_shows_the_value_with_its_own_currency_not_a_bare_number(client, staged):
     """`staged` carries USD 4,200,000 at the identity rate; the header must not
     hardcode a currency either, and the identity conversion must read plainly,
     never "USD 4,200,000 ≈ USD 4,200,000 at 1.0000 USD/USD"."""
-    page = client.get("/").text
+    page = client.get("/queue").text
 
     assert "USD 4,200,000" in page
     assert "Value (USD)" not in page, "the currency comes from the row, never a literal in the template"

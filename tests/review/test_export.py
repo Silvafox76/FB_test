@@ -705,7 +705,7 @@ def test_monitor_status_prints_the_export_backlog(approved, capsys):
 
 
 def test_the_queue_page_shows_what_is_waiting_to_be_exported(approved, client):
-    page = client.get("/").text
+    page = client.get("/queue").text
 
     assert "waiting to be exported" in page
     assert "/export" in page

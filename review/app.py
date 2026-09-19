@@ -41,12 +41,14 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from monitor import db
+from monitor import caps, db
 from monitor.health.metrics import latest
-from monitor.registry.load import load_function_map
+from monitor.registry.load import load_function_map, load_sources
 from monitor.stage.record import build_record, value_narrative
+from monitor.stage.stager import regions_config
 from review.decisions import (
     DecisionRefused,
+    approval_tags,
     approve,
     json_safe,
     load_candidate,
@@ -138,6 +140,164 @@ def function_names() -> dict[str, str]:
     return {function["function_id"]: function["name"] for function in load_function_map()}
 
 
+# --- decision 71: the dashboard's region names, and nothing else's -------------
+#
+# `config/thresholds.yaml`'s `regions:` block, country to region name, is read
+# through `monitor.stage.stager.regions_config()` alone (rule 23): a region name or
+# country list written into this file or a template would be the finding rule 23
+# exists to catch. It is the same mapping the stager stamps onto every candidate's
+# `region` column; nothing here decides a region a second way.
+
+
+def region_map() -> dict[str, str]:
+    """Country (or the literal `default`) -> region name."""
+    return regions_config()
+
+
+def region_names() -> list[str]:
+    """Distinct region names, in the order they first appear in the config.
+
+    Includes the `default` key's own name (last in the file today), because a
+    country that reaches it is still a real selection a chip can show a count for.
+    """
+    seen: list[str] = []
+    for name in region_map().values():
+        if name not in seen:
+            seen.append(name)
+    return seen
+
+
+def region_arrays(mapping: dict[str, str]) -> tuple[list[str], list[str], str]:
+    """The mapping as two parallel arrays for `unnest`, plus the default region name.
+
+    Passed into SQL as parameters rather than compiled into the query text, so the
+    mapping stays data and the query stays the same query regardless of what config
+    holds today (rule 23's "nowhere else" applies to a query string too).
+    """
+    countries = [country for country in mapping if country != "default"]
+    names = [mapping[country] for country in countries]
+    return countries, names, mapping["default"]
+
+
+def source_regions(source, mapping: dict[str, str], default_region: str) -> set[str]:
+    """Every region a source reaches, through the one mapping.
+
+    A source that declares `covers` is described entirely by that list - every
+    `country: multi` donor source and TED's own `country: EU` - so `covers`, when
+    present, is used on its own rather than unioned with `country`. `country` there
+    is a routing sentinel, not a place, and mapping it through `regions_config()`
+    would resolve to `default_region` (nothing lists `multi` or `EU` as a country)
+    and wrongly show a global source as covering only the default region's own
+    selection. A source with no `covers` is described by its own `country`, mapped
+    through the same fallback as an unlisted country anywhere else.
+    """
+    countries = set(source.covers) if source.covers else {source.country}
+    return {mapping.get(country, default_region) for country in countries}
+
+
+# Every notice the selection holds, how many passed the free filter, and how many
+# are scored. Notices carry no region column, so the mapping travels as parameters
+# and is joined on country; an unlisted country falls back to the default region
+# the same way `region_for` does for the stager.
+FIGURES_NOTICES = """
+    with region_map(country, region) as (
+        select * from unnest(%s::text[], %s::text[])
+    ),
+    scoped as (
+        select n.status, n.filter_result, coalesce(rm.region, %s) as region
+        from notices n
+        left join region_map rm on rm.country = n.country
+    )
+    select
+        count(*) filter (where region = coalesce(nullif(%s, ''), region)) as held,
+        count(*) filter (where filter_result is not null
+                          and status in ('filtered_in', 'scored', 'parked')
+                          and region = coalesce(nullif(%s, ''), region)) as passed,
+        count(*) filter (where status = 'scored'
+                          and region = coalesce(nullif(%s, ''), region)) as scored
+    from scoped
+"""
+
+# Candidates already carry their region as a column, set at staging from this same
+# mapping, so these two read it directly rather than rejoining on country.
+FIGURES_CANDIDATES = """
+    select
+        count(*) filter (where status in ('pending_review', 'approved', 'rejected')) as in_review,
+        count(*) filter (where status = 'pending_review') as pending,
+        count(*) filter (where status = 'approved') as approved,
+        count(*) filter (where status = 'rejected') as rejected
+    from candidates
+    where region = coalesce(nullif(%s, ''), region)
+"""
+
+# `%s::text[]` carries `approval_tags()` (decision 69, `config/review.yaml`), never a
+# bare tag name: which strings count as "tagged" is config, not a literal in a query
+# (rule 6). Empty-string review_tag (an ordinary approval) is never in that list, so
+# an untagged approval is never counted here by accident.
+FIGURES_APPROVED = """
+    select
+        count(*) filter (where ar.review_tag = any(%s::text[])) as tagged,
+        count(*) filter (where ar.exported_at is null) as waiting_export
+    from approved_records ar
+    join candidates c on c.id = ar.candidate_id
+    where c.region = coalesce(nullif(%s, ''), c.region)
+"""
+
+# Up to ten countries, ordered by candidates then notices; a country with notices
+# and no candidate yet (or the reverse) still gets a row through the full outer join.
+TOP_COUNTRIES = """
+    with region_map(country, region) as (
+        select * from unnest(%s::text[], %s::text[])
+    ),
+    notice_country as (
+        select n.country, coalesce(rm.region, %s) as region
+        from notices n
+        left join region_map rm on rm.country = n.country
+    ),
+    notices_agg as (
+        select country, count(*) as notices
+        from notice_country
+        where region = coalesce(nullif(%s, ''), region)
+        group by country
+    ),
+    candidates_agg as (
+        select country,
+               count(*) as candidates,
+               count(*) filter (where status = 'approved') as approved
+        from candidates
+        where region = coalesce(nullif(%s, ''), region)
+        group by country
+    )
+    select coalesce(n.country, c.country) as country,
+           coalesce(n.notices, 0) as notices,
+           coalesce(c.candidates, 0) as candidates,
+           coalesce(c.approved, 0) as approved
+    from notices_agg n
+    full outer join candidates_agg c on c.country = n.country
+    order by candidates desc, notices desc, country
+    limit 10
+"""
+
+# Every region's own pending count, for the chip row - unfiltered by the current
+# selection, because a chip has to show what picking it would mean.
+PENDING_BY_REGION = "select region, count(*) from candidates where status = 'pending_review' group by region"
+
+SOURCE_STATS = """
+    select s.id, s.name, s.enabled, coalesce(h.state, 'unknown') as state,
+           count(distinct n.id) as notices,
+           count(distinct c.id) as candidates
+    from sources s
+    left join source_health h on h.source_id = s.id
+    left join notices n on n.source_id = s.id
+    left join candidates c on c.primary_notice_id = n.id
+    where s.id = any(%s::text[])
+    group by s.id, s.name, s.enabled, h.state
+    order by s.id
+"""
+
+LAST_FETCH = "select max(finished_at) from fetch_runs where source_id = any(%s::text[])"
+
+
 QUEUE = """
     select c.id, c.score, c.title_en, c.buyer, c.country, c.region, c.language,
            c.deadline_at, c.estimated_value, c.value_currency, c.estimated_value_usd,
@@ -206,6 +366,89 @@ def rows(conn: psycopg.Connection, sql: str, params: tuple = ()) -> list[tuple]:
 
 
 @app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request, region: str = "") -> HTMLResponse:
+    """Decision 71: the hub. The figures, top countries and source coverage for one
+    region or for all of them; the queue itself moved to its own tab at `/queue`.
+
+    `region` absent means every region. A region name that is not one of
+    `region_names()` is a 404 with a message naming the region, not a silent "all"
+    (rule 23 again: this app does not get to invent a region that config never named).
+    """
+    mapping = region_map()
+    names = region_names()
+    if region and region not in names:
+        return templates.TemplateResponse(
+            request,
+            "unknown_region.html",
+            {"region": region, "regions": names},
+            status_code=404,
+        )
+
+    countries, mapped_names, default_region = region_arrays(mapping)
+
+    with db.connect("review") as conn:
+        held, passed, scored = rows(
+            conn, FIGURES_NOTICES, (countries, mapped_names, default_region, region, region, region)
+        )[0]
+        in_review, pending, approved, rejected = rows(conn, FIGURES_CANDIDATES, (region,))[0]
+        tagged_approved, waiting_export = rows(conn, FIGURES_APPROVED, (approval_tags(), region))[0]
+        country_rows = rows(conn, TOP_COUNTRIES, (countries, mapped_names, default_region, region, region))
+        pending_by_region = dict(rows(conn, PENDING_BY_REGION))
+
+        sources = load_sources()
+        selected = [
+            source for source in sources if not region or region in source_regions(source, mapping, default_region)
+        ]
+        source_ids = [source.id for source in selected]
+
+        stats: dict[str, dict] = {}
+        last_fetch = None
+        if source_ids:
+            for source_id, _name, _enabled, state, notices, candidates in rows(conn, SOURCE_STATS, (source_ids,)):
+                stats[source_id] = {"state": state, "notices": notices, "candidates": candidates}
+            last_fetch = conn.execute(LAST_FETCH, (source_ids,)).fetchone()[0]
+
+        spend = caps.spend_today(conn)
+
+    decided = approved + rejected
+
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "region": region,
+            "chips": [{"name": name, "pending": pending_by_region.get(name, 0)} for name in names],
+            "all_pending": sum(pending_by_region.values()),
+            "held": held,
+            "passed": passed,
+            "scored": scored,
+            "in_review": in_review,
+            "pending": pending,
+            "approved": approved,
+            "tagged_approved": tagged_approved,
+            "rejected": rejected,
+            "waiting_export": waiting_export,
+            "decided": decided,
+            "countries": country_rows,
+            "sources": [
+                {
+                    "id": source.id,
+                    "name": source.name,
+                    "enabled": source.enabled,
+                    "state": stats.get(source.id, {}).get("state", "unknown"),
+                    "notices": stats.get(source.id, {}).get("notices", 0),
+                    "candidates": stats.get(source.id, {}).get("candidates", 0),
+                }
+                for source in selected
+            ],
+            "last_fetch": last_fetch,
+            "calls_today": spend.calls,
+            "cost_today": spend.usd,
+        },
+    )
+
+
+@app.get("/queue", response_class=HTMLResponse)
 def queue(request: Request, region: str = "") -> HTMLResponse:
     """The work. Everything pending_review, highest score first, and what is waiting to leave.
 

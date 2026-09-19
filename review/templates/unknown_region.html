@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Unknown region — PFM Opportunity Monitor{% endblock %}
+{% block content %}
+<h1>Unknown region</h1>
+<p>{{ region }} is not a region config/thresholds.yaml names. Nothing was silently shown as "all".</p>
+<p>Configured regions: {{ regions|join(', ') }}.</p>
+<p><a href="/">Back to the dashboard</a>.</p>
+{% endblock %}

@@ -60,6 +60,26 @@ h4 { font-size: 0.8rem; margin: 0.75rem 0 0.25rem; color: var(--muted); }
 .id { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; margin-left: 0.4rem; }
 .tags { color: var(--muted); font-size: 0.75rem; margin-left: 0.4rem; }
 
+/* The dashboard's figure strip (decision 71). */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0 1.5rem;
+}
+.figure {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 0.6rem 0.8rem;
+}
+.figure-value {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.figure-label { display: block; color: var(--muted); font-size: 0.78rem; }
+
 .filters { margin: 0 0 1rem; }
 .filter {
   display: inline-block;

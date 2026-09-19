@@ -17,6 +17,7 @@ You do not touch connectors, normaliser, translator, filter, scorer, deduper or 
 
 ## The pages
 
+0. Dashboard, the main page (decision 71, 19 September 2026): the selection's figures for all regions or one, with the region names from config and nowhere else; notices, filter passes, candidates by status, precision at the queue, waiting to export, top countries, the sources covering the selection and their health. The queue moves to `/queue`.
 1. Queue: pending candidates sorted by score, filterable by region and language.
 2. Candidate detail: score, matched functions with evidence, system names, English summary, original text where the language is not English, source links, and the proposed record rendered field by field and editable.
 3. Decided list, filterable by outcome and reviewer.

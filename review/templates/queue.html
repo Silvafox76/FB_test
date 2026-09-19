@@ -21,9 +21,9 @@
 {% endif %}
 
 <p class="filters">
-  <a class="filter {{ 'on' if not region }}" href="/">All regions</a>
+  <a class="filter {{ 'on' if not region }}" href="/queue">All regions</a>
   {% for name in regions %}
-    <a class="filter {{ 'on' if region == name }}" href="/?region={{ name|urlencode }}">{{ name }}</a>
+    <a class="filter {{ 'on' if region == name }}" href="/queue?region={{ name|urlencode }}">{{ name }}</a>
   {% endfor %}
 </p>
 

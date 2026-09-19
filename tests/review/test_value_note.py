@@ -193,7 +193,7 @@ def test_the_queue_shows_the_lot_only_value_note_too(client, lot_only_candidate)
     """The smallest fix: the queue's Value column shares `value_narrative` with the
     candidate page, so a lot-only candidate reads its own published figures there
     too rather than "not stated"."""
-    page = client.get("/").text
+    page = client.get("/queue").text
 
     assert NOTE in page
 
