@@ -379,3 +379,158 @@ health:
   expected_items_per_run: [1, 80]
   max_consecutive_failures: 3
 owner: ryan.dear
+
+# ============ DECISION 74 ADDENDUM, 19 SEPTEMBER 2026: THE TENDER ALERT SERVICE ============
+# The narrow question asked was whether FreeBalance's existing UNGM supplier account
+# (held under the corporate info@ mailbox) can read notices through UNGM's paid
+# Tender Alert Service (TAS / "UNGM Pro") in a way clause 5.2 and 7.2 above do not
+# reach. This does not reopen the anonymous-crawl finding above, which stands.
+# Fetched 2026-09-19, one polite GET per page, MONITOR_USER_AGENT, no login, no
+# registration, no form submitted, no password requested or received, no notice
+# text stored.
+#
+#   1. WHAT THE TAS IS. https://www.ungm.org/Public/UNGMPro (fetched 2026-09-19,
+#      public, no login) describes it as a single delivery mechanism: "a daily
+#      digest of matching procurement opportunities, delivered straight to your
+#      inbox" - EMAIL ONLY. Its FAQ: "How often will I receive the digest? Once per
+#      day." No RSS, no API, no export is offered or mentioned anywhere on the page.
+#      It draws on the same corpus already measured above ("from across 32 UN
+#      organizations") filtered "by goods & services" and "by geography" - the same
+#      Countries/UNSPSCs filters as /Public/Notice/Search. The sample digest shown
+#      on the page carries, per opportunity: title, issuing organisation, a "New"
+#      tag, days-to-close, category and country - the listing-row fields from
+#      measurement 7 above, NOT the Description block; nothing on the page states
+#      whether the email links back to the detail page, and that was not confirmed.
+#      COST IS NOT PUBLISHED. Clause 6.1 below sends a buyer to registry@ungm.org.
+#      Confirmed live: GET https://www.ungm.org/Vendor/MyUNGMPro?shownTab=tabPayment
+#      (no session) -> HTTP 302 to /Account/Account/Login - the price sits behind
+#      login. FAQ: payment is "Credit card (Visa, MasterCard, JCB) or bank
+#      transfer"; card plans auto-renew, bank-transfer plans do not.
+#      help.ungm.org, which hosts the UNGM Pro Help Center section, answered a plain
+#      GET with HTTP 403 and `cf-mitigated: challenge` (a Cloudflare bot check) -
+#      not fetched further, since clearing it would mean executing a JS challenge,
+#      which is out of scope for reading a public page. Everything below rests on
+#      the UNGM Pro marketing page and the Terms and Conditions, both read without
+#      that challenge.
+#
+#   2. THE TAS'S OWN TERMS. There is no separate "Tender Alert Service Terms" page;
+#      Section 6, "Subscription to the Tender Alert Service (TAS)", of the same
+#      document at https://www.ungm.org/Public/Pages/Terms (fetched 2026-09-19, in
+#      full, no login - it is the public terms page) is the TAS's contract, and
+#      Section 7's clauses 7.4 and 7.5 name TAS material specifically. Quoted, not
+#      paraphrased, because this is the clause the decision turns on:
+#
+#      6.1  "Subscription to the TAS is conditioned by the payment of all fees...
+#            Information on current tender alert subscription fees and charges for
+#            using the TAS may be obtained by contacting registry@ungm.org."
+#      6.6  "The Subscriber shall use the TAS only for the purpose set out in this
+#            Subscription Agreement to the TAS and shall not use it for purposes
+#            that are prohibited by any applicable law or regulation."
+#            (Section 1 defines that purpose exhaustively: TAS is "the optional
+#            email service that provides details of new or revised tenders to the
+#            subscriber, and that matches its products and/or services" - a
+#            notification service, not a data-supply licence.)
+#      6.7  "The Subscriber shall not access (or attempt to access) the TAS by any
+#            means other than through the interface that is provided by UNGM."
+#      6.9  "The Subscriber shall not send unsolicited e-mails to any e-mail
+#            addresses obtained through the TAS. No information provided by UNGM to
+#            the Subscriber through the TAS shall be communicated in any fashion to
+#            any third party or used to contribute towards any other Service or
+#            Services."
+#      7.4  "All intellectual property and other property rights... with regard to
+#            the Materials AND THE E-MAILS THE USER RECEIVES AS PART OF THE TAS
+#            shall remain the sole property of UNGM and its UN Affiliates."
+#      7.5  "UNGM grants the User permission to electronically copy and print in
+#            hard copy the Materials and any e-mail that may be received as part of
+#            the TAS for the purpose of preparing documents to be submitted by the
+#            Subscriber in response of any Materials. Any use of the said Materials
+#            in emails (including reproduction for purposes other than those
+#            mentioned above, modification, distribution, republication and/or
+#            INCLUSION IN A COMPILATION) without the express prior written
+#            permission of UNGM is strictly prohibited."
+#
+#      SAME LICENCE, NAMED EXPLICITLY, NOT A FREER ONE. 7.4 puts TAS e-mails in the
+#      identical ownership position as the free site's Materials, and 7.5 extends
+#      the free site's narrow "prepare a response" permission (the same purpose
+#      5.2/7.2 already limit reading to) to TAS e-mails by name, then forbids -
+#      unprompted, without this file asking the question - "inclusion in a
+#      compilation" of that material without written permission. A daily run that
+#      files each digest's notices into `notices`/`notices_raw` for scoring and
+#      staging is exactly a compilation of TAS material assembled for a purpose
+#      other than preparing one bid response. So paying for the TAS does not clear
+#      5.2/7.2; it re-states the same restriction against the same use, in Section
+#      6 and 7.4/7.5 rather than 5.2/7.2, and closes off the "never registered, so
+#      no contract" reading this file's THE ARGUMENT ON THE OTHER SIDE section
+#      raised for the free site - a Subscriber has, by definition (Section 1) and
+#      by 6.2 ("By submitting the TAS Subscription Form, the Subscriber warrant..."),
+#      affirmatively contracted.
+#      ONE SUBSCRIPTION, ONE SUBSCRIBER, MARKETED AS COVERING A TEAM. The UNGM Pro
+#      page markets "Team access - One subscription, all colleagues" and its FAQ
+#      answers "Can I share my subscription with my team? Yes." But the contract
+#      itself never defines a team or organisation seat: 2.3 ("The rights and
+#      obligations concerning the use of the Site and its Services are personal to
+#      the User, and are not transferable to any other person or entity") and 6.4
+#      ("the Subscriber shall be responsible for all use of the Site under their TAS
+#      account") place all responsibility on the single Subscriber who holds the
+#      login, which is consistent with running it under the info@ corporate
+#      identity (decision 74's requirement) but does not create any broader licence
+#      for what the pipeline may do with what arrives.
+#      "COMMERCIAL USE" IS NOT DEFINED MORE PERMISSIVELY FOR A PAID PRODUCT. Nothing
+#      in Section 6 re-defines or narrows 5.2's "commercial or public use"; 6.6 ties
+#      the Subscriber to the narrow notification purpose and 7.5 ties permitted use
+#      to preparing one response, which is if anything the more explicit of the two
+#      restrictions on this exact point.
+#
+#   3. CONNECTOR SHAPE, IF IT WERE EVER BUILT. Delivery is e-mail only (measurement
+#      1) - there is no feed or API for a FeedConnector to read. This repository has
+#      no MailConnector class; decision 73 names five other portals that would share
+#      one, and a TAS digest would be a sixth candidate for it, not a new class. 6.7
+#      ("through the interface that is provided by UNGM") is not read as a separate
+#      bar to a MailConnector, since UNGM's own chosen interface for TAS *is* the
+#      e-mail it sends - reading mail already delivered to the subscriber's inbox
+#      is not accessing UNGM's servers by an unapproved means. The blocker is
+#      7.4/7.5's storage and compilation restriction (point 2), not the delivery
+#      mechanism.
+#
+#   4. LOGIN, FROM THE FORM'S HTML ONLY. GET https://www.ungm.org/Login (fetched
+#      2026-09-19, not submitted) renders one form,
+#      `<form action="/Account/Account/Login" method="post">`, containing exactly:
+#      `__RequestVerificationToken` (hidden ASP.NET antiforgery token, not a
+#      challenge), `IsOauthLogin` (hidden, value "False" - an alternate OAuth path
+#      exists in the markup but is not what this form presents), `UserName` (text,
+#      autocomplete="username", validated as "The Contact email field"), `Password`
+#      (type="password", autocomplete="current-password"), and `RememberMe`
+#      (checkbox). No CAPTCHA widget and no reCAPTCHA/hCaptcha/Turnstile script
+#      appear anywhere on the page; no OTP, authenticator or second-factor field
+#      exists. Login is username (the account's e-mail) and password only, which is
+#      what decision 74 requires before an existing corporate account can be
+#      proposed as a route - satisfied on this point alone.
+#
+#   THE DECISION A PERSON MUST TAKE. On the evidence above the TAS is not a licence
+#   that 5.2 and 7.2 fail to reach: 7.4 places TAS e-mails under the same ownership
+#   as the free site's Materials, and 7.5 extends the same "prepare one response"
+#   permission to those e-mails by name while expressly naming "inclusion in a
+#   compilation" - what staging notices into `notices`/`notices_raw` for scoring
+#   would be - as needing UNGM's prior written permission, which this file has not
+#   sought. The login mechanics clear decision 74's bar (username and password, no
+#   CAPTCHA, no second factor) but that is necessary and not sufficient, because the
+#   thing decision 74 protects against most is a login as a person rather than a
+#   corporate identity, not a review of what the account is then permitted to do
+#   with what it reads - and what it reads under a TAS subscription is bound by
+#   6.6/6.9 and 7.4/7.5 in the same way the free site is bound by 5.2/7.2. So this is
+#   NO under the reading in this file, for the same named person who owns option (a)
+#   or (c) above (a FreeBalance decision-maker, on legal review) to accept, reject,
+#   or fold into the same registry@ungm.org request already recommended: asking
+#   permission for the TAS's storage and compilation use covers both the free site
+#   and the TAS in one written answer, and paying for a subscription first buys
+#   nothing legally that the free site's identical question does not already need
+#   answered. If that person instead reads 7.5's "for the purpose of preparing
+#   documents to be submitted... in response" as reaching an automated triage
+#   pipeline that never republishes or discloses onward, the shape to build is a
+#   MailConnector reading the daily digest in the info@ inbox (point 3), sharing the
+#   class decision 73 already anticipates, and paid for as a straightforward
+#   procurement action once the subscription price is obtained from
+#   registry@ungm.org per clause 6.1 - not a technical blocker either way.
+#   tos_status stays reviewed_restricted: this addendum reaffirms 5.2/7.2 rather
+#   than displacing them (7.4, 7.5), so it does not meet this brief's bar for
+#   changing the value.
