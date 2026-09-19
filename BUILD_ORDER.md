@@ -391,7 +391,7 @@ Build:
 Accept:
 - `test_regions.py`: every ISO 3166 alpha-2 code appears exactly once across regions, `excluded` and `unassigned`; every key parses as a string (the `NO` trap); every `pilot_exceptions` code belongs to an inactive region; the workbook's 41 Europe & West Africa codes are exactly the pilot region's list.
 - A BG notice is `filtered_out` with the geography reason and `model_calls` is unchanged by it. An SN notice stages with `region = mena_francophone_africa` and appears in the pilot queue.
-- After migration, no candidate has a null region and the pre-existing 152 carry the region their country resolves to.
+- After migration, no candidate has a null region and the pre-existing 153 carry the region their country resolves to (19 West Africa, 131 Europe, 3 Balkans and Ukraine on 2026-09-19; eleven of them, in BG CZ RO SK, resolve to a region outside the pilot and are not guessed into it).
 
 ---
 
