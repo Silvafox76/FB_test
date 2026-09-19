@@ -1,0 +1,202 @@
+# Public Contracts Scotland (PCS) - Scotland's national procurement portal, run
+# by the Scottish Government (Scottish Procurement and Property Directorate),
+# publishing all regulated procurement advertised in Scotland under the
+# Procurement Reform (Scotland) Act 2014, Part 3 (publication duty; see
+# https://www.legislation.gov.uk/asp/2014/12/part/3/crossheading/publication-of-notices-on-public-contracts-website,
+# linked from the OCP registry page below). Register row S023 (desk research
+# 18-19 Sep 2026, class A) quoted no robots.txt line and no licence clause and
+# flagged the OCDS endpoint as unconfirmed; everything below was fetched live
+# on 2026-09-19 rather than assumed.
+#
+# THE MIRROR, AND WHY IT WAS NOT ONBOARDED. The register cites
+# https://data.open-contracting.org/en/publication/39, the OCP Data Registry's
+# entry for this publisher. That page is a third-party catalogue of a monthly
+# bulk-download mirror (JSON/Excel/CSV snapshots, last pulled 2026-04-12 per
+# its own text) - not the live portal, and not something this pipeline reads
+# per CLAUDE.md's rule against onboarding a mirror. It was fetched exactly
+# once, for one purpose only: it names the official API base URL,
+# https://api.publiccontractsscotland.gov.uk/v1, on the publisher's own
+# domain. That pointer was then verified independently below, live, against
+# the domain it names - not taken on the mirror's word.
+#
+# ACCESS ROUTE, in CLAUDE.md's procedure order: documented API. THIS SOURCE.
+# api.publiccontractsscotland.gov.uk serves a self-describing help page at
+# `/v1` (HTTP 200, `Content-Type: text/html`, title "Help - OCDS Web API")
+# naming two endpoints with worked examples:
+#   - GET /v1/Notices?dateFrom=mm-yyyy&noticeType=N&outputType=0 - a *list*
+#     endpoint, but unlike Liberia's two-step search-then-download OCDS API,
+#     each item in the list IS the full compiled release already (title,
+#     description, buyer/parties with contact details, tender value,
+#     tenderPeriod, CPV classification, documents[]) - confirmed by fetching
+#     it live, not assumed from the help text. No second per-notice call is
+#     needed.
+#   - GET /v1/Notice?id={ocid} - the same release family fetched by OCID, for
+#     when the connector already has one.
+# No authentication of any kind: a fresh request with no cookie jar and no
+# Authorization header returned HTTP 200 with a full OCDS release package on
+# every noticeType tried (2, 101, 102, 103, 104). The register's "auth to
+# confirm" is resolved: there is none. This closes the access-route search;
+# no HTML listing, alert-email or registration route was evaluated further.
+#
+# THE QUESTION THIS ENTRY WAS ASKED TO ANSWER: WHAT PCS ADDS BELOW FTS'S
+# THRESHOLD, AND WHETHER ITS NOTICES DUPLICATE FTS. The API's `noticeType`
+# parameter is not a filter on one mixed feed - each value is a separate
+# notice population, confirmed live 2026-09-19 by fetching all five values
+# for the current month and reading `tag`/`tender.status` on each:
+#   noticeType  OCDS tag   tender.status   what it is
+#   2   (OJEU F2)  tender     active          above-threshold Contract Notice
+#   101 (Site PIN) planning   planned         below-threshold prior information
+#   102 (Site CN)  tender     active          below-threshold Contract Notice
+#   103 (Site CAN) award      complete        below-threshold Contract Award
+#   104 (Quick Quote Award) award  (none)     below-threshold quick-quote award
+# noticeType=2 is the OJEU-legacy-labelled, above-threshold population, and it
+# duplicates Find a Tender directly: of 69 noticeType=2 releases published in
+# Scotland this month (to 2026-09-19), 21 have an exact tender-title match
+# against a live Find a Tender pull for the same period (`updatedFrom=
+# 2026-09-12T00:00:00&stages=tender`, 29 releases UK-wide) - including the
+# very first FTS row, "Dargavel Burn Restoration Project - Developed &
+# Technical Design Stages (RIBA 3 &4)" for Green Action Trust, word for word.
+# The remainder of the 69 fall outside FTS's `updatedFrom` window rather than
+# being genuinely absent from it; the two systems are not sampled identically,
+# they are the same above-threshold population published twice. Building a
+# second connector against noticeType=2 would be a second client reading FTS's
+# own notices under a different name (rule 1), so this entry does not fetch
+# it. noticeType=103 and 104 are award-stage, i.e. already decided, the same
+# exclusion sources/ted.yaml and sources/doe.yaml make for their own
+# post-decision notice types. noticeType=101 is planning-stage (OCDS tag
+# "planning", not "tender") - the same stage Find a Tender's own connector
+# (sources/fts.yaml) deliberately excludes with `stages=tender`, for the same
+# reason: it is not yet a solicitation open for a bid. That leaves
+# noticeType=102 as the one population that is (a) tender-stage and open
+# (`tender.status: active` on all 62 sampled this month, all 62 carrying a
+# `tenderPeriod.endDate`) and (b) NOT duplicated by Find a Tender: zero exact
+# title matches against the same FTS pull, across all 62. Sample below-
+# threshold values seen: GBP 20,833 (habitat clearance), GBP 60,000-140,000
+# (consultancy/ICT/reviews), GBP 265,000 (exhibition fit-out) - i.e. genuinely
+# below the roughly GBP 213k/5.3m OJEU-derived thresholds FTS/noticeType=2
+# cover, which is the gap the register asked this entry to characterise. This
+# is acquisition scope, not a filter: the connector should call the API with
+# noticeType=102 only, never with the default (2). `exclude_notice_types` is
+# left empty by construction for the same reason sources/benin.yaml's is -
+# the decision is which route (query parameter, here) to ask for, not a
+# post-fetch filter on a mixed feed.
+#
+# ROBOTS.TXT, fetched 2026-09-19, both hosts this source touches:
+#   - www.publiccontractsscotland.gov.uk/robots.txt names Googlebot,
+#     Yahoo-slurp (crawl-delay 1), bingbot (crawl-delay 5) and Msnbot as
+#     allowed, disallows SemrushBot and SemrushBot-SA outright, and closes
+#     with `User-agent: *` / `Disallow: /`. FreeBalance-OpportunityMonitor
+#     matches none of the named agents, so it falls in the `*` group: the
+#     ENTIRE www host, including its human-facing search listing and whatever
+#     Terms and Conditions page it carries, is disallowed for this identified
+#     agent. This is exactly why the www HTML listing was never a candidate
+#     route once the API was found, and why this entry cannot quote a clause
+#     from a PCS-branded Terms and Conditions page - fetching one to read it
+#     would itself be the crawl robots.txt disallows, and CLAUDE.md rule 21
+#     and the hard rule against routing around a restriction both apply to an
+#     assessment fetch, not only to a scheduled connector run. This connector
+#     never requests anything from www.publiccontractsscotland.gov.uk.
+#   - api.publiccontractsscotland.gov.uk/robots.txt returns HTTP 404 (IIS's
+#     stock "File or directory not found" page, not a robots directive of any
+#     kind). No file, so no listing path is named and no crawl-delay is
+#     stated - absence is silence, not a restriction, the same basis
+#     sources/liberia.yaml and sources/ebrd.yaml already rest on. This is the
+#     host the connector actually reads, and it is unrestricted.
+#
+# TERMS / LICENCE. No Terms and Conditions, Legal or About page exists on the
+# api subdomain itself (`/Legal`, `/Terms`, `/Help`, `/About`, `/v1/Help` all
+# returned 404, checked 2026-09-19), and the one on the www host could not be
+# read without violating the robots.txt disallow above. What IS checked, and
+# is first-party and machine-readable: every OCDS release package returned by
+# api.publiccontractsscotland.gov.uk - the actual artifact this connector
+# reads - carries `"license": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"`
+# at the package root, confirmed on live noticeType=2 and noticeType=102
+# pulls alike. That target, fetched 2026-09-19 (a different host, not subject
+# to PCS's robots.txt), states in its operative clauses: "You are free to:
+# copy, publish, distribute and transmit the Information; adapt the
+# Information; exploit the Information commercially and non-commercially,"
+# conditioned on "You must ... acknowledge the source of the Information ...
+# by including or linking to any attribution statement specified by the
+# Information Provider(s)." No clause anywhere in it addresses automated
+# access, scraping or an account requirement. This is the same licence and
+# the same basis sources/fts.yaml already carries ("Open Government Licence,
+# OCDS release packages"), now traced to its actual clause text rather than
+# named only. The unreadable-under-robots.txt www ToS page is a real gap
+# (it might carry a network-abuse clause the way sources/contractsfinder_gb.yaml's
+# joint Contracts Finder/Find a Tender terms do), but it is a gap about the
+# human website, not about the licence covering the data this connector
+# reads, which is stated by the API itself and is unambiguous.
+tos_status: reviewed_ok
+id: pcs_gb_sct
+name: Public Contracts Scotland
+country: GB
+admin_level: regional      # Scotland; register row S023's own classification. Publisher is the
+# Scottish Government but coverage is bodies operating in Scotland specifically
+# (councils, NHS boards, universities, housing associations, national agencies
+# with a Scottish remit) - a devolved-nation portal, not sources/fts.yaml's
+# UK-wide one, hence regional rather than national even though country is GB.
+language: en
+# Confirmed, not assumed: every one of the 69 noticeType=2 and 62 noticeType=102
+# releases sampled 2026-09-19 carries `"language": "EN"` on the release, and the
+# api subdomain's own `/v1` help page (the only page on that host with prose) is
+# in English throughout. www.publiccontractsscotland.gov.uk's own page text was
+# not checked, per the robots.txt note above.
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 07:45 UTC daily - between sources/fts.yaml (07:00) and sources/undp.yaml (07:30
+# is taken; 07:15 is sources/contractsfinder_gb.yaml). Grouped with the other two
+# UK sources since they share posture (Cabinet Office / Scottish Government,
+# both OGL, both low-volume relative to TED/Prozorro). Checked against every
+# schedule in sources/*.yaml on 2026-09-19; 07:45 is free. Scotland is BST
+# (UTC+1) in September, so this is 08:45 local.
+schedule: '45 7 * * *'
+# Base list endpoint; the connector must call it with noticeType=102 explicitly
+# (default is 2, the above-threshold population this entry deliberately does not
+# fetch - see the notice-type table above) and outputType=0 for OCDS. dateFrom
+# takes a *month* (mm-yyyy), not a day, and defaults to the current month -
+# there is no finer-grained date filter documented or found by probing the help
+# page's own examples. One call per run therefore returns the WHOLE current
+# month's noticeType=102 releases every time, not a rolling window of new ones;
+# expect heavy day-to-day overlap with the previous run and rely on the
+# pipeline's own content_hash/external_id dedupe (steps 4/8) rather than the API
+# to distinguish new from already-seen. This is why the health band below is
+# wide and floors at zero rather than at a measured minimum.
+api_url: https://api.publiccontractsscotland.gov.uk/v1/Notices
+# THE ONE THING THIS CONNECTOR SHOULD NEVER FETCH. Every noticeType=102 release's
+# `tender.documents[]` carries at most one entry with a `url` - the human-facing
+# notice page at www.publiccontractsscotland.gov.uk/search/show/search_view.aspx,
+# on the robots-disallowed host above - and every other document entry
+# (economicSelectionCriteria, technicalSelectionCriteria, and the PDF/Word/Excel/
+# zip attachments themselves) carries a `format` but NO `url` at all: the API does
+# not expose an attachment download route the way Liberia's or Find a Tender's do.
+# There is therefore nothing session-gated to weigh here (unlike sources/liberia.yaml's
+# login-gated documents[].url or sources/contractsfinder_gb.yaml's WAF block) -
+# the only document link this source's OCDS payload gives is on a host this
+# connector must not touch, and every other document has no link at all. This
+# connector reads title, description, buyer, value, CPV, tenderPeriod.endDate and
+# the free-text description (which is where eligibility-relevant wording lives,
+# same as sources/liberia.yaml's eligibilityCriteria block) from the API payload
+# and nothing else; no PDF is ever fetched, so text-layer quality does not arise.
+enabled: false        # built 2026-09-19 (connector, fixture, 29 contract tests, normaliser); held because the live fetch fails
+                      # TLS verification: the host omits its Sectigo intermediate (decision 72). Not wired in monitor/fetch.py.
+health:
+  # Measured 2026-09-19 against noticeType=102 only (the population this entry
+  # actually fetches), two comparable business weeks read from the current
+  # month's cumulative list: 2026-09-07 to 2026-09-11 (Mon-Fri; the flanking
+  # weekend published nothing) ran 2, 2, 5, 2, 5 = 16; 2026-09-14 to 2026-09-18
+  # (same pattern) ran 3, 4, 8, 3, 8 = 26. Weekday-bursty, weekend-zero, the same
+  # shape sources/liberia.yaml and sources/contractsfinder_gb.yaml both record.
+  # Floor is 0 rather than under the measured weekly floor, and for a different
+  # reason than the weekend one: because dateFrom windows a whole calendar month
+  # and this call returns the month's running total rather than a diffed delta,
+  # the first run of a new month can legitimately see very few items before the
+  # month has had time to accumulate any - 0 is inside that window, not only a
+  # weekend. Ceiling set above the fullest week measured (26) with more headroom
+  # than a weekly-diffed source would need, since a run late in a longer month
+  # accumulates more than any one week did: 62 were seen for the 19 days to
+  # 2026-09-19 alone, so a full month could exceed 90-100.
+  expected_items_per_run: [0, 150]
+  max_consecutive_failures: 3
+owner: ryan.dear

@@ -1,0 +1,140 @@
+# UK national below-OJEU-threshold procurement notices - Contracts Finder,
+# run by Crown Commercial Service (part of the Cabinet Office) alongside
+# sources/fts.yaml (Find a Tender, the UK's above-threshold OCDS feed already
+# live). Register row S021 (desk research 18-19 Sep 2026, class A) quoted no
+# robots.txt line and no licence clause; both were fetched live on 2026-09-19
+# rather than assumed from the desk-research note, per this agent's brief.
+#
+# WHAT THIS ADDS BELOW FTS'S THRESHOLDS, AND THE OVERLAP QUESTION THE BRIEF
+# ASKED FOR AN ANSWER TO. Contracts Finder carries England-centric,
+# lower-value notices (central government over GBP 10k, wider public sector
+# over GBP 25k) that sit below the OJEU-derived thresholds Find a Tender
+# publishes above. Checked directly rather than taken on the register row's
+# word, 2026-09-19: fetched both APIs' tender-stage releases for the same
+# two seven-day windows (2026-09-05 to 2026-09-12 and 2026-09-12 to
+# 2026-09-19) and found zero shared ocid across 66-70 Contracts Finder
+# releases and 29 Find a Tender releases in the second window, and zero
+# buyer-name or title match in a 10-row sample checked by hand. The two
+# publishers even use different registered OCDS prefixes for the same
+# Cabinet Office publisher record - "ocds-b5fd17-..." on Contracts Finder,
+# "ocds-h6vhtk-..." on Find a Tender - which is a structural fact, not a
+# sampling artefact: these are two separate notice populations published
+# through two separate systems, not the same notices at two thresholds of
+# the same feed. Dedupe does not need to reconcile them against each other;
+# it needs to treat them as two independent sources, same as any other pair.
+#
+# ACCESS ROUTE, in CLAUDE.md's procedure order: documented API. GET
+# Published/Notices/OCDS/Search, documented at
+# https://www.contractsfinder.service.gov.uk/apidocumentation/Notices/1/GET-Published-Notice-OCDS-Search
+# and confirmed live 2026-09-19 (see api_url below). This is the first route
+# in the order that works, so the procedure stops here: no HTML listing,
+# alert-email or registration route was evaluated further. No auth: a fresh
+# request with no cookie jar and no Authorization header returned a full OCDS
+# release package. ("Register" / "Sign in" on the site are for buyers
+# publishing notices and suppliers managing saved searches, not for reading
+# published ones.)
+#
+# ROBOTS.TXT, fetched 2026-09-19: https://www.contractsfinder.service.gov.uk/robots.txt
+# returns HTTP 404 - Contracts Finder's own branded "Page not found" page, not
+# a robots directive of any kind. No robots.txt exists on this host: no
+# listing path is named and no crawl-delay is stated, because the file itself
+# is absent. Same basis sources/liberia.yaml and sources/ebrd.yaml used:
+# absence is silence, not a restriction.
+#
+# TERMS AND CONDITIONS, fetched 2026-09-19 from
+# https://www.contractsfinder.service.gov.uk/Home/TermsAndConditions - one
+# joint document covering "the Contracts Finder and Find a Tender Site[s]",
+# the same page sources/fts.yaml's reviewed_ok already rests on. Clauses
+# quoted, not paraphrased:
+#   - "No Network Abuse ... Monitoring or Crawling. Monitoring or crawling of
+#     a System that impairs or disrupts the System being monitored or
+#     crawled" is the prohibited act - crawling itself is not prohibited,
+#     only crawling that impairs or disrupts the service. One scheduled GET
+#     a day against a search endpoint that answered in under a second is not
+#     that.
+#   - "Using Contracts Finder and Find a Tender content ... We make most of
+#     the content on Contracts Finder and Find a Tender available through
+#     feeds for other websites and applications to use" - machine consumption
+#     of the feed is a named, intended use, not a tolerated edge case.
+#   - "Most content on Contracts Finder and Find a Tender is subject to Crown
+#     copyright protection and is published under the Open Government
+#     Licence (OGL)." Confirmed machine-readable in the API response itself:
+#     every search response carries
+#     "license": "http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/".
+#   - "Service Consumer Responsibility ... By consuming the service you are
+#     consenting to Crown Commercial Service recording details of any
+#     service access requests/downloads" - a notice that access is logged,
+#     not a restriction requiring action from us.
+tos_status: reviewed_ok
+id: contractsfinder_gb
+name: Contracts Finder
+country: GB
+admin_level: national
+# Confirmed, not assumed: every one of the 66 tender-stage releases sampled
+# 2026-09-19 carries "language": "en" on the release, and the site's own
+# pages declare <html lang="en">.
+language: en
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 07:15 UTC daily - immediately after fts.yaml's 07:00 UTC slot, since the two
+# sources share a publisher (Cabinet Office / Crown Commercial Service) and a
+# rate-limit posture, and 07:15 is not already claimed by any schedule in
+# sources/*.yaml (checked 2026-09-19: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/
+# worldbank_pipeline 08:30, euft/place 09:00, mcc Mon 09:30, ungm 10:00,
+# ebrd 10:30, liberia/benin/cote_divoire 11:00, gambia/mali/nigeria 11:30,
+# senegal/sierra_leone 11:00, ghana 12:00, kosovo 12:30, boad/opec_fund
+# 13:00/13:30). GB is BST (UTC+1) in September, so this is 08:15 local.
+schedule: '15 7 * * *'
+# GET Published/Notices/OCDS/Search - confirmed live 2026-09-19. Query
+# parameters, read from the documentation page and exercised directly:
+# publishedFrom / publishedTo (ISO 8601, optional), stages (comma-separated:
+# planning, tender, award, implementation - "tender" is the opportunity
+# stage, same choice sources/fts.yaml already made and for the same reason),
+# limit (integer, default 100, max 100) and cursor (opaque, from the OCDS
+# pagination extension, for a next page). A live call with
+# publishedFrom=2026-09-12T00:00:00&publishedTo=2026-09-19T00:00:00&stages=tender&limit=100
+# returned 66 releases and no cursor, i.e. one page covered the whole week;
+# daily counts never come close to the 100-per-page ceiling (see health).
+# CAUTION FOR THE CONNECTOR BUILDER, found live and not in the documentation:
+# a bare AWS ELB 403 (not the documented, text/plain rate-limit 403 body) was
+# returned for the human-facing /Notice/{id} page and for a
+# /Notice/Attachment/{guid} PDF fetched with the same identified user agent
+# in the same session that the OCDS search call above succeeded from -
+# i.e. this is not a login wall and not the documented rate limit, it is
+# something about those two path shapes specifically that our request
+# doesn't satisfy. This connector should read ONLY the OCDS JSON returned by
+# the search endpoint below - which carries title, description, buyer name,
+# buyer contact point and address, value (amount + currency, present on 45 of
+# the 66 releases sampled; the rest state no value), tenderPeriod.endDate as
+# the deadline (present on all 66), and CPV classification at
+# tender.classification (present on all 66, unlike Find a Tender, where CPV
+# sometimes lives in items[].additionalClassifications and is sometimes
+# absent) - and should not attempt the notice HTML page or attachment
+# downloads. This is a second document-enrichment gap of the same shape
+# sources/liberia.yaml records for its login-gated documents, except this one
+# is a WAF-style block rather than a login, and it was not investigated
+# further: rule 21 rules out probing with a different user agent to see if it
+# clears, since that would be routing around whatever is blocking it rather
+# than working within it.
+api_url: https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search
+enabled: true         # 2026-09-19: connector, fixture (14 releases) and 20 contract tests; normaliser; one live fetch
+                      # seen 13 / new 12 inside [0, 100] (decision 72)
+health:
+  # Measured 2026-09-19 against two live seven-day windows of tender-stage
+  # releases: 2026-09-07 to 2026-09-11 (weekdays only; the two flanking
+  # weekend days published nothing) ran 12, 18, 16, 11, 13 = 70 for the week;
+  # 2026-09-14 to 2026-09-18 (same weekday pattern) ran 66 for the week. Both
+  # weeks are weekday-bursty and weekend-zero, the same shape
+  # sources/liberia.yaml's health note describes, so a daily schedule will
+  # legitimately read zero on a Saturday or Sunday - not the silent-zero rule
+  # 4 exists to catch, but worth naming here so whoever tunes
+  # max_consecutive_failures does not mistake a normal weekend for a failing
+  # source. Band set with the same margin as liberia.yaml and ebrd.yaml:
+  # under the weekday floor (11/day, so 0 is well inside a one-day window)
+  # and above the fullest week measured (70) for headroom.
+  expected_items_per_run: [0, 100]
+  max_consecutive_failures: 3
+owner: ryan.dear

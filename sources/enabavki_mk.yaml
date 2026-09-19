@@ -1,0 +1,233 @@
+# North Macedonia's national public procurement platform, e-Nabavki / ESJN
+# (Електронски систем за јавни набавки, "Electronic System for Public
+# Procurement"), operated by the Public Procurement Bureau (Биро за јавни
+# набавки) under the Ministry of Finance. Source register row S015 (desk
+# research 18-19 Sep 2026, class A, partly verified from trade press) named
+# two candidate routes and asked this session to test the open-data platform
+# first, using a browser only if that is proven necessary - and separately
+# flagged that the pipeline's own older registry note assumed every Balkan
+# portal needs a browser behind registration. Both assumptions were tested
+# live rather than carried forward, the same discipline sources/kosovo.yaml
+# and sources/ghana.yaml applied to the same inherited assumption for their
+# own countries. For Kosovo and Ghana that assumption turned out false (both
+# read cleanly with a plain GET, no browser, no login). For this source it
+# turns out TRUE on the browser half and FALSE on the registration half:
+# e-Nabavki genuinely needs a browser to read anything, proven below, but
+# needs no account and no local registration to read a public notice.
+#
+# ROBOTS.TXT, fetched 2026-09-19, identified as
+# FreeBalance-OpportunityMonitor/0.1 (+contact email, from MONITOR_USER_AGENT),
+# one polite GET per host/scheme, verbatim result on every variant tried:
+#   https://e-nabavki.gov.mk/robots.txt       -> HTTP 404
+#   http://e-nabavki.gov.mk/robots.txt        -> 301 to the https URL, then 404
+#   https://www.e-nabavki.gov.mk/robots.txt   -> HTTP 404
+# Every 404 is a real origin response (a custom ASP.NET "404 - File or
+# directory not found" HTML body, `X-Powered-By: ASP.NET`, served through
+# Cloudflare with a normal `cf-ray`), not a proxy failure or a Cloudflare
+# challenge page. No robots.txt exists on either host, which is silence
+# rather than a restriction - the same absence-means-permitted reading
+# sources/doe.yaml, sources/cote_divoire.yaml and sources/kosovo.yaml record
+# for their own 404s. No crawl-delay is stated anywhere because there is
+# nothing to state it in. Nothing here disallows the listing path.
+#
+# TERMS OF USE / LEGAL NOTICE - NOT LOCATED, AND THE REASON IS STRUCTURAL, NOT
+# JUST ABSENCE. e-nabavki.gov.mk is a single-page AngularJS application
+# (`ng-app="esjnApp"`) served from a handful of ASP.NET Web Forms shells
+# (home.aspx, opendata-announcements.aspx); its entire navigation menu is
+# populated at runtime by a `Lookup/GetPublicMenuItems` AJAX call and its own
+# footer div (`<div ng-bind="softwareVersion" id="footer"></div>`) renders
+# nothing until JavaScript runs. Unlike sources/gambia.yaml (a Next.js site
+# whose footer HTML, including a dead `href="#"` "Terms of Use" link, was
+# visible in the raw response) or sources/ghana.yaml (a classic server-
+# rendered footer with a real copyright line), this site's raw HTML has no
+# footer content and no visible nav at all to inspect - so it is not honest
+# to report "no Terms link was found in the footer" the way those two files
+# do, because no footer was ever actually visible to this agent. Direct slug
+# guesses on the ASP.NET side (terms.aspx, Terms.aspx, Legal.aspx,
+# Disclaimer.aspx, UsloviZaKoristenje.aspx, PublicAccess/Terms.aspx,
+# sitemap.xml) all 404, which is expected and not informative for a routing
+# scheme that is entirely client-side (`#/home`, `#/sitemap`, `#/askquestion`)
+# rather than server paths. The one legal-adjacent artifact actually found in
+# the shipped JavaScript is `js/app/controllers/acceptTerms.js`, whose
+# `acceptTerms()` function posts to `Public/AcceptTerms` from inside the
+# *login* flow (`$scope.loginModel`) - this is a vendor/economic-operator
+# account accepting terms to transact, the same "registration is for
+# bidding, not for reading" shape sources/kosovo.yaml's clause 3/24 describe,
+# not a public terms-of-use page governing reading a published notice. No
+# text of whatever those accepted terms actually say was read, and it will
+# not be: accepting them would require registering an account, which this
+# agent will not do (rule: never register an account or accept terms on
+# FreeBalance's behalf).
+# tos_status: pending. WHO NEEDS TO ACT: nobody at FreeBalance can currently
+# read this portal's actual public-facing terms (if a distinct one even
+# exists outside the vendor login flow) without rendering the site in a
+# browser, which is exactly the connector-building work this onboarding step
+# does not do. Whoever builds monitor/connectors/enabavki_mk.py should load
+# the site's own generated menu (Lookup/GetPublicMenuItems, or the rendered
+# `#/sitemap` state) with Playwright, find whatever Terms/Privacy/Legal item
+# it lists (if any), and route that clause to legal review before this
+# source is enabled - the same gate sources/kosovo.yaml's clause 28(c) sits
+# behind, for the same reason (a real restriction may or may not exist and
+# nobody has read it yet).
+#
+# ACCESS ROUTE, in CLAUDE.md's own order (documented API / structured feed
+# before any HTML listing), tested 2026-09-19:
+#
+#   1. THE "OPEN DATA" PLATFORM NAMED IN THE SOURCE REGISTER - TESTED FIRST,
+#      AS INSTRUCTED, AND IT IS NOT A SEPARATE FEED. The register's own
+#      evidence link (https://meta.mk/en/new-tool-for-public-procurement-data/,
+#      a 2018 article quoting the Ministry of Finance) names the tool's own
+#      URL: https://www.e-nabavki.gov.mk/opendata-announcements.aspx#/home.
+#      Fetched cold with a plain GET, HTTP 200, 29,002 bytes - and it is
+#      byte-for-byte the same Angular SPA shell as
+#      https://e-nabavki.gov.mk/PublicAccess/home.aspx (`diff` of the two
+#      raw responses differs only in a cache-busting `resourceVersion` query
+#      string and per-request session cookie; same `<html lang="mk">`, same
+#      `ng-app="esjnApp"`, same full list of ~90 controller `<script>` tags,
+#      same empty `<div ng-view ng-cloak class=""></div>`). "Open Data" is a
+#      client-side route (`#/home` under a different .aspx entry point)
+#      inside the identical application PublicAccess already is, not a
+#      separate bulk-download or documented-API surface. No distinct JSON,
+#      CSV or API endpoint for it was found: `services.js` (the app's shared
+#      $http wrapper, 49,276 bytes, read in full) has no `OpenData` or
+#      `Announcement` route anywhere in it, and direct guesses at a
+#      same-host API path (OpenData, OpenData/GetAnnouncements, api/opendata,
+#      OpenData/api/announcements) all 404. A national open-data portal does
+#      exist for North Macedonia generally (data.gov.mk, a CKAN instance,
+#      checked live) but its own `package_search` API returns only a handful
+#      of static one-off "annual procurement plan" documents from unrelated
+#      publishers (e.g. the anti-corruption commission, DKSK), not e-Nabavki's
+#      live tender notices - checked and ruled out, not the route. So the
+#      register's premise (a distinct open-data platform, format and
+#      freshness "to confirm") is answered: there is no distinct platform to
+#      confirm a format or freshness for. This is the one finding this
+#      session most needed to establish before anyone designed a connector
+#      around a bulk-file or API assumption that does not exist.
+#   2. THE PublicAccess HTML LISTING - THIS SOURCE, AND IT GENUINELY NEEDS A
+#      BROWSER, PROVEN THE SAME WAY sources/gambia.yaml PROVES ITS OWN:
+#      https://e-nabavki.gov.mk/PublicAccess/home.aspx, fetched with plain
+#      curl, no cookie jar, no JavaScript engine - HTTP 200, 31,658 bytes,
+#      and the entire notice area is `<div ng-view ng-cloak class=""></div>`:
+#      genuinely empty, not even a loading skeleton (unlike gambia.yaml's
+#      Tailwind pulse cards, which at least proved the wrapper markup).
+#      Every announcement type, tender list and search grid this platform
+#      offers (`js/app/controllers/announcementPlansPublicController.js`,
+#      `otherannouncements.js`, `internationaldonorannouncements.js`,
+#      `procurements.js`, and a dozen more, all confirmed present in the
+#      script list but none inlining data) is populated by an Angular
+#      controller calling a backend endpoint after the page loads, not by
+#      the server. A plain-GET or PageConnector reading this URL would parse
+#      an empty `<div>` forever, which is the silent-zero rule 4 exists to
+#      catch. No RSS/ATOM link exists in `<head>` on either page. No alert-
+#      email subscription was found. This is a public listing with no
+#      account and no cookie required to reach the same anonymous page an
+#      unauthenticated visitor gets (login is offered, not required, in the
+#      sidebar), so `access: public_listing`, and it needs a browser to
+#      render, so `connector: BrowserConnector` - matching
+#      sources/gambia.yaml's and sources/benin.yaml's shape, not
+#      sources/kosovo.yaml's or sources/ghana.yaml's.
+#
+# WHAT COULD NOT BE CHECKED, BECAUSE NO REAL NOTICE HAS BEEN OBSERVED. Every
+# item below needs the page actually rendered (Playwright), which is
+# connector-building work, not onboarding, and is left open for whoever
+# builds monitor/connectors/enabavki_mk.py:
+#   - VOLUME. Genuinely unmeasured, not a guess dressed as a number. No
+#     7-day count, no lifetime total: nothing about the notice list, not even
+#     a "showing N results" placeholder, exists in the raw HTML the way
+#     sources/gambia.yaml found a (misleading, pre-fetch) "0" counter. The
+#     health band below is a placeholder, the same convention
+#     sources/gambia.yaml and sources/mcc.yaml use for an unread route: a
+#     floor of 1 so a silent empty run can never read as healthy (rule 4),
+#     and a ceiling set for calibration only, not measurement - North
+#     Macedonia is one shared national platform for every contracting
+#     authority (comparable in population and government structure to
+#     Kosovo, whose own single national platform measured 226 kept notices
+#     over ten business days in sources/kosovo.yaml), so an order-of-
+#     magnitude-similar weekly volume is plausible once measured, not
+#     assumed here.
+#   - LANGUAGE. `<html lang="mk">` on both pages fetched, and the in-app
+#     language switcher offers MK / EN and, conditionally
+#     (`ng-if="showAlLanguage"`), AL/sq - matching the source register's "mk
+#     sq" and North Macedonia's two official languages. Which language(s)
+#     actual notice text is published in was not confirmed, because no
+#     notice text has been observed; `language: mk` below is the confirmed
+#     default UI/document language, and sq is left for the normaliser's
+#     per-notice call once real content exists, the same treatment
+#     sources/kosovo.yaml and sources/doe.yaml give a mixed-language corpus.
+#   - CPV OR A NATIONAL CODE SYSTEM. Not observed in any real listing row,
+#     because no real listing row has been rendered. North Macedonia's
+#     Public Procurement Law is EU-aligned as an EU candidate country, which
+#     makes CPV plausible by the same reasoning sources/kosovo.yaml applied
+#     before confirming FPP on its own search grid - but this is a plausible
+#     expectation, not a confirmed finding, and is written here as exactly
+#     that distinction.
+#   - DOCUMENT SESSION / TEXT LAYER. Whether a document download needs a
+#     session, and whether tender PDFs carry a text layer, could not be
+#     checked: no document link has been reached without first rendering a
+#     notice row.
+#
+# ADMIN_LEVEL is national: the Public Procurement Bureau operates e-Nabavki
+# as the one mandated platform for every contracting authority in North
+# Macedonia (central ministries, municipalities and state-owned enterprises
+# alike), the same platform-level default sources/kosovo.yaml and
+# sources/ghana.yaml record for their own single national systems - not a
+# claim that every notice on it is a central-government one.
+id: enabavki_mk
+name: e-Nabavki (ESJN) - North Macedonia National Public Procurement System, PublicAccess listing
+country: MK
+admin_level: national
+language: mk
+stream: portal
+access: public_listing
+# See "ACCESS ROUTE" above: the listing area is `<div ng-view ng-cloak
+# class=""></div>`, genuinely empty in the raw HTML fetched with a plain GET
+# and no JavaScript engine - proven, not assumed, against both this URL and
+# the "open data" URL the source register asked to be tested first.
+connector: BrowserConnector
+wave: 2
+# 13:45 UTC daily = 15:45 local (North Macedonia is UTC+2/CEST in September,
+# the same offset sources/kosovo.yaml records for the region, no separate
+# IANA quirk). Chosen to collide with nothing already in sources/ as of
+# 2026-09-19: boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts 07:00,
+# undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place
+# 09:00, malta 09:15, mcc Mon 09:30, ungm 10:00, ebrd 10:30, benin/
+# cote_divoire/liberia/senegal/sierra_leone/burkina_faso 11:00, gambia/mali/
+# nigeria 11:30, ghana 12:00, kosovo 12:30, boad 13:00, opec_fund 13:30,
+# tenderned_nl 14:00.
+schedule: '45 13 * * *'
+# The PublicAccess entry point named in the source register. This is the
+# shell URL a browser must load and let hydrate before any per-notice route
+# can be found; the exact in-app state for "current tender notices" (as
+# opposed to home, awarded contracts, annual plans, etc.) was not
+# identified, because identifying it needs the app rendered - left for
+# whoever builds the connector, per "WHAT COULD NOT BE CHECKED" above.
+list_url: https://e-nabavki.gov.mk/PublicAccess/home.aspx
+# See "TERMS OF USE / LEGAL NOTICE" above: no public-facing terms page could
+# be located because the site's entire navigation is populated by
+# JavaScript this agent did not run, and the one terms-acceptance mechanism
+# found in the shipped code (js/app/controllers/acceptTerms.js) belongs to
+# the vendor/bidder login flow, not to reading a public notice. Absent a
+# clause actually read, this is pending for legal review, not a guess in
+# either direction - the same fallback sources/gambia.yaml and
+# sources/senegal.yaml use when nothing found actually forbids the fetch but
+# nothing has been read closely enough to call reviewed_ok either.
+tos_status: pending
+# Not built, and blocked on two separate things before it can be: tos_status
+# above is pending legal review, and no monitor/connectors/enabavki_mk.py,
+# browser fixture or row_selector exists yet (row_selector is deliberately
+# left unset here rather than guessed - unlike sources/gambia.yaml's
+# Tailwind skeleton cards, this site's raw HTML has no visible markup at all
+# to infer a selector from; whoever builds this connector must render the
+# page first).
+enabled: false
+health:
+  # UNVERIFIED PLACEHOLDER - see "WHAT COULD NOT BE CHECKED, VOLUME" above.
+  # No count of any kind could be read from either candidate URL without a
+  # browser. Floor of 1 so a silent empty run can never read as healthy
+  # (rule 4); ceiling set high enough to allow for a full national platform
+  # comparable to sources/kosovo.yaml's measured ~113-145/week, but this is
+  # calibration, not a measurement, and should be replaced from the first
+  # real Playwright fetch.
+  expected_items_per_run: [1, 400]
+  max_consecutive_failures: 3
+owner: ryan.dear

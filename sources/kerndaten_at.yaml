@@ -1,0 +1,263 @@
+# Austria's BVergG 2018 s.59(1) "Kerndaten" (core notice data) obligation, as
+# catalogued on data.gv.at. Source register row S002 asked one question: can this
+# be read through ONE route (a data.gv.at catalogue query listing every Kerndaten
+# source, then each source's feed)? Measured 2026-09-19, one polite GET per host,
+# user agent read from MONITOR_USER_AGENT (.env) with contact (+contact email)
+# substituted for the placeholder in that variable for this session's requests.
+# ANSWER: NO, the data.gv.at catalogue is not a working single ingestion route -
+# it is a metadata index of 46 separately hosted feeds with wildly different
+# freshness (one dead since 2024, one from 2026-09-18) - BUT one of those 46,
+# ANKO's Vergabeportal.at feed, is itself a multi-buyer national clearinghouse
+# that on the evidence below carries most of the volume among the feeds checked.
+# This file registers THAT ONE FEED, not the 46-source harvest. See NOT COVERED,
+# below, for what is deliberately left out and why.
+#
+# WHY THIS IS NOT THE "read data.gv.at, then walk 46 feeds" DESIGN THE REGISTER
+# ROW ASKED ABOUT. data.gv.at itself has been rebuilt since the register row was
+# written: the old CKAN API (`/api/3/action/package_search`, the interface every
+# other Austrian open-data integration guide still documents) now 404s on every
+# path tried (status_show, package_search), and the whole of www.data.gv.at is a
+# client-rendered SPA shell (`<div id="app">` + a spinner, `/app.<hash>.js`) with
+# no robots.txt of its own (also 404 - absence, not a restriction, the same
+# reading sources/liberia.yaml and sources/kosovo.yaml give a missing robots.txt).
+# The catalogue is reachable through a newer, undocumented-but-discoverable
+# "piveau hub" search API found by reading the shipped JS bundle for its own API
+# base URLs (`https://www.data.gv.at/api/hub/search/search?q=...`, the same piveau
+# stack that runs data.europa.eu - `piveau.eu` and `piveau-dev.apps.a1.cp.cna.at`
+# both appear in the bundle). `?q=Kerndaten` returns EXACTLY 46 results, each a
+# pointer-only metadata record ("Metadatensatz zur Kerndaten-Sammlung gemaess
+# BVergG 2018 von '<publisher>'") naming one publisher and one `access_url` on
+# that publisher's own host - never the notice content itself. This confirms the
+# register row's own warning ("many sources, one per authority or platform") and
+# is very likely the "2026 schema change" it flagged: the catalogue's own API
+# surface changed under it sometime before this session, which is a second,
+# independent instability on top of the KDQ notice schema itself (both the index
+# schema `.../eproc/kdq/20180626` and the per-notice schema
+# `.../eproc/kd/2018/12` are 2018-dated BRZ schemas; a live change to either would
+# not show up in a metadata catalogue query and was not separately checked here).
+#
+# THE 46, top publishers by what was actually measured (cumulative items / items
+# with `lastmod` in the last 7 days from this session's snapshot, 2026-09-19).
+# Format is XML throughout, per the shared `kdq`/`KD_8_1_Z2` BRZ schema - the one
+# consistent thing across all 46:
+#
+#   1. ANKO Service Ges.m.b.H (ogd.ankoe.at) - 41,867 cumulative / 321 in 7 days.
+#      THIS SOURCE. A multi-buyer e-procurement clearinghouse (Vergabeportal.at),
+#      not a single organisation's own notices - the newest item read on a live
+#      fetch was for "BUEHNE BADEN TMB Theater und Museum Baden Kultubetriebs
+#      GmbH", a municipal theatre company with no other relationship to ANKO, so
+#      ANKO is publishing on behalf of many separate contracting authorities under
+#      one feed, the same shape TED or a national OJEU-equivalent has. Continuous
+#      updates roughly every 30 minutes (items minutes apart at fetch time), not a
+#      daily batch.
+#   2. ASFINAG (provia.at, ExternalProViaOpenDataService) - 20,566 cumulative / 51
+#      in 7 days. Live, fresh (max lastmod 2026-09-18), but single-organisation:
+#      ASFINAG's own group companies (motorway/highway financing and operation),
+#      not other buyers. NOT this source; see NOT COVERED.
+#   3. Bundesbeschaffung Ges.m.b.H / BBG (opendata.bbg.gv.at) - 18,985 cumulative /
+#      77 in 7 days. Live, fresh (max lastmod 2026-09-18). The federal central
+#      purchasing body's OWN procurements only, not other buyers' - this is the
+#      "federal BBG" candidate the register row named, and it is real and live,
+#      but it is a distant second to ANKO and single-organisation the way ASFINAG
+#      is. NOT this source; see NOT COVERED.
+#   4. AUSSCHREIBUNG.AT / INFO-TECHNO Baudatenbank GmbH - 2,148 cumulative / 2 in
+#      7 days. Live but small; a second multi-buyer platform, minor volume.
+#   5. eVergabe.at / Administration Intelligence Austria GmbH - 884 cumulative /
+#      0 in 7 days, max lastmod 2026-08-17 (five weeks stale at fetch time).
+#      Technically live, effectively dormant.
+#   6. Rechnungshof (Austria's Court of Audit), own host - 6 items EVER, max
+#      lastmod 2026-07-01. A single institution's occasional procurement; a fair
+#      sample of what the long tail of the other ~40 (regional chambers of
+#      commerce - Wien, Vorarlberg, Steiermark, Kaernten, Oberoesterreich and the
+#      national WKOe each have their OWN separate feed; universities; a handful of
+#      individual companies and even two individual municipalities, Eugendorf and
+#      Trofaiach) most likely looks like: real, but small enough that none of them
+#      individually approaches ANKO, and not measured one by one for that reason
+#      (46 hosts is beyond one polite GET per page for a single assessment
+#      session; see NOT COVERED for the ones with enough size to be worth a
+#      second look before this is treated as final).
+#   -  Wiener Zeitung GmbH / kdq.kerndaten.at - the register row's other named
+#      candidate ("the Wiener Zeitung / 'Amtlicher Lieferungsanzeiger'
+#      successor") - IS DEAD. The index file itself answers (736 KB, 4,500
+#      items) but its newest `lastmod` is 2024-12-13, HTTP `Last-Modified: Tue,
+#      17 Dec 2024`, nothing more recent in nearly two years of runtime at fetch
+#      time. Worse: `kerndaten.at`, the publisher's own domain (not the `kdq.`
+#      subdomain data.gv.at's metadata points at, but the plain domain a human
+#      would type), 301-redirects to `https://www.auftrag.at` - a private
+#      commercial tender-alert subscription service, not a statutory publication
+#      platform, and not itself registered as a Kerndaten publisher in the
+#      catalogue under its own name. This is recorded and NOT treated as a route:
+#      per the onboarding rule against routing around a dead official source by
+#      picking up whatever a stale domain now forwards to, `auftrag.at` is not
+#      onboarded as a substitute. The Wiener Zeitung Kerndaten obligation looks,
+#      from outside, unmet or silently moved somewhere this session did not find.
+#      Whoever owns the data.gv.at catalogue's accuracy should hear about this;
+#      it is not this pipeline's problem to route around.
+#
+# ACCESS ROUTE for the one feed registered here: no formal published API
+# reference was found for `ogd.ankoe.at`, but the response is a nationally
+# standardised, government-schema XML feed (BRZ's `kdq`/`KD_8_1_Z2`, the same
+# schema every one of the 46 publishers uses), discovered and read without a
+# session or account - the same "documented structured feed" tier
+# sources/liberia.yaml's OCDS API and sources/fts.yaml's OCDS release-package API
+# sit at, ahead of any HTML listing in CLAUDE.md's access-route order. GET
+# https://ogd.ankoe.at/api/v1/notices returns the full index (9.16 MB at fetch
+# time, 41,867 `<item id=... lastmod=...><url>...</url></item>` entries, oldest
+# from 2019-03, newest same-day); each item's own `<url>` (e.g.
+# `http://ogd.ankoe.at/api/v1/notices/4fadc7fe-...`) returns one notice's full KDQ
+# record - contracting body (name, national id, phone, email), title, CPV main
+# code, contract type, short description, NUTS region, submission deadline
+# (`DATETIME_RECEIPT_TENDERS`), dispatch and first-publication dates, and a link
+# to the human-facing listing (`URL_PARTICIPATION`, `gv.vergabeportal.at/Detail/
+# <id>`) for whoever wants the full tender documents. No pagination parameter,
+# date filter or `?since=` was found on the index endpoint in this session - it
+# was fetched with no query string and returned everything since 2019 in one
+# response - so a connector reading this feed daily needs its own watermark
+# (track the highest `lastmod` seen and read forward from it) rather than relying
+# on the source to window itself; left to the connector builder rather than
+# solved here.
+#
+# ROBOTS.TXT, ogd.ankoe.at (the exact host this source reads), fetched once,
+# verbatim:
+#   User-agent: *
+#   Content-Signal: ai-train=no, search=yes, ai-input=no
+#   Disallow:
+#   Crawl-delay: 5
+#
+#   User-agent: Applebot-Extended / anthropic-ai / CCBot / ChatGPT-User /
+#   ClaudeBot / Claude-Web / FacebookBot / Google-Extended / GPTBot / ia_archiver
+#   / OAI-SearchBot / omgili / omgilibot / PerplexityBot / PerplexityUser
+#   Disallow: /
+#
+# The listing path itself is NOT disallowed for a generically identified fetcher:
+# `Disallow:` under `User-agent: *` is empty, so a request declaring
+# FreeBalance-OpportunityMonitor/0.1 (which matches none of the named bots above)
+# is permitted to fetch, at a stated 5-second crawl delay this connector must
+# honour. Per CLAUDE.md's step 1, that is not a stop.
+#
+# BUT the `Content-Signal: ai-train=no, search=yes, ai-input=no` line sits under
+# `User-agent: *` too - it is not scoped to the named AI bots only, it is stated
+# for every fetcher including this one - and `ai-input=no` is a direct,
+# machine-readable statement that this publisher does not want its content used
+# as input to a generative-AI system. This pipeline's entire second half is
+# exactly that: every notice this connector would fetch is filtered, scored and
+# summarised by Claude (`monitor/score/`). The site also names `anthropic-ai` and
+# `ClaudeBot`/`Claude-Web` specifically in its disallow list (for crawling, not
+# for this declared-UA fetch, but as further evidence of deliberate intent
+# regarding this publisher's stance on AI use of its content). Whether a
+# statutorily mandated CC BY 4.0 open-data licence (below) is overridden, limited
+# or left untouched by a robots.txt Content-Signal directive is a genuine,
+# unresolved legal question this step is not positioned to guess at - CLAUDE.md's
+# own words for exactly this situation: "anything you are not certain of is
+# pending and goes to legal, not to a guess." THIS is why tos_status is `pending`
+# rather than `reviewed_ok` despite the open licence below, and it is the single
+# most important line in this file for whoever reviews it next.
+#
+# LICENCE. data.gv.at's own catalogue metadata for the ANKO Kerndaten dataset
+# states the distribution's licence as `https://creativecommons.org/licenses/
+# by/4.0/` (CC BY 4.0) - the same URI on every one of the 46 Kerndaten
+# distributions checked (two of the 46, AMA and IEF-Service GmbH, express the
+# identical licence via the EU Publications Office vocabulary URI instead:
+# `http://publications.europa.eu/resource/authority/licence/CC_BY_4_0`). This
+# matches the statutory basis the register row states, BVergG 2018 s.59(1):
+# buyers must publish core notice data "in an open, machine-readable
+# standardised format under a free licence." An attempt to fetch the statute's
+# own text (gesetzefinden.at/bundesrecht/bundesgesetze/bvergg-2018/para-59, the
+# URL the register row names) was blocked by that site's own bot-detection
+# challenge (a Vercel security checkpoint returning HTTP 429 with a JS
+# challenge page) both via WebFetch and a direct curl in this session, so the
+# clause is cited here from the register row's own paraphrase and from RIS
+# (ris.bka.gv.at, Austria's official legal database) being the authoritative
+# source of record, not independently re-quoted verbatim - the CC BY 4.0 licence
+# actually declared on the dataset is the stronger, directly-observed evidence
+# that the obligation is being met as described, and is what this entry relies
+# on rather than the statute text itself.
+#
+# NOT COVERED, and why this is not a bigger registration: this file reads ONLY
+# ANKO's feed. BBG (77/week) and ASFINAG (51/week) are both real, live, national-
+# scale feeds this session found and measured but did NOT register - each would
+# need its own sources/*.yaml (different host, different connector config,
+# possibly a different tos_status finding on ITS OWN robots.txt and licence,
+# neither of which was checked here) rather than being folded into this one entry
+# under a name ("Kerndaten") that would then quietly cover three unrelated hosts
+# with one health threshold and one enabled flag. Whether Austria's pilot
+# coverage should include BBG and/or ASFINAG as separate sources, in addition to
+# or instead of ANKO, is a build-order decision for a person, not something
+# resolved by this file.
+#
+# VOLUME. ANKO: 321 items with `lastmod` in the last 7 days at fetch time
+# (2026-09-12 to 2026-09-19), daily breakdown 10, 35, 31, 72, 53, 62, 44, 14 (the
+# first and last days are partial - the window's edges - so the five full
+# midweek days, 35-72, are the more representative range). This is one 7-day
+# snapshot, not a multi-week trend the way sources/liberia.yaml's 32-day history
+# is - the health band below is set with that in mind and should be replaced with
+# a real range once a connector has run history, the same caveat
+# sources/kosovo.yaml records for its own single-snapshot volume figure. `lastmod`
+# on the index counts both new notices and edits to existing ones (the item
+# schema gives no separate "first seen" field at index level - only the full
+# per-item record carries `DATE_FIRST_PUBLICATION`), so 321 is an upper bound on
+# genuinely new notices, not a lower one.
+#
+# LANGUAGE: de (German), confirmed against actual notice text, not assumed from
+# the country - every title, description and contracting-body name read across
+# the sample was German, and the data.gv.at catalogue metadata for every one of
+# the 46 datasets declares `language: de` independently.
+#
+# CODES: CPV IS CARRIED (`CPV_MAIN`/`CPV_CODE`, e.g. `71500000` in the sample
+# read). NUTS (EU regional classification, e.g. `AT127`) is also carried per
+# notice; this is a coding system, not a national scheme distinct from CPV/NUTS.
+#
+# DOCUMENTS: NOT FULLY ESTABLISHED, and recorded as open rather than guessed at.
+# Each notice's `URL_PARTICIPATION` links to `gv.vergabeportal.at/Detail/<id>`,
+# which returned HTTP 200 with `loggedUser: null` on a cold, unauthenticated GET
+# (no login wall on the page shell itself) - but the page is an AngularJS
+# single-page app (`ng-app="ankoe.portal"`) whose real content, including
+# whatever document-download control the full tender documents sit behind, is
+# client-rendered and was not exercised in this session. Whether bid/tender
+# document PDFs carry a text layer, and whether downloading them needs the
+# ANKO-Nummer registration ANKO's own AGB page describes (a separate, paid
+# supplier-qualification product, `ankoe.at/agb/` - "Sie brauchen eine
+# ANKO-Nummer? Hier geht's zur Registrierung" - which governs bidding and
+# supplier listing, not reading a Kerndaten notice), was not tested here because
+# it is not needed to decide this file: title, buyer, CPV, dates and description
+# all arrive in the Kerndaten XML itself, with no document fetch required. Left
+# for the connector builder; no account was registered or form submitted to
+# reach any finding in this file (rule: never register on FreeBalance's behalf).
+#
+# ADMIN_LEVEL: national, describing the platform (used by contracting
+# authorities across every level, per the sample read - a municipal theatre
+# company - and per ANKO's own role as a nationwide e-procurement clearinghouse),
+# not a claim that every notice on it is central-government, the same
+# platform-default point sources/kosovo.yaml and sources/liberia.yaml make about
+# their own mixed-level corpora.
+id: kerndaten_at
+name: "Kerndaten (BVergG 2018 s.59) via ANKO Vergabeportal.at, one of 46 registered publishers"
+country: AT
+admin_level: national
+language: de
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 06:15 UTC daily = 08:15 Vienna (CEST in September). Chosen to collide with
+# nothing already in sources/ (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30,
+# fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30,
+# euft/place 09:00, mcc Mon 09:30, ungm 10:00, ebrd 10:30, benin/cote_divoire/
+# liberia/senegal/sierra_leone 11:00, gambia/mali/nigeria 11:30, ghana 12:00,
+# kosovo 12:30). Provisional: this source is not built and the connector's watermark
+# design (see ACCESS ROUTE above) is not solved, so the schedule has not been
+# exercised against a real run.
+schedule: '15 6 * * *'
+api_url: https://ogd.ankoe.at/api/v1/notices
+tos_status: pending          # robots.txt Content-Signal ai-input=no on the exact host this source reads, against a CC BY 4.0 licence and a statutory publication mandate - see ROBOTS.TXT and LICENCE above for the clause and what needs deciding
+enabled: false          # not built; blocked on the tos_status pending finding above, not on wave sequencing alone
+health:
+  # One 7-day snapshot (2026-09-12 to 2026-09-19), not a rolling-window statistic;
+  # see VOLUME above for the daily breakdown and the caveat about lastmod
+  # counting edits as well as new notices. Floor set below the lowest full-day
+  # count measured (31); ceiling well above the highest (72) and above the raw
+  # 7-day total (321) for headroom, the same margin sources/kosovo.yaml and
+  # sources/liberia.yaml keep for their own single-snapshot figures.
+  expected_items_per_run: [20, 500]
+  max_consecutive_failures: 3
+owner: ryan.dear

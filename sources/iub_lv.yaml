@@ -1,0 +1,253 @@
+# Latvia's Procurement Monitoring Bureau (Iepirkumu uzraudzības birojs, IUB), a
+# direct administrative authority under the Ministry of Finance. IUB runs the
+# Publication Management System that every Latvian contracting authority and
+# contracting entity is legally required to publish to (source register S013),
+# and separately publishes that same notice data as open data. THIS SOURCE reads
+# the open data, not the publication-system search UI, for the reason set out
+# under ACCESS ROUTE below.
+#
+# THREE HOSTS PROBED, 2026-09-19, one polite GET per page (rule 21), user agent
+# FreeBalance-OpportunityMonitor/0.1 (+ryan.w.dear@gmail.com, from
+# MONITOR_USER_AGENT):
+#
+#   1. https://info.iub.gov.lv/lv/meklet - the register row's own listed portal
+#      URL ("meklet" = "search"). NOT USED AS THE FETCH TARGET. A plain GET
+#      returns 1,346 bytes of shell HTML: `<div id="app"></div>` and a Vue
+#      bundle (`index.<hash>.js`, `vendor.<hash>.js`), no listing content, no
+#      notice text, in the raw response - a client-rendered SPA. This is the
+#      genuine "needs a browser to see any content" case CLAUDE.md's step 4
+#      asks to prove rather than assume, and it does not matter here because
+#      route 3 below reaches the same underlying notices without one.
+#      info.iub.gov.lv/robots.txt is not a real robots.txt either: it 200s with
+#      the identical SPA shell (the app's router answers every unmapped path),
+#      so there is no crawl directive to read on this host at all - absence,
+#      not permission or restriction, and moot since this host is not read.
+#   2. https://www.iub.gov.lv/ (the Drupal site iub.gov.lv redirects to, and
+#      where the register row's open-data URL actually resolves after a
+#      redirect) - IUB's institutional site, server-rendered Drupal on the
+#      Latvian government's Unified Website Platform. USED, for the /en/open-data
+#      page only (a description page, not the fetch target itself - see route 3).
+#      robots.txt (https://www.iub.gov.lv/robots.txt, 200, standard Drupal
+#      boilerplate): disallows /core/, /profiles/, /admin/, /comment/reply/,
+#      /filter/tips, /node/add/, /search/, /user/register, /user/password,
+#      /user/login, /user/logout, and /print/pdf/node/* under lv/en/ru. None of
+#      that touches /en/open-data or /lv/atvertie-dati. No crawl-delay directive
+#      anywhere in the file.
+#   3. https://open.iub.gov.lv/ - IUB's open-data service (a separate Symfony/
+#      Turbo app, not Drupal), THIS SOURCE. robots.txt
+#      (https://open.iub.gov.lv/robots.txt) is a genuine HTTP 404 (a real JSON
+#      "Not Found" error page, not a proxy failure) - no file exists, so nothing
+#      is disallowed and no crawl-delay is stated. `/` 302s to `/data`, which
+#      200s with a server-rendered directory listing (real `<a href>` rows
+#      present in the raw HTML fetched with plain curl, no JS engine involved)
+#      of three top-level folders: `notice`, `complaint`, `xml` (a legacy
+#      archive), plus `publiskie_iepirkumi_metadata.json` (the dataset's own
+#      CSVW-style metadata - see LICENCE below). `/data/notice/{yyyy}/{mm}/`
+#      lists one file per calendar day, named `{DD-MM-YYYY}.json`; requesting
+#      any day within a month resolves to that month's listing (confirmed by
+#      requesting `.../2026/09/18` and getting the full September listing back,
+#      so a connector should treat the month directory as the thing to list,
+#      not assume a day-level URL returns just that one day). Every file
+#      fetched (18-09-2026.json and six days before it) returned HTTP 200,
+#      `content-type: application/json`, no cookie, no session, no query
+#      string - a fixed URL per calendar day, the same "one document, no
+#      browser, no pagination" shape sources/fts.yaml and sources/doe.yaml are
+#      built against.
+#
+# LICENCE, READ FROM THE DATASET'S OWN METADATA, NOT ASSUMED FROM THE SITE
+# FOOTER. `https://open.iub.gov.lv/data/publiskie_iepirkumi_metadata.json`
+# (fetched cold, no session) is a CSVW/DCAT description of the exact dataset
+# this source reads, and its `dc:license` field is:
+#     "dc:license": {"@id": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.lv"}
+# - CC0 1.0 Universal (Latvian legal text), i.e. public domain dedication, no
+# attribution required, no restriction on reuse, translation, storage or
+# redistribution. This is quoted rather than paraphrased because it is the one
+# clause this entry stands on. www.iub.gov.lv/en/open-data (the description
+# page linked from the register row) says the same thing in prose: "Data can be
+# freely downloaded in JSON or XML format from the open data service... Data is
+# available without authorisation." The general www.iub.gov.lv footer carries a
+# separate, sitewide "(c) 2026 Iepirkumu uzraudzības birojs, all rights of
+# published content reserved" line (boilerplate on every page of the Unified
+# Website Platform, e.g. also on /en/privacy-policy, which is itself a GDPR
+# personal-data notice with nothing about automated access or notice reuse) -
+# that generic copyright footer is not read as overriding the dataset's own
+# explicit, machine-readable CC0 declaration, the more specific and more
+# recently-issued statement about this exact data. No account, form or
+# agreement was created, submitted or accepted to reach any of this (rule:
+# never accept terms on FreeBalance's behalf); the metadata file, the
+# open-data page and the privacy policy were all read cold.
+tos_status: reviewed_ok        # CC0 1.0, quoted above, from the dataset's own dc:license field
+#
+# ACCESS ROUTE, in CLAUDE.md's order: no documented query-parameter API was
+# found (no REST endpoint, no OpenAPI page); what exists instead is a daily
+# bulk-download structured feed - fixed JSON files, one per calendar day, since
+# 25 October 2023 (the date eForms became mandatory in Latvia; the page also
+# notes some non-eForms notice types moved to this same JSON feed from
+# 1 January 2026, replacing an interim JSON/XML dual-publication period). This
+# is a structured feed by the letter of the access-route order, ahead of any
+# HTML listing, and the info.iub.gov.lv SPA (route 1 above) is superseded by it
+# the same way sources/liberia.yaml's OCDS API superseded PPCC's own two HTML
+# listings. classified access: api and connector: FeedConnector on the same
+# basis as sources/fts.yaml and sources/doe.yaml, both of which are also a
+# fixed-URL JSON GET with no query string and no login, not a search API either.
+#
+# FRESHNESS: "Data is updated once daily 04:00 EET" (www.iub.gov.lv/en/open-data).
+# Confirmed directly: fetched 2026-09-19 (a Saturday), the most recent file
+# present was 18-09-2026.json (`last-modified: Fri, 18 Sep 2026 23:13:07 GMT`);
+# no 19-09-2026.json existed yet at fetch time. A run scheduled after 04:00 EET
+# (01:00 UTC in September, EEST) gets the previous calendar day's file complete
+# and final - the page states explicitly that "data available for re-use shall
+# be final and shall not be corrected" once published, so there is no
+# in-place-edit case here the way republished eForms notices have (see
+# clonedFrom below).
+#
+# WHAT ONE FILE CONTAINS, read directly (18-09-2026.json, 215 records; six
+# earlier days spot-checked the same way): each record is one published notice
+# - buyer contact, CPV, procedure type, lots, values - carrying a `noticeType`
+# field (metadata describes it as eForms Business Term BT-02, "Notice Type",
+# though the values themselves are IUB's own short codes, not eForms's own
+# `cn-standard`-style subtype strings). `identifier` and `clonedFrom` mirror
+# eForms's own versioning: a republished notice carries `clonedFrom` pointing
+# at the notice it replaces, and the open-data page's own guidance is to treat
+# the latest-published version as authoritative - a normaliser/dedupe concern
+# noted here rather than solved here.
+#
+# NOTICE-TYPE CLASSIFICATION - MEASURED, NOT GUESSED, AND ONE GAP LEFT OPEN
+# RATHER THAN CLOSED WITH A GUESS (the same discipline sources/kosovo.yaml
+# applies to its own five notice-type headers). Reading `noticeType` against
+# whether the record's own `lots[].result` carries a `decisionDate` (i.e.
+# whether a winner has already been decided) across seven days of files
+# (12-09-2026 to 18-09-2026, 1,167 records):
+#   CONFIRMED POST-DECISION, EXCLUDED (every record checked of each type either
+#   carried a decision date or is a modification/execution/ex-ante notice by
+#   its own name, the same reasoning sources/ted.yaml applies to `veat`):
+#     pil-award, pil-award-social, pil-concluded-contract, sps-award,
+#     sps-iv-result, mk-result, contract-modification, contract-execution,
+#     pil-exante (a voluntary ex-ante transparency notice - the direct
+#     equivalent of TED's `veat`, a decision to award without competition,
+#     announced after the fact), adjil-award, pil-design-result.
+#   CONFIRMED AS A LIVE CALL FOR TENDERS, NOT EXCLUDED: pil-contract,
+#   pil-contract-social, mk-contract, sps-contract, sps-iv-contract - every
+#   sampled record of each carries an open `procedureType`/`submissionURL` and
+#   no award decision.
+#   LEFT IN, NOT EXCLUDED, BECAUSE EXCLUDING THEM WOULD BE A GUESS: prior-
+#   information and planning notices (pil-planned-contract, pil-prior-
+#   information, pil-prior-shorten, sps-periodic-information) are not
+#   post-decision the way an award is, and no other source in this registry
+#   excludes its PINs (sources/ted.yaml only excludes award/cancellation/
+#   ex-ante types; sources/doe.yaml only result/cont-modif/dir-awa-pre) - a PIN
+#   can be a genuine early lead for BD, so it stays in rather than being
+#   dropped on an assumption. `pil-discussion` / `sps-discussion` (a combined
+#   18-23 records/day on busier days) is UNRESOLVED: sampled records show no
+#   `procedureType` and a `submissionURL` that is sometimes a bare mailto
+#   address rather than an e-procurement system link, which reads like a
+#   negotiated or below-threshold direct-contact procedure rather than an open
+#   competitive call, but this was not confirmed against a documented IUB
+#   notice-type list. Left neither excluded nor confirmed; whoever builds the
+#   connector should resolve it rather than inherit the guess either way.
+# Because there is no query parameter to ask for a subset (unlike TED's or
+# DOE's own APIs), the split happens while parsing each day's one already-
+# fetched file, the same point sources/kosovo.yaml makes about its own digest.
+#
+# VOLUME, measured 2026-09-19 over the seven calendar days 2026-09-12 (Saturday)
+# to 2026-09-18 (Friday) inclusive, KEPT types only (pil-contract,
+# pil-contract-social, mk-contract, sps-contract, sps-iv-contract): 7, 23, 21,
+# 35, 52, 60, 49 = 247 over the week (1,167 records of every type in the same
+# window). Never zero on any day including the weekend Saturday, though the
+# weekend day is markedly lower (7, against a 21-60 weekday range) - a real
+# national volume, an order of magnitude above any West African source in this
+# registry and comparable to sources/kosovo.yaml's own national digest.
+#
+# OVERLAP WITH AN EXISTING SOURCE, NOTED FOR DEDUPE, NOT ACTED ON HERE:
+# sources/ted.yaml already covers Latvia (`covers` includes 'LV') for
+# above-EU-threshold notices. This source's add is Latvia's own
+# below-threshold and nationally-regulated notices, which TED does not carry,
+# plus the same above-threshold eForms notices TED also has - so some fraction
+# of what this source yields will already exist as a TED notice and is exactly
+# what monitor/dedupe/cluster.py exists to catch, not something to filter out
+# at acquisition (rule 5: acquire does not decide what is a duplicate).
+#
+# LANGUAGE: lv, confirmed against actual notice content (every buyer name,
+# notice title and free-text field read across seven days of files was
+# Latvian - e.g. "Automašīnu iegāde", "Pārgaujas apvienības pārvaldes ceļu un
+# ielu attīrīšana no sniega..."), matching the open-data page's own "Data is
+# offered in Latvian (geographical coverage: Republic of Latvia)".
+#
+# CODES: CPV IS CARRIED, field `cpvType`, standard 8-digit-plus-check-digit
+# form (e.g. "34136000-9", "72000000-5"), on most but not all records - one
+# `mk-contract` record read carried `cpvType: ""` (empty), so a connector
+# cannot assume the field is always populated.
+#
+# DOCUMENTS: not held by this source. `tenderingProcess.documentsURL` points
+# at a second, separate government system, the Electronic Procurement System
+# (eis.gov.lv), not at IUB. One such URL was fetched cold (no session) and
+# returned the tender's public procedure page at HTTP 200 with no login
+# redirect, so the basic procedure record is reachable without an account -
+# but whether the underlying tender-document files themselves need a session,
+# and whether they carry a text layer, was not established and is left to
+# whoever builds document enrichment, the same open item
+# sources/kosovo.yaml records for its own document viewer.
+#
+# ADMIN_LEVEL: national, describing the platform (IUB is Latvia's national
+# procurement regulator and publication to it is mandatory for every Latvian
+# contracting authority and contracting entity under the Public Procurement
+# Law), not a claim that every buyer is central government - buyer names read
+# include a municipal administration (Cēsu novada Pārgaujas apvienības
+# pārvalde) alongside state bodies, the same platform-is-the-default point
+# sources/doe.yaml and sources/kosovo.yaml make about their own feeds.
+id: iub_lv
+name: IUB Open Data (Latvia Procurement Monitoring Bureau)
+country: LV
+admin_level: national
+language: lv
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 12:45 UTC daily. IUB's own file lands at 04:00 EEST (01:00 UTC in September);
+# this schedule sits well after that and collides with nothing else in
+# sources/ (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts 07:00, undp
+# 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place 09:00,
+# malta 09:15, mcc Mon 09:30, ungm 10:00, ebrd 10:30, benin/cote_divoire/
+# liberia/senegal/sierra_leone/burkina_faso 11:00, gambia/mali/nigeria 11:30,
+# ghana 12:00, kosovo 12:30, boad 13:00, opec_fund 13:30, tenderned_nl 14:00).
+schedule: '45 12 * * *'
+# Base path only. Each run needs {this}/{yyyy}/{mm}/{DD-MM-YYYY}.json for the
+# date(s) in its window (see FRESHNESS above for why "yesterday, UTC+EET" is
+# the day to ask for); requesting a bare {yyyy}/{mm} returns that whole
+# month's day listing, confirmed above.
+api_url: https://open.iub.gov.lv/data/notice
+exclude_notice_types: [pil-award, pil-award-social, pil-concluded-contract, sps-award, sps-iv-result, mk-result, contract-modification, contract-execution, pil-exante, adjil-award, pil-design-result]
+#
+# The phrasing of `notices.value_note` for the one shape this source publishes
+# that the value columns cannot hold: a notice split into several lots, each
+# with its own `additionalInformation.estimatedValue` and no separate
+# procedure-level total anywhere in the schema (monitor/connectors/iub_lv.py's
+# own docstring - there is no currency field either, so every figure quoted
+# here is in EUR, Latvia's statutory currency since 1 January 2014, the same
+# constant `monitor/normalise/iub_lv.py` fixes for `estimated_value`). 10 of
+# the 49 kept notices measured 2026-09-19 (day 18-09-2026) carry more than one
+# lot; `monitor/normalise/iub_lv.py` never sums them (rule 9), and quotes each
+# lot's own figure, numbered by its position in the `lots` list, exactly as
+# `monitor/normalise/ejn_ba.py` and `monitor/normalise/boamp.py` both do for
+# their own per-lot notes. All four keys are required; the normaliser raises
+# naming whichever is missing rather than supplying a default (rule 6).
+value_note:
+  lot_only: 'Published per lot, no total: {lots}'
+  lot_valued: 'lot {number} {amount} {currency}'
+  lot_unvalued: 'lot {number} not published'
+  separator: '; '
+enabled: true           # 2026-09-19: connector, fixture (day 18-09-2026, 215 records, 49 kept) and 29 contract tests;
+                        # normaliser; one live fetch of the trailing two days seen 109 / new 107 (decision 72)
+health:
+  # KEPT-type counts only (see VOLUME above), one calendar day's file per run:
+  # 7, 23, 21, 35, 52, 60, 49 across the seven days measured 2026-09-19. Floor
+  # set below the observed weekend floor of 7 to allow a quieter day still to
+  # register healthy; ceiling with headroom above the observed weekday ceiling
+  # of 60. A single-week snapshot, like sources/kosovo.yaml's own, and should
+  # be replaced with real run history once the connector exists.
+  # Widened 2026-09-19 from [3, 90]: the first live fetch read the trailing two day files
+  # and saw 109 kept rows (49 + 60), so the ceiling is for two days, not one.
+  expected_items_per_run: [3, 200]
+  max_consecutive_failures: 3
+owner: ryan.dear

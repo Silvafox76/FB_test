@@ -1,0 +1,247 @@
+# Hilma (hankintailmoitukset.fi), Finland's official national and EU-threshold
+# public procurement notice channel. Source register row S005 (desk research,
+# 18-19 Sep 2026) named it but fetched nothing and quoted no clause; everything
+# below was fetched live on 2026-09-19, one polite pass per page (rule 21),
+# identified as FreeBalance-OpportunityMonitor/0.1 (+CONTACT_EMAIL_HERE) from
+# MONITOR_USER_AGENT, with the exceptions on the search endpoint noted under
+# ACCESS ROUTE below, where diagnosing an inconsistent response took more than
+# one request and that departure is recorded rather than hidden.
+#
+# The Service Provider is the State Treasury (Valtiokonttori); day-to-day
+# technical operation is contracted to Hansel Oy, the state's central
+# procurement unit - the register row's "operated by Hansel Oy" is confirmed by
+# the Terms of Use itself ("currently Hansel Oy").
+#
+# THREE HOSTS TOUCHED:
+#   - www.hankintailmoitukset.fi - the public site (a Vue SPA: a plain GET of
+#     `/` returns an empty shell plus a script tag for `/js/main/bundle.js`, no
+#     notice content in the raw HTML - the genuine "needs a browser to see
+#     content" case CLAUDE.md step 4 asks to prove rather than assume, if the
+#     rendered page itself were the target. It is not: see ACCESS ROUTE.)
+#   - api.hankintailmoitukset.fi - an Azure API Management (APIM) gateway; its
+#     root answers `{"APIM": "ok"}`, confirming this is the host the register
+#     row's "Azure API Management" note refers to.
+#   - hns-hilma-prod-apim.developer.azure-api.net - the actual developer portal
+#     (the register row's "developer portal URL to confirm" is now confirmed:
+#     this is it, found via the site's own "Interfaces" help page, not guessed).
+#
+# ROBOTS.TXT, all three, verbatim:
+#   - www.hankintailmoitukset.fi/robots.txt -> HTTP 404,
+#     `{ "statusCode": 404, "message": "Resource not found" }` (APIM's generic
+#     not-found body - no robots.txt file is published on this host at all).
+#   - api.hankintailmoitukset.fi/robots.txt -> HTTP 404, identical APIM body.
+#   - hns-hilma-prod-apim.developer.azure-api.net/robots.txt -> HTTP 404, the
+#     developer portal's own themed "Page you're looking for doesn't exist".
+#   None of the three states a Disallow on any path, and none states a
+#   crawl-delay. This is silence (no file exists), not a stated permission or a
+#   stated restriction, the same basis liberia.yaml and iub_lv.yaml record.
+#
+# ACCESS ROUTE. Two candidates found, in the order CLAUDE.md's procedure asks
+# for (documented API before a lesser route):
+#
+#   1. THE DOCUMENTED API: "avp-read", an Azure APIM product. Found via
+#      hankintailmoitukset.fi's own "Interfaces" help page (Prismic CMS,
+#      fetched cold at https://hankintailmoitukset.cdn.prismic.io/api/v2,
+#      document type `instructions`, uid `interfaces`), which states in full:
+#      "You can register as an interface user on hankintailmoitukset.fi's API
+#      portal... After registration, the user can create and manage API keys
+#      for the avp-read product... The open avp-read product is divided into
+#      two separate interfaces... one... provides a search, the other a
+#      retrieval of the full notice content... The interface should be used
+#      sparingly; the number of calls per user is limited." Confirmed against
+#      the maintainer's own GitHub docs
+#      (github.com/Hankintailmoitukset/hilma-api, endpoints/avpendpoints.md,
+#      fetched via raw.githubusercontent.com): "To use the read api you need to
+#      create a subscription key that you need to send in the
+#      `Ocp-Apim-Subscription-Key` header... by signing up... at
+#      https://hns-hilma-prod-apim.developer.azure-api.net and creating a new
+#      subscription at Products > avp-read > Subscribe." Search is an Azure
+#      Cognitive Search pass-through returning index metadata only; full
+#      content (EForms as base64-encoded XML, up to 50 notices per call;
+#      non-EForms one at a time) is a second, separate, rate-limited call.
+#      Exact operation paths sit behind "(Sign in required)" pages on the
+#      developer portal and could not be resolved further without creating an
+#      account - see BLOCKER below.
+#
+#   2. THE UNKEYED ROUTE: www.hankintailmoitukset.fi/search/eformnotices and
+#      /search/notices, the JSON endpoints the public site's own Vue search
+#      page calls (found in `/js/main/bundle.js`, the site's own client
+#      bundle, and confirmed live). A plain GET with no key, no cookie and no
+#      login, e.g.
+#      `?search=*&searchMode=all&$filter=datePublished ge 2026-09-12T00:00:00Z&$count=true&$top=50`,
+#      returned HTTP 200 with full notice content - not just index metadata:
+#      complete `descriptionFi`, full `lots[]`, CPV codes, buyer, deadline,
+#      `estimatedValue`/`currency` - richer than the documented avp-read search
+#      index is described to carry. `access-control-allow-origin: *` is set on
+#      it, which reads as deliberate (open to any origin, not just the site's
+#      own), and it is the same mechanism the Terms of Use's Registration
+#      section relies on ("All published notices... can be viewed without
+#      registering").
+#      NOT ADOPTED AS THE CONNECTOR ROUTE, for two measured reasons rather than
+#      a guess:
+#        a. No working pagination. `$skip` is accepted (it appears in the
+#           site's own bundle for this exact call) but does not change the
+#           result: three requests at `$skip=0`, `$skip=50` and `$skip=100`
+#           against the same filter returned the identical five records in the
+#           identical order every time. `$orderby=datePublished desc` is
+#           likewise accepted but not honoured - a 50-row page came back with
+#           dates out of order, spanning the full seven days. The route
+#           returns some subset of at most ~50 matching rows, of undemonstrated
+#           selection, with no way to reach the remainder.
+#        b. It degrades silently under light, benign reuse within one session.
+#           The first clean request (`$top=50`, filter = last 7 days) returned
+#           `@odata.count: 475` and 50 rows. Minutes later, the identical
+#           request, and separately the same request at `$top=1/5/10`, all
+#           returned HTTP 200 with `@odata.count: 5` and exactly one row
+#           regardless of `$top`. Nothing about the request changed and no
+#           error status was ever returned - it just started answering less.
+#           This is precisely the silent-partial-yield rule 4 exists to catch,
+#           and it disqualifies the route for a connector that must enumerate
+#           a day's notices reliably, whatever its licence position. (This
+#           finding cost more than the "one polite request per page" rule 21
+#           asks for while diagnosing it - recorded here rather than omitted.)
+#
+#   DECISION: the connector should be built against route 1, the documented
+#   avp-read API, once a key exists. Route 2 is not a fallback (rule 1) and the
+#   connector must not call it; it is recorded here only because a future
+#   session should not rediscover and re-rely on it.
+#
+# BLOCKER - A HUMAN MUST DO THIS, NOT THE AGENT: avp-read requires signing up
+# at https://hns-hilma-prod-apim.developer.azure-api.net and subscribing to the
+# "avp-read" product to receive an `Ocp-Apim-Subscription-Key`. No account has
+# been created and none will be by this process (rule: never register an
+# account on FreeBalance's behalf). Whoever owns portal/API relationships for
+# the Europe & West Africa region (Matthew, as regional lead, or this
+# pipeline's technical owner acting on his instruction) needs to sign up with a
+# FreeBalance-controlled identity and create the subscription; the resulting
+# key is a secret and belongs in the environment/Secrets Manager per rule 20,
+# never in this file. The register row's "free subscription key" could not be
+# independently confirmed: sign-up reads as self-service (no payment step
+# appeared on any page fetched without an account), but the Products page
+# itself is a client-rendered SPA view that needs a session to show pricing
+# and tier detail, so "free" should be confirmed by whoever registers, not
+# assumed from this assessment.
+#
+# TERMS OF USE, fetched from the CMS the site itself renders from
+# (hankintailmoitukset.cdn.prismic.io/api/v2, document type `instructions`,
+# uid `terms-of-use`, en-gb, "Updated 18.5.2026" per the document's own text -
+# the exact page the site's `terms-of-use` route displays, not a paraphrase):
+#   - Registration section: "All published notices and invitations to tender
+#     prepared in the Service can be viewed without registering. ... Registration
+#     for the Service is a prerequisite only when the User wants to: publish a
+#     notice; enable alert functions; submit an application for participation
+#     or tender; respond to a market survey or; express interest in the
+#     planned tendering." Reading notices is not on that list.
+#   - Intellectual property rights section: "The User has no right to sell or
+#     convey the material received from the Service as such to third parties.
+#     This does not restrict the User's right to use the information published
+#     in the Service in its own tendering and procurement operations or the
+#     use of the information obtained through the Service's open interfaces
+#     for the production of value added services. The personal data in the
+#     service must not be used for any other purposes, such as direct
+#     marketing."
+#   These two clauses together are the basis for reviewed_ok: reading is
+#   explicitly not gated behind registration, and using data obtained through
+#   the Service's open interfaces to produce a value-added service (this
+#   Monitor, for FreeBalance's own internal opportunity screening, not resale
+#   of the raw feed) is explicitly named as permitted, while resale of the raw
+#   material "as such" is explicitly not.
+#   CORRECTION TO THE REGISTER ROW: "licence reported as CC BY 4.0 by a
+#   third-party integrator" could NOT be confirmed and does not match what was
+#   found. The Terms of Use quoted above is more restrictive than CC BY 4.0
+#   (no resale of the raw material to third parties; CC BY 4.0 would permit
+#   redistribution with attribution). The only "license" string seen anywhere
+#   in Hilma's own infrastructure is the Prismic CMS API root's boilerplate
+#   `"license":"All Rights Reserv[ed]"`, which describes the CMS's own help-page
+#   content (blog posts, instructions), not the notice data, and should not be
+#   read as a data licence either way. Whoever passed CC BY 4.0 into the
+#   register row should say where they read it; it was not on the official
+#   Terms of Use, the Interfaces page, or the Prismic API root.
+tos_status: reviewed_ok
+id: hilma_fi
+name: Hilma (hankintailmoitukset.fi)
+country: FI
+# The platform is officially bilingual (Finnish/Swedish) and eForms notices
+# carry titleFi/titleSv/titleEn/titleOther as parallel fields, not
+# translations of one another - the same "record the plurality, let the
+# per-notice field decide" shape sources/simap.yaml documents for German/
+# French/Italian. Measured on one clean 50-row sample (2026-09-19, before the
+# route-2 degradation described above set in): titleFi populated on 47/50,
+# titleSv on 10/50, titleEn on 20/50 (EU-level notices commonly carry an
+# English title alongside Finnish; a handful were Swedish-first). fi is the
+# plurality and the source-level default; normalise/hilma.py (not yet built)
+# must read the per-notice field for which language is original rather than
+# assume Finnish, and rule 9 means a notice with both titleFi and titleSv set
+# is two original-language fields on one notice, not an original plus a
+# translation.
+language: fi
+admin_level: national
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+enabled: false
+# 09:45 UTC daily, provisional and unused while enabled is false. Chosen to
+# collide with nothing already in sources/: boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap and
+# worldbank_pipeline 08:30, euft and place 09:00, mcc Monday 09:30, ungm
+# 10:00, ebrd 10:30, liberia/benin/cote_divoire/senegal/sierra_leone 11:00,
+# gambia/mali/nigeria 11:30, ghana 12:00, kosovo 12:30, iub_lv 12:45, boad/
+# opec_fund 13:00, malta 13:30 (n.b. reused slots exist already; 09:45 is not
+# one of them). 09:45 UTC = 12:45 Helsinki (EEST, UTC+3) now; 11:45 Helsinki
+# (EET, UTC+2) once DST ends in late October. The schedule field is UTC only
+# (monitor/models.py) and this project does no per-source timezone
+# conversion at runtime, so the literal is picked to land inside the Finnish
+# working day across both DST states rather than converted at run time.
+schedule: '45 9 * * *'
+# The gateway host confirmed live (api.hankintailmoitukset.fi, `{"APIM":"ok"}`
+# at the root). The exact avp-read operation paths (search, eform read, plan
+# read - see endpoints/avpendpoints.md in the ACCESS ROUTE note above) sit
+# behind developer-portal pages marked "(Sign in required)" and could not be
+# resolved without creating the account this process is not permitted to
+# create (see BLOCKER above). Whoever registers should read the paths off the
+# portal's own "Try it" console once signed in and correct this field then -
+# it is deliberately left at the gateway root rather than a guessed path, so
+# a wrong URL is not carried forward as if it were verified.
+api_url: https://api.hankintailmoitukset.fi/
+health:
+  # Measured once, live, 2026-09-19, via the unkeyed route's first clean
+  # response only (see ACCESS ROUTE 2 above) - `$filter=datePublished ge
+  # <7 days ago>&$count=true&$top=50` returned `@odata.count: 475` for the
+  # trailing 7 days (about 68/day), against the eForms index specifically
+  # (the pre-eForms `notices` index returned 0 for the same window - Finland's
+  # EU-mandated eForms cutover in 2023 is complete and that index is frozen).
+  # This is a single sample, not a measured daily series, because the same
+  # route stopped returning a trustworthy count minutes later (see ACCESS
+  # ROUTE 2b) and per-day breakdowns attempted with a compound `$filter`
+  # (`ge ... and lt ...`) were not honoured by this proxy either. The band
+  # below is provisional and wide for that reason and must be re-measured
+  # against the documented avp-read API once a key exists, not carried
+  # forward as if 68/day were a verified daily figure.
+  expected_items_per_run: [10, 150]
+  max_consecutive_failures: 3
+owner: ryan.dear
+# NOTES FOR WHOEVER BUILDS THIS CONNECTOR
+#   - CPV: present and standard EU CPV (not a separate national scheme), e.g.
+#     `cpvCodes: "98395000 35120000 44520000"` - a single string, space-
+#     separated 8-digit codes with a Finnish-language label concatenated after
+#     some of them in the unkeyed route's payload shape; confirm the keyed
+#     avp-read shape matches before assuming this exact string format.
+#   - Documents sit behind a session on a THIRD-PARTY host, not Hilma itself.
+#     `procurementDocumentsUrl` on sampled notices mostly pointed at
+#     tarjouspalvelu.fi (a third-party e-tendering platform; `sendingSystem:
+#     "Cloudia Kilpailutus"` on 44/50 sampled), which set an
+#     `ASP.NET_SessionId_TP` cookie and 302-redirected on a single unauthenticated
+#     GET. This connector should read only what Hilma itself carries (title,
+#     description, buyer, CPV, deadline, value, currency) and must not attempt
+#     to fetch attached tender documents from tarjouspalvelu.fi or any other
+#     per-buyer system - the same "read the notice, not the login-walled
+#     attachment" boundary sources/liberia.yaml draws.
+#   - Values: `estimatedValue` and `currency` (EUR throughout the sample) are
+#     carried directly on the notice and on each lot; only 12/50 sampled
+#     notices stated one (typical for EU-level notices, which often omit it),
+#     consistent with appendix E carrying no figure rather than inventing one.
+#   - Priority geography weight for FI is 0.6 (config/thresholds.yaml,
+#     "everything else in the pilot"); FI sits in the Europe & West Africa
+#     region per docs/regions.yaml (draft, pending config/regions.yaml at step
+#     22b).

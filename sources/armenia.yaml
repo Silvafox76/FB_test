@@ -1,0 +1,237 @@
+# Armenia's national public procurement publication route. Armenia joined the
+# pilot geography on 19 September 2026 (decision 64, "everything else in the
+# pilot" weight 0.6 until Matthew sets AM/GE individually per
+# config/thresholds.yaml). Assessed 2026-09-19 from three desk-research register
+# rows (S025, S063, S064) against this session's own live fetches - the register
+# rows are a starting point, not a route decision, and one of the three needed
+# correcting.
+#
+# ROUTES CONSIDERED, in the order CLAUDE.md's procedure asks for (documented API
+# / structured feed before any HTML listing), one polite GET per distinct page:
+#
+#   1. S025, ARMEPS PPCM "reports" (https://www.armeps.am/ppcm/public/reports) -
+#      a documented, structured export (the register's own description: "CSV/
+#      Excel export"). Fetched: HTTP 200, a genuine Angular app, not a login
+#      wall. Its own shipped `ReportMetadata` config lists exactly what it
+#      exports: "Procurement procedures organized", "Organized/Failed/Completed
+#      procurement procedures" and "Obligations assumed by procurers", all
+#      aggregate counts and sums by year/procurer - a statistics dashboard over
+#      plans and contracts, not individual notices with a title, a buyer and a
+#      deadline a reviewer could act on. NOT THIS SOURCE for the same reason the
+#      register row itself gives ("plans and contracts, not tender notices");
+#      confirmed rather than taken on the register's word. Whether this
+#      dashboard is worth onboarding separately as an early-pipeline-signal
+#      source (upcoming annual procurement plans, before any tender is called)
+#      is a real, distinct question this assessment did not answer - see NOTES.
+#   2. S063, ARMEPS itself (armeps.am), the platform of record every Armenian
+#      contracting authority procures through. Checked for the OCDS-style
+#      documented API sources/liberia.yaml and sources/ghana.yaml both found on
+#      the same European Dynamics product family: `https://www.armeps.am/ocds/`
+#      -> HTTP 404; `POST /ocds/record/searchRecords.action` -> HTTP 404
+#      (Tomcat's own 404 page, not a proxy failure - "The origin server did not
+#      find a current representation for the target resource"). Unlike Liberia
+#      and Ghana's instances, this Armenian deployment does not ship that app at
+#      all. Also checked Ghana's own working route, the anonymous
+#      `quickSearchAction.do?searchSelect=<n>` listing: searchSelect=6 (Ghana's
+#      "Current Tenders" value) returned HTTP 200 with a ZERO-BYTE body;
+#      searchSelect=1 returned HTTP 500 ("PSC - An error has occurred");
+#      searchSelect=2 and 3 both returned a search FORM ("PSC - Advanced
+#      search"), not results, with no query submitted. No combination tried
+#      this session renders a listing anonymously on this host. NOT THIS SOURCE
+#      as the entry point - matches the register's own framing of S063 as an
+#      immature route ("new e-procurement system planned"). Its own home page
+#      states plainly, in its "Suppliers" section, that viewing open-tender
+#      documents needs no supplier registration ("please note that suppliers do
+#      not need to express their interest to view documents about open
+#      tenders"; registration is only to be notified and to bid) - this matters
+#      because armeps.am's own per-notice pages ARE used below, reached only via
+#      route 3's links, not via any working search on this host.
+#   3. S064, gnumner.minfin.am - THIS SOURCE. The register names this row
+#      "procurement.am bulletin" with a "(legacy http://www.procurement.am)"
+#      parenthetical; that legacy URL was checked and corrected rather than
+#      carried forward. `http://www.procurement.am/` 301s to
+#      `https://www.procurement.am/`, which returns HTTP 200 with a five-byte
+#      body reading literally "TEST" (Last-Modified: 29 Feb 2024) - a dead
+#      placeholder, not a bulletin. The live site is a DIFFERENT host,
+#      `gnumner.minfin.am` ("procurement" in Armenian; the Ministry of Finance's
+#      own procurement portal, `<h1>ՀՀ Ֆինանսների նախարարություն</h1>
+#      <h1>Գնումների համակարգ</h1>` - "RA Ministry of Finance / Procurement
+#      system"). Its "Open tender announcement and invitation" page
+#      (list_url below) returned, on a single anonymous GET with plain curl -
+#      no JavaScript executed, no cookie jar, no login - a server-rendered list
+#      of real, dated, titled notices, e.g. (verbatim, first row, fetched
+#      2026-09-19): "ՀՀ ՊԵԿ-ում ներդրված «Մաքսային միասնական ավտոմատացված
+#      տեղեկատվական համակարգ»-ի սպասարկման խորհրդատվական ծառայություններ
+#      (Հրապարակված է 2026-09-18 17:05:00-ից մինչեւ 2026-10-21 09:30:00 ժամը
+#      ներառյալ)" - a Customs Committee IT-system maintenance consultancy,
+#      published 2026-09-18, open until 2026-10-21. Pagination is a plain
+#      server-rendered link (`.../bac_mrcuyti_haytararutyun_ev_hraver/2`, `/3`,
+#      ...), 25 pages at ~10 rows/page, no JS needed there either (fetched
+#      pages 2-5 the same way). Each row links directly to the matching
+#      official ARMEPS notice page (armeps.am, route 2's host -
+#      `armeps.am/epps/cft/listContractDocuments.do?resourceId=<id>`), which is
+#      ALSO reachable with a fresh, cookie-less GET (HTTP 200, no login) and
+#      carries far more than the bulletin row: contracting authority, CPV code
+#      (see CODES below), procedure type, submission deadline, publication
+#      date, and the document list. This is not a second, competing route
+#      (rule 1): the bulletin is the index, the ARMEPS detail page is where a
+#      normaliser should read the actual fields, both official, both MoF/ARMEPS
+#      hosted, the same relationship sources/ghana.yaml has to its own notice
+#      PDF and sources/kosovo.yaml's digest has to its own detail pages.
+#
+# A CERTIFICATE PROBLEM ON THIS HOST, FLAGGED RATHER THAN WORKED AROUND.
+# `gnumner.minfin.am` (and the dead legacy `www.procurement.am`) fail standard
+# TLS verification: `unable to get local issuer certificate`. Read directly
+# with openssl: the server sends exactly ONE certificate (chain length 1) -
+# `subject=CN = *.minfin.am`, `issuer=... GoGetSSL RSA DV SSL CA 2`, valid
+# 2026-07-21 to 2027-02-04 - a real certificate from a real commercial CA, not
+# self-signed, but the server never sends the GoGetSSL intermediate a normal
+# client needs to build the chain to a trusted root. `armeps.am`, `minfin.am`
+# and every other host touched this session validated normally with the same
+# proxy and CA bundle, so this is specific to this one MoF subdomain's own TLS
+# config, not a proxy or sandbox artifact. THIS ASSESSMENT DID NOT WORK AROUND
+# IT (every fetch of this host above used `curl -k` to see the content at all)
+# and it is not this step's call to make: whoever builds this connector needs
+# either the GoGetSSL intermediate added to the trust bundle the pipeline's
+# httpx client uses, or a decision that a lesser check is acceptable for this
+# one host, and that is a security decision for a human, not a default to pick
+# here. THE SOURCE STAYS `enabled: false` at least until this is resolved, on
+# top of the build gap below.
+#
+# ROBOTS.TXT, both hosts this source touches, fetched 2026-09-19 (secure
+# fetches used -k per the certificate note above; the response itself, once
+# reached, is a normal application answer, not a proxy failure):
+#   - gnumner.minfin.am/robots.txt -> HTTP 404, the site's own PHP framework
+#     error page ("Addon `robots.txt` not exists", tokernel.framework), i.e. no
+#     robots.txt exists - silence, not a restriction, the same reading
+#     sources/liberia.yaml and sources/kosovo.yaml give their own 404s.
+#   - armeps.am/robots.txt and www.armeps.am/robots.txt -> HTTP 404, Apache's
+#     generic "Not Found" page. Same reading.
+#   No crawl-delay is stated anywhere because no robots.txt exists anywhere.
+#
+# TERMS OF USE / LEGAL NOTICE - NONE FOUND on any of the three hosts checked
+# (gnumner.minfin.am, armeps.am, minfin.am, the parent ministry site),
+# 2026-09-19. Slug-guessed on gnumner.minfin.am (/hy/page/terms/,
+# /terms-of-use/, /privacy/, /privacy-policy/, /legal/, /legal-notice/): all
+# HTTP 404, the site's own real 404 page each time. minfin.am's and
+# armeps.am's footers were read in full: minfin.am carries one line, "Հայաստանի
+# Հանրապետության ֆինանսների նախարարություն: Բոլոր իրավունքները պաշտպանված են:
+# 2026" (Republic of Armenia Ministry of Finance, all rights reserved, 2026);
+# armeps.am's is "©2009 European Dynamics" (the vendor, same single line
+# sources/liberia.yaml and sources/ghana.yaml found on their own European
+# Dynamics deployments). No clause anywhere addresses automated access, reuse
+# of notice data, or an account requirement to read (armeps.am's own text says
+# the opposite for reading, quoted under ROUTES CONSIDERED route 2, above).
+# tos_status: reviewed_ok on the same absence-of-restriction basis
+# sources/liberia.yaml and sources/ghana.yaml use for the identical shape of
+# absence: permissive (non-existent) robots.txt, no clause to quote either way,
+# no login wall on any data this connector needs. Nobody registered a supplier
+# account or accepted anything to reach any finding here.
+#
+# CODES: CPV IS CARRIED, on the ARMEPS detail page (not on the MoF bulletin
+# row, which shows title and dates only). Read directly off the sampled notice:
+# "CPV Codes: 72261160-ծրագրային ապահովման սպասարկման ծառայություններ"
+# (software maintenance services) - a standard 8-digit CPV code with its own
+# Armenian-language label. One notice sampled, not a survey; a normaliser
+# reading CPV should confirm the field is populated across more than one
+# notice before relying on it.
+#
+# LANGUAGE: hy (Armenian), confirmed against actual content on both hosts
+# (every bulletin row and the sampled ARMEPS detail page's native title, the
+# contracting-authority name, the description). ONE THING WORTH FLAGGING FOR
+# THE NORMALISER: unlike every other source in this registry, ARMEPS's own
+# detail page publishes a parallel English (and Russian) rendering of the
+# TITLE ONLY as part of the original record itself ("Title (EN): of consulting
+# services for the maintenance of..."), not something this pipeline would
+# derive - the publisher's own translation, not ours. Rule 9 still applies to
+# everything else on the page (description, documents): those are Armenian
+# only and untranslated at the source.
+#
+# DOCUMENTS: NOT bare PDFs, correcting the register row's "HTML and PDF". The
+# sampled notice's document list carries .rar archives ("Hraver hay.rar",
+# "Hraver_ruseren.rar" - Armenian and Russian invitation packages) plus a
+# per-notice "Tender Structure XML" (`c4t_<resourceId>_1.xml`) that was not
+# fetched or evaluated as a possible richer structured source this session
+# (the same HTML detail page already carries the fields it would add - CPV,
+# dates, buyer, procedure - so there was no case for a second route, rule 1).
+# SESSION REQUIREMENT: better than Liberia/Ghana's login-walled document body.
+# ARMEPS's own detail page exposes a `downloadForAnonymousUser()` /
+# `prepareAnonymousDownload.do?documentId=<id>` path specifically for
+# unregistered users; fetched cold (fresh cookie jar) and it returned a real
+# HTTP 200 wrapper page (`anonymousDownload.jsp`), not a login redirect - so
+# the mechanism for anonymous document access exists and was exercised, but
+# the wrapper serves the actual file through further client-side steps that
+# were not followed through this session, so whether the .rar's contents
+# (or any PDF inside one) carry a text layer is NOT established. Left to
+# whoever scopes document enrichment for this source.
+#
+# VOLUME, measured 2026-09-19 from the live "Open tender announcement and
+# invitation" listing (list_url), reading publication timestamps down through
+# page 5 (50 rows, dates 2026-09-07 to 2026-09-18): daily counts for the 7
+# calendar days ending yesterday (2026-09-12 to 2026-09-18) run 0, 0, 6, 15, 7,
+# 4, 4 = 36 new notices in 5 posting days, with zero on 2026-09-11/12/13 -
+# consistent with a weekend/holiday gap, the same pattern every other national
+# source in this registry shows. This is a single week's snapshot from one
+# fetch, not a rolling multi-week series, so the health band below carries a
+# wide margin the way sources/ghana.yaml's own one-week measurement does. NOTE
+# a real scope gap: this count is for the "open tender" (Բաց մրցույթ) method
+# only. The same bulletin publishes at least three sibling procurement-method
+# categories as SEPARATE list pages under the same host - "Electronic auction
+# announcement and invitation", "Price quotation request announcement and
+# invitation", and "Two-stage tender pre-qualification announcement" - each a
+# genuine new-opportunity notice under Armenian procurement law, not merely a
+# post-award record the way Kosovo's excluded types are. Whether a connector
+# should poll all of these, and how a normaliser should treat cross-category
+# duplicates if any exist, was NOT decided this session; see NOTES.
+#
+# ADMIN_LEVEL: national. gnumner.minfin.am is the Ministry of Finance's single
+# procurement portal for the whole country; the one sampled notice's own buyer
+# was a national body (the State Revenue Committee) and other rows on the same
+# page named a municipality (Talin community) and a university foundation -
+# the same "the platform is national, individual buyers span every level"
+# reasoning sources/doe.yaml and sources/kosovo.yaml both record for their own
+# feeds, not a claim that every notice is central-government.
+id: armenia
+name: Armenia Ministry of Finance procurement bulletin (ARMEPS open tender notices)
+country: AM
+admin_level: national
+language: hy
+stream: portal
+access: public_listing
+connector: PageConnector
+wave: 2
+# 13:15 UTC daily = 17:15 Yerevan (Armenia is UTC+4 year-round, no DST). Checked
+# against every schedule already in sources/ (2026-09-19): free between boad
+# 13:00 and opec_fund 13:30/enabavki_mk 13:45.
+schedule: '15 13 * * *'
+list_url: https://gnumner.minfin.am/hy/page/bac_mrcuyti_haytararutyun_ev_hraver/
+# No clause found anywhere addressing automated access or notice-data reuse on
+# gnumner.minfin.am, armeps.am or minfin.am - see TERMS OF USE above for every
+# host and slug checked. reviewed_ok on the same absence-of-restriction basis
+# sources/liberia.yaml and sources/ghana.yaml record for the identical shape of
+# absence: permissive (non-existent) robots.txt, no login wall on any data this
+# connector needs, no clause to quote either way.
+tos_status: reviewed_ok
+# NOT BUILT YET, and not enabled for two separate reasons, both open:
+#   1. monitor/connectors/armenia.py, its normaliser and its contract-test
+#      fixture do not exist - the same gap sources/ghana.yaml and
+#      sources/burkina_faso.yaml record for themselves after onboarding.
+#   2. THE CERTIFICATE PROBLEM ABOVE. list_url's host fails standard TLS
+#      verification (missing intermediate; see the dedicated section above).
+#      This needs a human decision (trust-bundle fix, or an explicit,
+#      documented exception) before a connector can fetch it the way every
+#      other source in this registry is fetched, not a quiet `verify=False`
+#      picked here.
+enabled: false
+health:
+  # Measured 2026-09-19, "Open tender" category only (see VOLUME above): 36 new
+  # notices over the 7 calendar days ending 2026-09-18, across 5 posting days,
+  # from a single snapshot fetch, not a rolling series - the same one-week
+  # caveat sources/ghana.yaml records for its own band. Floored well below the
+  # single busiest day seen (15) to tolerate a quiet week without a false
+  # unhealthy read; capped above the observed week for headroom, before any
+  # decision to add the sibling method categories noted above, which would
+  # raise both numbers.
+  expected_items_per_run: [10, 80]
+  max_consecutive_failures: 3
+owner: ryan.dear

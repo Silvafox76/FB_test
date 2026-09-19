@@ -134,9 +134,13 @@ def test_fetch_all_skips_a_source_that_has_been_read_since_its_last_fire(monkeyp
 
     monkeypatch.setattr(fetch_module, "fetch_source", record)
 
-    now = datetime(2026, 9, 12, 14, 0, tzinfo=UTC)
+    # The last attempt sits fifteen seconds before `now`, inside the same minute, so no
+    # schedule can fire between the two whatever hour the registry asks for. The
+    # earlier 13:00 / 14:00 pair silently assumed no enabled source fired at 14:00;
+    # ejn_ba's `0 14 * * *` (2026-09-19) did, and the test read that as a bug in fetch.
+    now = datetime(2026, 9, 12, 14, 0, 30, tzinfo=UTC)
     read_after_todays_fire = {
-        src.id: datetime(2026, 9, 12, 13, 0, tzinfo=UTC) for src in fetch_module.load_sources() if src.enabled
+        src.id: datetime(2026, 9, 12, 14, 0, 15, tzinfo=UTC) for src in fetch_module.load_sources() if src.enabled
     }
 
     results = fetch_module.fetch(Recording(read_after_todays_fire), "all", now=now)
@@ -203,9 +207,12 @@ def test_a_source_never_fetched_is_read_even_when_nothing_else_is_due(monkeypatc
     )
 
     enabled = [src.id for src in fetch_module.load_sources() if src.enabled]
-    now = datetime(2026, 9, 12, 14, 0, tzinfo=UTC)
-    # everything read an hour ago except one source, which has never been read at all
-    attempts = {src: datetime(2026, 9, 12, 13, 0, tzinfo=UTC) for src in enabled[1:]}
+    # Fifteen seconds inside the same minute, so no registry schedule can fire between
+    # the last attempt and `now` (the 13:00 / 14:00 pair this used to assume was broken
+    # by ejn_ba's 14:00 schedule on 2026-09-19).
+    now = datetime(2026, 9, 12, 14, 0, 30, tzinfo=UTC)
+    # everything read moments ago except one source, which has never been read at all
+    attempts = {src: datetime(2026, 9, 12, 14, 0, 15, tzinfo=UTC) for src in enabled[1:]}
 
     results = fetch_module.fetch(Recording(attempts), "all", now=now)
 

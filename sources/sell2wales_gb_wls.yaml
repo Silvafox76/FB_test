@@ -1,0 +1,210 @@
+# Wales's devolved-administration procurement portal - Sell2Wales, run by the
+# Welsh Government on the Proactis Tenders Limited platform. Register row S024
+# (desk research 18-19 Sep 2026, class A) cited the OCP Data Registry mirror
+# https://data.open-contracting.org/en/publication/119 and said the official
+# OCDS endpoint needed confirming; it quoted no robots.txt line and no licence
+# clause. Everything below was fetched live on 2026-09-19 against
+# sell2wales.gov.wales and api.sell2wales.gov.wales, per this agent's brief -
+# the OCP Data Registry entry was read only long enough to confirm it is a
+# harvester of Sell2Wales's own OCDS output, not a second publisher, and it is
+# NOT the access route below and was not used for any figure in this file.
+# THE OFFICIAL PORTAL IS https://www.sell2wales.gov.wales, not the mirror.
+#
+# ACCESS ROUTE, in CLAUDE.md's procedure order: documented API / structured
+# feed, on-domain. www.sell2wales.gov.wales's own footer links "Open
+# Contracting Transparency Data" (/Notice/Download/Download.aspx), which in
+# turn links "our API" at https://api.sell2wales.gov.wales/v1 - an OCDS Web
+# API with published, unauthenticated documentation at that root URL. No
+# HTML listing, alert-email or registration route was evaluated further, per
+# the procedure's "stop at the first one that works" - except that, per the
+# next paragraph, this one currently does not.
+#
+# THE API IS CURRENTLY BROKEN AND THIS IS A BLOCKER, NOT A WORKAROUND
+# CANDIDATE. GET https://api.sell2wales.gov.wales/v1/Notices - the documented
+# notice-list endpoint, confirmed live at api.sell2wales.gov.wales/v1?lang=en
+# ("Help - OCDS Web API") - returned HTTP 500 "Error converting data type
+# nvarchar to float" on 2026-09-19 for every parameter combination tried,
+# including the documentation's own worked example verbatim
+# (dateFrom=04-2019&noticeType=2&outputType=0&locale=2057) and a bare call
+# with no parameters at all. The single-notice-family endpoint
+# (GET /v1/Notice?id=<ocid>) does work (HTTP 200, a valid OCDS package
+# envelope), but it requires an OCID you already have, so on its own it is
+# not a discovery mechanism. The site's second official access route for the
+# same data - the "Notice Download" bulk-download form at
+# /Notice/Download/Download.aspx (JSON, Contract Notice, current month, OCDS
+# output, the same official, documented, ASP.NET-postback download an
+# ordinary user would click) - was also tried once and redirected to
+# /CustomErrors.aspx?Err=... on submission, a second independent failure
+# against the same backend. Per rule 1 (no fallbacks) this is not grounds to
+# build a PageConnector against the HTML search UI instead: the documented
+# feed is still the correct route, it is just not currently working. THIS
+# MUST BE RE-VERIFIED WITH A LIVE, CLEAN FETCH BEFORE THIS SOURCE IS BUILT OR
+# ENABLED - it is not the transient single-request reset sources/liberia.yaml
+# saw and cleared on a second attempt; two different official mechanisms
+# failed on the same day against what looks like the same backend fault.
+#
+# ROBOTS.TXT, fetched 2026-09-19, one request per host:
+#   - https://www.sell2wales.gov.wales/robots.txt returns HTTP 200 with a
+#     two-byte body (a bare CRLF, no directives at all).
+#   - https://api.sell2wales.gov.wales/robots.txt returns HTTP 404 (IIS's own
+#     "File or directory not found" page, not a robots directive).
+#   Same basis sources/liberia.yaml and sources/contractsfinder_gb.yaml use:
+#   absence is silence, not a restriction. No listing path is named and no
+#   crawl-delay is stated on either host.
+#
+# TERMS OF USE, clauses quoted, not paraphrased. Two documents govern this
+# data, and they say different things about the same content, which is
+# exactly the kind of tension CLAUDE.md's tos_status guidance means by
+# "anything you are not certain of" - except here the more specific document
+# resolves it rather than leaving it open:
+#   - Terms and Conditions (/helpandresources/websitepolicies/termsandconditions),
+#     section 4.3, a general Service conduct clause covering any User
+#     ("any...user of the Website"): "you agree not to use the Service to:
+#     ... reproduce, duplicate, copy, sell, resell or exploit for any
+#     commercial purposes any portion of the Service, use of the Service or
+#     access to the Service". Read on its own this would block a commercial
+#     BD pipeline reading notices.
+#   - The same document, section 5.2, carves out published content
+#     specifically: "You may use and re-use any material on the Website
+#     which is marked as Crown copyright ... free of charge in any format or
+#     medium in accordance with the terms and conditions of the Open
+#     Government License."
+#   - The OCDS Publication Policy: Data User Guide
+#     (/helpandresources/ocds/publicationpolicy), section 6 "License", is the
+#     document that specifically governs the notice data an OCDS connector
+#     would read, and it resolves the tension in 5.2's favour for this data:
+#     "The data on Sell2Wales is licensed using the Open Government License.
+#     This allows users to: copy, publish, distribute and transmit the
+#     Information; adapt the Information; exploit the Information
+#     commercially and non-commercially for example, by combining it with
+#     other Information, or by including it in your own product or
+#     application." Section 8 "Disclaimer" adds that the Welsh Government
+#     does not warrant the accuracy of buyer-submitted notice content, which
+#     bears on how much the pipeline should trust any single field, not on
+#     whether the pipeline may read it.
+#   The general Service clause governs conduct on the interactive site
+#   (bidding, posting, account use); the Publication Policy is the specific,
+#   on-point document for the published OCDS notice content itself, the same
+#   resolution sources/fts.yaml and sources/contractsfinder_gb.yaml already
+#   rest on for Crown-copyright OGL data on a site whose general terms are
+#   written for registered buyers and suppliers.
+tos_status: reviewed_ok
+id: sell2wales_gb_wls
+name: Sell2Wales
+country: GB
+# Wales is a devolved administration within GB, not a separate ISO country;
+# sources/fts.yaml already covers GB at admin_level: national. This entry
+# sits below it, per the register row.
+admin_level: regional
+# Confirmed, not assumed: www.sell2wales.gov.wales declares <html lang="en">
+# on every page fetched, with a "Cymraeg" (Welsh) toggle present in the same
+# header and footer on every page, and the API's own documented `locale`
+# parameter (en = 2057, cy = 1106) shows the data itself, not just the site
+# chrome, is bilingual. Matches the register's "en cy".
+language: en
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 07:20 UTC daily - right after fts.yaml (07:00) and contractsfinder_gb.yaml
+# (07:15), the two other GB procurement sources, and not claimed by any
+# schedule in sources/*.yaml as of 2026-09-19 (boamp 04:30, doe 05:00, ted
+# 06:00, prozorro 06:30, fts 07:00, contractsfinder_gb 07:15, undp 07:30,
+# worldbank 08:00, simap/worldbank_pipeline 08:30, euft/place 09:00, malta
+# 09:15, mcc Mon 09:30, ungm 10:00, ebrd 10:30, liberia/benin/cote_divoire/
+# senegal/sierra_leone 11:00, gambia/mali/nigeria 11:30, ghana 12:00, kosovo
+# 12:30, boad 13:00, opec_fund 13:30, tenderned_nl 14:00). GB is BST (UTC+1)
+# in September, so this is 08:20 local.
+schedule: '20 7 * * *'
+api_url: https://api.sell2wales.gov.wales/v1/Notices
+# WHAT SELL2WALES ADDS BELOW FTS'S THRESHOLD, AND THE OVERLAP FINDING - answered
+# structurally from the site's own notice-type taxonomy (Notice Download page
+# and API docs), NOT from a live sample, because the list endpoint could not be
+# queried (see above). Sell2Wales's own Notice Type list names two populations:
+#   - "FTS/OJEU - F1" through "F25": OJEU-derived, above-threshold notices.
+#     Sell2Wales's own OCDS Publication Policy says its data "is a direct
+#     mapping from the OJEU Tenders Electronic Daily (TED) system" for this
+#     population, i.e. these are the SAME above-threshold Welsh notices
+#     sources/fts.yaml already ingests from Find a Tender, republished under
+#     Sell2Wales's own OCID prefix. This is the duplication the register row
+#     asked about, and it is real: pulling these types would hand dedupe two
+#     copies of every above-threshold Welsh notice with no shared OCID to key
+#     off (the same structural mismatch sources/contractsfinder_gb.yaml found
+#     between its own population and Find a Tender's, just in the opposite
+#     direction - there the two publishers do not overlap; here Sell2Wales's
+#     own documentation says they do).
+#   - "Site Notice" types 51-56: Sell2Wales's own below-threshold notices,
+#     with no Find a Tender equivalent. This is what the source actually adds:
+#     Welsh public-sector opportunities under the GBP 25,000 (goods/services)
+#     and GBP 2m (works) advertising thresholds the Publication Policy states,
+#     plus sub-contract opportunities under a public prime contract.
+# exclude_notice_types below is set on this basis: it drops every FTS/OJEU
+# type (already covered by sources/fts.yaml) and every Site Notice type that
+# is not an open opportunity (52 Website PIN is planning-stage, too early; 53
+# Website Contract Award and 56 Sub Contract Award are results, not
+# opportunities), keeping 51 (Website Invitation to Tender Notice), 54
+# (Speculative Sub-Contract Opportunity) and 55 (Sub-Contract Opportunity) -
+# the tender-stage, below-threshold, Wales-only population. THIS IS A DESIGN
+# PROPOSAL FROM THE PUBLISHED TYPE LIST, NOT A LIVE-VERIFIED FILTER: no live
+# release of any type could be pulled while the API returns 500, so the
+# connector builder must confirm these type codes behave as documented
+# against a real response before relying on this list.
+exclude_notice_types:
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - "5"
+  - "6"
+  - "7"
+  - "12"
+  - "13"
+  - "14"
+  - "15"
+  - "20"
+  - "21"
+  - "22"
+  - "23"
+  - "24"
+  - "25"
+  - "52"
+  - "53"
+  - "56"
+enabled: false        # blocked: live API returns 500 on every query tried; see above
+health:
+  # NOT MEASURED. This band is a wide, deliberately unverified placeholder,
+  # not a count taken from live data - the /v1/Notices endpoint that would
+  # produce a count returns HTTP 500 for every request tried on 2026-09-19
+  # (see above), and the bulk-download form failed the same day. It must be
+  # replaced with a real 7-day count, the same way every other health block
+  # in sources/*.yaml carries one, before this source is enabled. Left wide
+  # (0 to 100, the same ceiling sources/contractsfinder_gb.yaml's single-page
+  # API response cap uses) only so the model does not reject the file for
+  # want of a number; it should not be read as evidence of expected volume.
+  expected_items_per_run: [0, 100]
+  max_consecutive_failures: 3
+owner: ryan.dear
+# FOR THE CONNECTOR BUILDER, gaps this assessment could not close because the
+# API would not answer:
+#   - CPV: confirmed carried. www.sell2wales.gov.wales/Search/Search_MainPage.aspx's
+#     own "Industry CPV code" filter lists the full CPV hierarchy (03000000
+#     through 79000000 and beyond, sampled directly from the rendered search
+#     form), so classification is a first-class, searchable field on this
+#     portal's notices, not just present in the OCDS export's
+#     tender.classification - but no live release was pulled to confirm the
+#     field's shape in this source's own OCDS output specifically.
+#   - Document/session behaviour and PDF text layer: NOT VERIFIED. The
+#     Publication Policy states "Each notice is also available as webpage and
+#     users are able to download individually in PDF or html", but no live
+#     notice ID could be obtained (the discovery endpoint is down) to test
+#     whether that PDF requires a session or carries a text layer. Check this
+#     when the API is restored, before assuming either answer.
+#   - A second, off-domain hostname for the same API,
+#     api-sell2wales.klickstream.com, is linked as "API documentation" from
+#     the Publication Policy page and returns a byte-identical response to
+#     api.sell2wales.gov.wales/v1 - almost certainly the vendor's (Klickstream)
+#     own default hostname for the same hosted app, surfaced by a stale link
+#     on one content page rather than a second, independent service. Use
+#     api.sell2wales.gov.wales (the on-domain, branded host linked from the
+#     current Download page) as the one client; do not build against the
+#     klickstream.com host as well or instead - one client per source (rule 1).

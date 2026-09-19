@@ -77,6 +77,86 @@
 # None of a, b or c is this file's to take, and none of it is unblocked by anything
 # an agent can do. Reading the paths anyway would be routing around an access
 # control.
+#
+# RE-ASSESSED 2026-09-19, on a different route, per the register's note (desk
+# research 18-19 Sep 2026, row S018) that the same PLACSP data is published as open
+# data by the Ministerio de Hacienda on a different host. The question was whether a
+# route exists that (a) never touches contrataciondelestado.es, (b) is permitted by
+# that other host's robots.txt and reuse terms, and (c) carries live notices with
+# deadlines at daily freshness. It does not, and the reason is not a paperwork gap
+# but the same server answering to both names.
+#
+#   1. https://www.hacienda.gob.es/robots.txt -> HTTP 200. Its only Disallow lines
+#      name eight individual PDFs and /RRHH/; none of the Open Data pages are
+#      listed. The dataset landing page (/en-GB/GobiernoAbierto/Datos Abiertos/
+#      Paginas/licitaciones_plataforma_contratacion.aspx) and its two child pages
+#      (licitacionescontratante.aspx, licitacionesagregacion.aspx) all returned
+#      HTTP 200 to this client's identified user agent. So far this is the route
+#      the register's row hoped for.
+#
+#   2. Both child pages are landing pages, not feeds. Each names one "conjunto de
+#      datos abiertos" and links an ATOM entry point plus year-by-year ZIP
+#      archives. The links, read off the hacienda.gob.es HTML and not themselves
+#      fetched:
+#
+#        licitacionescontratante.aspx (all PLACSP notices published in
+#        contracting-body profiles, excluding minor contracts, since 2012) ->
+#          https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom
+#
+#        licitacionesagregacion.aspx (the regional-platform aggregation set,
+#        excluding minor contracts, since 2016) ->
+#          https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_1044/PlataformasAgregadasSinMenores.atom
+#
+#      The OrganosContratacion.xlsx (contracting-body list) and the CODICE
+#      specification PDF linked from the parent page resolve to the same host.
+#
+#   3. contrataciondelsectorpublico.gob.es is not a different host, it is the same
+#      server under a second name. It resolves to 193.148.34.9, the address the
+#      2026-09-12 note already recorded for contrataciondelestado.es. Its
+#      robots.txt is byte-identical to that host's: the same 28 bytes, the same
+#      "User-agent: * / Disallow: /", the same ETag "1c-64a129c4abdc2" the
+#      2026-09-12 note matched to confirm it was Apache's own file and not a proxy
+#      artifact. That is check 2 from the 2026-09-12 note repeating on a second
+#      hostname, not a new platform with its own terms. Route (a) fails at the
+#      first hop past the landing page: every notice-bearing file - both ATOM
+#      feeds, both ZIP archive sets, the XLSX - sits on the disallowed host,
+#      reached from the allowed one only by a hyperlink. hacienda.gob.es describes
+#      the data and links to it; it does not serve it.
+#
+#   4. Because of (3), (b) and (c) were never reached. No ATOM entry, no CODICE
+#      XML, no seven-day volume count exists here: producing one would mean
+#      requesting https://contrataciondelsectorpublico.gob.es/sindicacion/..., which
+#      rule 21 forbids exactly as it forbade contrataciondelestado.es on
+#      2026-09-12. This is not withheld for lack of time; it cannot be obtained
+#      without the same violation this file exists to avoid.
+#
+#   5. The reuse conditions were read anyway, off hacienda.gob.es's own legal
+#      notice (https://www.hacienda.gob.es/en-gb/paginas/avisolegal.aspx, section
+#      "General conditions for reuse", citing RD 1495/2011 and Ley 37/2007),
+#      because the register asked for them quoted and the page itself is allowed:
+#      "The source of the documents to be reused must be mentioned. This quotation
+#      may be made as follows: 'Origin of the data: Ministry of Finance'", plus a
+#      bar on distorting the information's meaning and a requirement to carry the
+#      original's last-update date. Permissive, and irrelevant to the outcome: a
+#      reuse licence governs what may be done with data once obtained, never
+#      whether an automated client may request it - the same distinction the
+#      2026-09-12 note draws for simap. The blocker here is robots.txt on the host
+#      that actually serves the file, not the licence.
+#
+#   CONCLUSION: no permitted route exists. The register's "different host" is a
+#   second domain name for the platform already assessed at 2026-09-12, not a
+#   second publisher with its own access terms. This does not add a fourth option
+#   to (a)/(b)/(c) in that note or reopen (b) as "try hacienda.gob.es instead": it
+#   forecloses that reading, because hacienda.gob.es never serves a notice, only a
+#   link to one on the same disallowed server. Options a and c from the 2026-09-12
+#   note stand unchanged as the ones a named person would choose between. access,
+#   tos_status and enabled are unchanged by this review for the same reason: the
+#   fetch is still forbidden, so there is still nothing here for the orchestrator
+#   to flip. api_url below records the discovered ATOM entry point, read from
+#   hacienda.gob.es's own page and not fetched itself, so whoever eventually holds
+#   a written exception (option a) does not have to rediscover it. It is not a
+#   fetchable value today and no connector may treat it as one while enabled is
+#   false.
 id: place
 name: Plataforma de Contratacion del Sector Publico
 country: ES
@@ -105,12 +185,21 @@ connector: FeedConnector
 # knowing it means reading the feed across a day, so whoever unblocks this sets the
 # hour from the first days of real runs rather than trusting this line.
 schedule: '0 9 * * *'
-# The portal root, which is the only URL on this host that was verified to exist,
-# and it is here because Source requires a list_url or an api_url. The syndication
-# URL is deliberately absent rather than written from documentation memory: an
-# unverified endpoint in the registry is the thing a later session would trust.
-# Whoever obtains permission records the real one here from a response they held.
+# The portal root, which is the only URL on this host that was verified to exist by
+# a direct, permitted request, and it is here because Source requires a list_url or
+# an api_url.
 list_url: https://contrataciondelestado.es/
+# Added 2026-09-19: the ATOM entry point for "all PLACSP notices" (see the dated
+# note above), read off hacienda.gob.es's licitacionescontratante.aspx page and NOT
+# fetched itself - it resolves to contrataciondelsectorpublico.gob.es, which shares
+# an IP and a disallow-all robots.txt with the host above and is exactly as
+# forbidden. Recorded so the discovery does not have to be repeated, not because it
+# is usable: no connector may request it while enabled is false, and enabled cannot
+# become true from evidence found on hacienda.gob.es alone. The sibling aggregation
+# feed (regional platforms, since 2016) is
+# https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_1044/PlataformasAgregadasSinMenores.atom
+# and carries the same status; only one URL fits this field.
+api_url: https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_643/licitacionesPerfilesContratanteCompleto3.atom
 # Reviewed, and found restricted at the fetch itself, which is the harder kind: for
 # simap the restriction binds what happens to the data after the fetch, and here it
 # forbids the fetch. reviewed_restricted rather than pending because the review did

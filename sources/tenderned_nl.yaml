@@ -1,0 +1,215 @@
+# TenderNed, the Netherlands' national procurement announcement platform, run by
+# PIANOo / Rijksdienst voor Ondernemend Nederland (RVO) under the Ministry of
+# Economic Affairs. Source register row S014 (desk research 18-19 Sep 2026,
+# class A). The register's routes and licence claim were verified live on
+# 2026-09-19 rather than trusted from desk research, per procedure. Everything
+# below was fetched with MONITOR_USER_AGENT
+# ("FreeBalance-OpportunityMonitor/0.1 (+contact email)"), one polite pass per
+# page.
+#
+# ROBOTS.TXT, www.tenderned.nl, fetched 2026-09-19 (a plain GET to
+# /robots.txt 302s to /cms/robots.txt; the redirect target is what was read).
+# One group, `User-agent: *`, no Crawl-delay anywhere in the file. It disallows
+# Drupal CMS system paths only (/cms/admin/, /cms/user/login, /cms/search/,
+# /core/, /profiles/, etc.) and lists three sitemaps. Nothing disallows
+# /papi/ (the RSS and XML-API path) or /aankondigingen/ (the announcement
+# platform). Both routes this entry uses are permitted.
+#
+# LICENCE, quoted verbatim from the dataset page named in the register,
+# https://data.overheid.nl/dataset/aankondigingen-van-overheidsopdrachten---tenderned
+# (fetched 2026-09-19), table row: "Licentie: CC-0 (1.0)", linking
+# http://creativecommons.org/publicdomain/zero/1.0/deed.nl. Data owner listed
+# on the same page: "PIANOo (Rijk)". The public API spec (see ACCESS ROUTE
+# below) carries the identical statement in its own `license` block:
+# `name: CC-0 (1.0)`, same URL - the API and the bulk dataset are licensed the
+# same way, not just adjacent.
+#
+# TERMS OF USE, https://www.tenderned.nl/cms/nl/over-deze-site/gebruiksvoorwaarden
+# (fetched 2026-09-19, revised 19-11-2025 per the page's own banner). Read in
+# full (headings: Definities, Gebruikstoepassingen TenderNed, Aanvaarding en
+# toepassing gebruiksvoorwaarden, Account en bevoegdheden, ..., Intellectuele
+# eigendomsrechten, Rechtskeuze en forumkeuze). Two clauses bear on this entry:
+#   - Sec. 2 "Gebruikstoepassingen TenderNed": "De website www.tenderned.nl,
+#     inclusief aankondigingenplatform, is voor iedereen vrij toegankelijk. ...
+#     Alle aankondigingen op het aankondigingenplatform zijn openbaar. De
+#     openbare gegevens uit de aankondigingen zijn ook beschikbaar als
+#     dataset." (the announcement platform, and the same data as a dataset,
+#     are both stated as public / freely accessible to everyone).
+#   - Sec. 3 "Aanvaarding en toepassing gebruiksvoorwaarden": "Met de
+#     registratie op TenderNed aanvaardt de Gebruiker deze
+#     gebruiksvoorwaarden." Acceptance is tied to registering an account
+#     (placing notices or bidding); reading the public announcement platform,
+#     the RSS feed or the API is not registering and is not an acceptance
+#     event this pipeline would trigger.
+#   - Sec. 16 "Intellectuele eigendomsrechten" reserves IP in "TenderNed"
+#     itself - its texts, design, databases, software and the TenderNed
+#     trademark - to the Staat der Nederlanden, and requires prior written
+#     consent to use "het beeldmerk of andere rechten". Read as the platform's
+#     brand/software IP, not the announcement data, which Sec. 2 already
+#     states is public and which the dataset page separately licenses CC0;
+#     nothing in this section, or anywhere else in the document, mentions
+#     automated access, scraping, robots, machine-to-machine use, rate limits
+#     or reuse of notice data - searched for all of those terms plus
+#     "geautomatiseerd" and "hergebruik", none present. No clause forbids or
+#     conditions the access route below.
+# tos_status: reviewed_ok. Robots.txt permits the paths used, the dataset
+# licence is CC0 (1.0) quoted above, and the ToS states the announcement
+# platform is public and imposes no automated-access restriction, so no
+# question is being deferred to legal here.
+#
+# ACCESS ROUTE, in the order the procedure asks for (documented API first,
+# then structured feed):
+#
+#   1. DOCUMENTED API: Tenderned Notice Service v2, spec fetched from
+#      https://www.tenderned.nl/info/swagger/public-aankondiging-api.yaml
+#      (the swagger UI page itself is a JS shell that loads this file; the
+#      YAML was fetched directly and needs no browser). One operation:
+#      `GET /papi/tenderned-rs-tns/v2/publicaties/{publicatieId}/public-xml`,
+#      returning the full notice "in de vorm van een xml... gebaseerd op de
+#      TED xsd schema's" with "een beperkt aantal [vertrouwelijke] velden...
+#      gefilterd". `security: basicAuth`, role `OpenDataUser`. The spec's own
+#      text: "Deze API is beveiligd via basic authentication
+#      (username/wachtwoord). Vraag deze aan via functioneelbeheer@tenderned.nl."
+#      NOT REQUESTED BY THIS AGENT. Per the standing rule against registering
+#      accounts on FreeBalance's behalf, nobody here emailed
+#      functioneelbeheer@tenderned.nl. A NAMED FREEBALANCE PERSON (this
+#      source's owner, or whoever will hold the resulting credential in
+#      Secrets Manager per rule 20) must send that request, stating
+#      organisation and purpose, before this API can be built against. It
+#      takes one argument, `publicatieId`, which is the numeric id visible in
+#      an announcement's platform URL - i.e. this API has no listing
+#      operation of its own and must be fed ids from somewhere else.
+#
+#   2. STRUCTURED FEED (the "somewhere else", and the credential-free route
+#      verified live today): the ATOM feed at
+#      https://www.tenderned.nl/papi/tenderned-rs-tns/rss/laatste-publicatie.rss
+#      - no auth, no cookie, plain GET, 200 OK, `application/atom+xml`-shaped
+#      body (despite the .rss extension and filename it is an Atom feed,
+#      `xmlns:atom="http://www.w3.org/2005/Atom"`, root `<atom:feed>`). Each
+#      `<atom:entry>` carries: title (procurement title + buyer name),
+#      `atom:link` to the notice's platform detail page
+#      (`https://www.tenderned.nl/aankondigingen/overzicht/{publicatieId}` -
+#      this is where the XML API's path parameter comes from), published and
+#      updated timestamps, author (buyer name again), and a pipe-delimited
+#      `content`/`summary` string: "Type publicatie | Publicatiedatum | Type
+#      opdracht | Sluitingsdatum | Plaats van uitvoering (+ NUTS code) |
+#      Procedure | CPV" - CPV here is the Dutch CPV DESCRIPTION TEXT
+#      ("Software en informatiesystemen"), not a numeric CPV code. No full
+#      description/body text and no estimated value are in the feed. This
+#      feed is CLAUDE.md's "structured feed (... ATOM, RSS)" rung, one step
+#      above where the register's TNS JSON webservice and the HTML listing
+#      would sit, and it is what a FeedConnector should poll for discovery;
+#      the credentialed XML API above is what it should call per id to get
+#      the CPV code, value, full description and eligibility text the free
+#      feed does not carry.
+#
+#   The register's other two candidate routes were checked and are correctly
+#   ruled out, not left unconsidered:
+#     - TNS JSON webservice: exists, answers with no auth, but is
+#       undocumented and the register itself records that it "may change
+#       without notice". Rule 1 (no fallbacks, no second client for one
+#       source) and the register's own recommendation both say do not build
+#       on it; it was not used for anything in this assessment beyond noting
+#       it exists.
+#     - Public HTML listing, https://www.tenderned.nl/aankondigingen/overzicht:
+#       fetched plain (no JS), returned an Angular/JS application shell (53
+#       lines, `<div id="swagger-ui">`-style empty mount points, hashed
+#       `assets/` bundles, no notice rows anywhere in the raw HTML). This is
+#       BrowserConnector territory if it were the only route, but it is not:
+#       routes 1 and 2 above answer without a browser and rank higher in the
+#       access-route order regardless, so this listing is not read by
+#       anything and stream/connector below are set from routes 1+2, never
+#       from this page.
+#
+# CONNECTOR CLASS: FeedConnector. Both routes actually used (the Atom feed and
+# the XML-per-id API) are non-interactive HTTP GETs against documented,
+# structured endpoints; nothing here requires JavaScript execution, and the
+# one page that would have needed a browser (the HTML listing) is not the
+# route.
+#
+# VOLUME, measured against the live Atom feed at 2026-09-19 16:10 UTC (18:10
+# Amsterdam, a weekday). The feed returned exactly 25 entries - its full
+# capacity; a `?aantal=200` query parameter was tried and ignored, and a
+# second fetch a moment later returned the identical 25 ids, confirming this
+# is a FIXED-SIZE most-recent-N feed, not a rolling 7-day or 24-hour window.
+# Those 25 entries' own published/updated timestamps span 15:12:01 to
+# 17:44:00 CEST - two hours thirty-two minutes - for a measured rate of
+# roughly 10 notices/hour during a Dutch business afternoon. A single capped
+# snapshot cannot be turned into an exact 7-day count, but the rate alone
+# shows the true daily volume is far above 25: at ~10/hour across a
+# 08:30-17:30 business day this extrapolates to on the order of 80-100
+# notices on a single weekday, i.e. several hundred a week - an order of
+# magnitude above every other source in this registry (Liberia 3-60/week,
+# FTS 1-200/run). THIS HAS A CONSEQUENCE FOR SCHEDULING THAT THE CONNECTOR
+# BUILDER MUST KNOW: monitor/schedule.py's supported cron subset is a single
+# fixed minute-and-hour per day (or per day-of-week); it explicitly rejects
+# step values and cannot express hourly polling. At the observed churn rate,
+# the 25-item cap rolls over roughly every two and a half hours, so a
+# once-daily poll - the only cadence this scheduler can express today - will
+# only ever see the newest ~2.5 hours of each day and will structurally,
+# silently miss the rest. This is not a volume question to size a health
+# band from; it is a coverage gap that needs a decision before this source
+# can be trusted for completeness (either a scheduler change to allow
+# sub-daily cadence for this one source, or accepting partial daily coverage
+# as a known, documented limitation). Flagging it here rather than picking a
+# schedule that hides it.
+#
+# LANGUAGE: nl, confirmed against the actual page/feed text, not assumed.
+# https://www.tenderned.nl/aankondigingen/overzicht, the ToS page and the
+# dataset page all declare `<html lang="nl">`; every feed entry's own field
+# labels ("Type publicatie", "Publicatiedatum", "Sluitingsdatum", "Plaats van
+# uitvoering", "Procedure") and buyer/title text are Dutch. (One sampled entry,
+# a Ministerie van Defensie item, had an English title - defence procurement
+# sometimes publishes bilingually - but the feed and platform are declared and
+# overwhelmingly actually Dutch.)
+#
+# CPV / CODE SYSTEM: present, but not uniformly across the two routes. The
+# free Atom feed carries only the Dutch CPV DESCRIPTION TEXT per entry (e.g.
+# "Reiniging van gebouwen", "Software en informatiesystemen"), no numeric
+# code - config/thresholds.yaml's free CPV filter (top-level 48/72/79) needs
+# the code, not the label, so it cannot run cleanly off the feed alone. The
+# credentialed XML API's own description says it is "gebaseerd op de TED xsd
+# schema's", which carry CPV as a code, so the numeric code is expected to
+# arrive once the per-id XML is fetched - not directly verified here because
+# no OpenDataUser credential exists yet to call it with.
+#
+# DOCUMENT DOWNLOAD / SESSION: not assessed. Neither route fetched here (the
+# Atom feed, the XML API spec) links to bidding documents; that only becomes
+# relevant once the XML API is credentialed and returns document references,
+# and is a question for whoever builds the connector once route 1 is open.
+id: tenderned_nl
+name: TenderNed
+country: NL
+admin_level: national
+language: nl
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 14:00 UTC = 16:00 Amsterdam (CEST) / 15:00 (CET). Collides with no schedule
+# already in sources/ (boamp 04:30, doe 05:00, ted 06:00, prozorro 06:30, fts
+# 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline 08:30,
+# euft/place 09:00, malta 09:15, mcc Mon 09:30, ungm 10:00, ebrd 10:30, several
+# West African sources 11:00-11:30, ghana 12:00, kosovo 12:30, boad 13:00,
+# opec_fund 13:30). PROVISIONAL, and flagged above as unable to give full-day
+# coverage under this scheduler's once-daily limit regardless of which hour is
+# chosen; whoever builds this connector should revisit both the hour and
+# whether a sub-daily cadence is needed before this source is measured as
+# healthy.
+schedule: '0 14 * * *'
+list_url: https://www.tenderned.nl/papi/tenderned-rs-tns/rss/laatste-publicatie.rss
+api_url: https://www.tenderned.nl/papi/tenderned-rs-tns/v2/publicaties/{publicatieId}/public-xml
+tos_status: reviewed_ok  # Gebruiksvoorwaarden sec. 2 (public platform/dataset) + dataset page licence "CC-0 (1.0)"; see comment block above for the full clause quotes
+enabled: false        # wave 2; XML API credential not yet requested from functioneelbeheer@tenderned.nl (see ACCESS ROUTE above) - a named FreeBalance person must request it, not this agent
+health:
+  # The Atom feed is fixed-size (see VOLUME above): a healthy fetch reads
+  # close to its full 25-entry capacity every time, almost regardless of true
+  # daily volume, because it is a most-recent-N window rather than a
+  # time-windowed one. 20 gives headroom for the rare moment TenderNed's own
+  # corpus briefly returns fewer; 25 is the observed and apparent hard cap.
+  # This band describes the feed's shape, not the source's real daily
+  # publication volume, which the note above puts at roughly 80-100/weekday -
+  # far more than a once-daily poll of this capped feed will ever surface.
+  expected_items_per_run: [20, 25]
+  max_consecutive_failures: 3
+owner: ryan.dear

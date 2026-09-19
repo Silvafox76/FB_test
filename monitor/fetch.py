@@ -39,11 +39,14 @@ import yaml
 from monitor.connectors.base import ConnectorError
 from monitor.connectors.boamp import BoampConnector
 from monitor.connectors.burkina_faso import BurkinaFasoConnector
+from monitor.connectors.contractsfinder_gb import ContractsfinderGbConnector
 from monitor.connectors.doe import DoeConnector
 from monitor.connectors.ebrd import EbrdConnector
+from monitor.connectors.ejn_ba import EjnBaConnector
 from monitor.connectors.euft import EuftConnector
 from monitor.connectors.fts import FtsConnector
 from monitor.connectors.ghana import GhanaConnector
+from monitor.connectors.iub_lv import IubLvConnector
 from monitor.connectors.liberia import LiberiaConnector
 from monitor.connectors.mali import MaliConnector
 from monitor.connectors.prozorro import ProzorroConnector
@@ -56,11 +59,14 @@ from monitor.health import source_health
 from monitor.models import RawNotice, Source, Translation
 from monitor.normalise import boamp as boamp_normalise
 from monitor.normalise import burkina_faso as burkina_faso_normalise
+from monitor.normalise import contractsfinder_gb as contractsfinder_gb_normalise
 from monitor.normalise import doe as doe_normalise
 from monitor.normalise import ebrd as ebrd_normalise
+from monitor.normalise import ejn_ba as ejn_ba_normalise
 from monitor.normalise import euft as euft_normalise
 from monitor.normalise import fts as fts_normalise
 from monitor.normalise import ghana as ghana_normalise
+from monitor.normalise import iub_lv as iub_lv_normalise
 from monitor.normalise import liberia as liberia_normalise
 from monitor.normalise import mali as mali_normalise
 from monitor.normalise import ocr
@@ -99,12 +105,24 @@ CONNECTORS = {
     # One RawNotice per bulletin issue, many notices out (decision 51): the one
     # mapper in this table that returns a list.
     "burkina_faso": (BurkinaFasoConnector, burkina_faso_normalise.map_notices),
+    # The register's class A wave, 2026-09-19 (decision 72): three sources with a
+    # sanctioned machine route, a quoted licence, a recorded fixture and one clean live
+    # fetch. The fourth, pcs_gb_sct, is built and listed below with the others that wait.
+    "contractsfinder_gb": (ContractsfinderGbConnector, contractsfinder_gb_normalise.map_notice),
+    "ejn_ba": (EjnBaConnector, ejn_ba_normalise.map_notice),
+    "iub_lv": (IubLvConnector, iub_lv_normalise.map_notice),
 }
 
 # Built, fixture-tested, and deliberately absent from the table above. Listed here
 # because "why is this connector not wired" is a question the table cannot answer,
 # and because an absence with no note reads as an oversight:
 #
+#   pcs_gb_sct  Built 2026-09-19 with fixture, 29 contract tests and a normaliser. The
+#           live fetch fails TLS verification: api.publiccontractsscotland.gov.uk sends
+#           its leaf certificate without the Sectigo intermediate, and Python does not
+#           fetch missing intermediates the way a browser does. The fix is a trust
+#           bundle decision (decision 72), not a connector change; nothing here
+#           lowers verification.
 #   simap   tos_status reviewed_restricted. AGB clause 5 needs a named person's
 #           signature and no file in this repository is one. Wiring it would let
 #           `monitor run` fetch it, so the permission to run is what is withheld;

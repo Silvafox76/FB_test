@@ -48,6 +48,40 @@ api_url: https://www.simap.ch/api/publications/v2/project/project-search
 #     08:00 on the publication day.
 # A named person signs that clause 5 is satisfied before enabled becomes true. Nothing
 # in this file is that signature.
+#
+# 2026-09-19 re-read attempt (robots.txt + legal page), one polite GET per page,
+# identified user agent from MONITOR_USER_AGENT, no auth, nothing registered:
+#   - robots.txt at https://www.simap.ch/robots.txt re-fetched: unchanged in substance
+#     from the assumption the connector was built against. Disallow covers only
+#     /{de,fr,it,en}/{admin, redirect, user-account, users/user-account,
+#     user-subscriptions, vendor-profile, vendor-profile-view, templates, provider,
+#     401, 404, 500, pub-drafts, procurement-office, project-detail,
+#     competence-center, vendor, support, oldSimapUrl}. No entry for /api/ (so
+#     api_url below is not disallowed) and none for /de/about/legal. No Crawl-delay
+#     directive anywhere in the file.
+#   - https://www.simap.ch/de/about/legal itself did NOT yield readable AGB text
+#     today. The page returns HTTP 200 but is an SPA shell; the response's own
+#     server-rendered state (window.__SSR_REDUX) shows simap's backend refused the
+#     content call it makes for itself: Cms.__crudStates.getContentByPageName.about
+#     .error = {"status":401,"name":"ERR_BAD_REQUEST","message":"Request failed
+#     with status code 401", apiId:"Cms/getContentByPageName"}. This is simap's own
+#     first-party server-side render failing, not a JS-rendering gap on our side:
+#     the sibling page /de/about/statutes (same "about" CMS page group) fails
+#     identically, and a WebFetch pass returned only the navigation chrome, no body
+#     text, matching the same empty state. No cookie, retry-after-cookie, or
+#     alternate locale was tried beyond this (no routing around it, one measured
+#     re-check only). Net effect: today, this looks broken for any visitor, not
+#     specifically gated against automation.
+#   - Consequence: the clause 3-7 readings below are CARRIED FORWARD UNCHANGED
+#     from 2026-09-12, not re-confirmed word for word, because current text could
+#     not be retrieved. This is not "terms reviewed and found the same"; it is
+#     "terms could not be re-read today." tos_status stays reviewed_restricted and
+#     enabled stays false on the same basis as before (clause 5 sign-off still
+#     outstanding). Before the named person signs off on clause 5, someone should
+#     open https://www.simap.ch/de/about/legal in an actual browser to check the
+#     about-page CMS error above has cleared and the clause 5 wording quoted below
+#     still reads the same; sign-off against a page that would not even load for a
+#     visitor today is not meaningful sign-off.
 tos_status: reviewed_restricted
 # simap offers an include list and no exclude list, so the connector asks for the
 # complement of this (monitor/connectors/simap.py, include_pub_types). Every value is

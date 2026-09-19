@@ -252,14 +252,188 @@
 # contracting-authority names read (a municipal assembly, a national energy
 # corporation) span every level, the same admin_level-is-a-platform-default point
 # sources/doe.yaml makes about Germany's 16 Laender feed.
+#
+# ============================================================================
+# RE-ASSESSED 2026-09-19, ON A DIFFERENT ROUTE, per source register row S012
+# (desk research 18-19 Sep 2026, class A), which additionally names an OCDS API
+# at https://ocdskrpp.rks-gov.net/Help (data Mar 2016 - Mar 2026 per the OCP
+# Data Registry - a mirror, not onboarded, and not relied on for terms; an
+# attempt to reach the specific Kosovo entry on data.open-contracting.org did
+# not resolve to a stable page and was not pursued further, since the register
+# itself flags that site as a mirror). Everything below was read live, cold,
+# one polite GET per page/endpoint, same MONITOR_USER_AGENT as above.
+#
+# HOST: ocdskrpp.rks-gov.net resolves (`getent hosts`, independent of the
+# session's HTTPS proxy) to 2a07:e0c0:3:1::3 / 2a07:e0c0:4:1::3, canonical name
+# web3.rks-gov.net - the SAME address block as aqp.rks-gov.net and the dead
+# krpp.rks-gov.net (502, see above), NOT the address e-prokurimi.rks-gov.net
+# uses (::80). It is a distinct site binding on the same shared government web
+# server, and unlike krpp.rks-gov.net it answers live and correctly - the
+# address-block coincidence is not a sign of the same failure.
+#
+# ROBOTS.TXT: https://ocdskrpp.rks-gov.net/robots.txt -> HTTP 404, a genuine
+# IIS "404 - File or directory not found" error page (the same template
+# e-prokurimi's own missing robots.txt returns), not a proxy failure. No file
+# exists to disallow anything; nothing is disallowed. No crawl-delay is stated
+# anywhere.
+#
+# TERMS OR LICENCE ON THIS HOST: SEARCHED, NOT FOUND. The Help page
+# (https://ocdskrpp.rks-gov.net/Help) is a stock, unfilled ASP.NET Web API Help
+# Page ("Introduction: Provide a general description of your APIs here.", "No
+# documentation available." on every one of its nine listed endpoints) - no
+# licence key, no terms-of-service link, nothing. The site root
+# (https://ocdskrpp.rks-gov.net/) carries two sentences of description and no
+# more: "KRPP - ofron web shërbimin, për qasje elektronike në kuadër të
+# përmbushjes së standardeve OCDS" (KRPP offers this web service for
+# electronic access as part of meeting OCDS standards) and "Çasja dhe
+# konsumimi i të dhënave të hapura në këtë web faqe mund të bëhet nga API..."
+# (Access and consumption of the open data on this site can be done via the
+# API...) - both describe OCDS in general and invite API consumption, but
+# neither is a licence: no scope of permitted use, no attribution condition,
+# no liability disclaimer, no named licence (no CC/ODC/OGL reference of any
+# kind). Eight further paths were probed for a hidden terms/licence page and
+# all eight answered the same genuine IIS 404 as robots.txt: /Home/License,
+# /License, /Terms, /Home/Terms, /TermsOfUse, /license.txt, /LICENSE,
+# /Licence. CONCLUSION: this host publishes no terms of use and no licence of
+# its own, open or otherwise - not "an open licence with something left to
+# confirm", but no licence text at all to read.
+#
+# DOES E-PROKURIMI'S TOU REACH THIS HOST: NO, BY ITS OWN WORDS. The ToU PDF
+# (the same document quoted above, re-read in full, all 46,510 characters of
+# pdftotext output grepped case-insensitively for ocds/ocdskrpp/"open
+# data"/licenc/liçenc/license - zero hits) opens by naming its own scope:
+# "Portali Kombëtar i Prokurimit elektronik (e-Prokurimi)
+# (https://e-prokurimi.rks-gov.net)" (clause 1, Albanian block), and clauses
+# 20-21 (English block) bind "the use of the e-procurement platform" / "the
+# services (e-Procurement)" - a named single host, not "any PPRC system" or
+# "all KRPP web services". Clause 28(c)'s reproduction restriction is a clause
+# of that same agreement, scoped the same way. It does not, by its own terms,
+# extend to a different subdomain the document never mentions.
+#
+# NET LEGAL POSITION: neither of the two clean outcomes the question posed.
+# This is NOT "a separate publication with its own open licence" (no licence
+# text exists to read, so nothing displaces clause 28(c)) and it does NOT
+# "inherit clause 28(c)" either (the clause's own host-scoped wording does not
+# reach here). What is actually true: no restriction was found that reaches
+# this host, but no permission was granted in so many words either.
+# tos_status stays pending, but the question for legal has changed shape: not
+# "does 28(c)'s exception (i), procurement law permits it, cover this
+# pipeline's processing" (the original question, which still stands for the
+# HTML route this file no longer proposes to use) but "does Kosovo law -
+# procurement law's public-notice provisions, or any open-data law - create a
+# reuse right for OCDS data KRPP publishes with no licence of its own
+# attached, or does PPRC need to be asked in writing for one." Nobody
+# registered, submitted a form or accepted anything to reach any of this (same
+# rule as before) - every page above was read cold.
+#
+# ACCESS ROUTE: DOCUMENTED API, ANSWERS ANONYMOUSLY, CONFIRMED LIVE. Two
+# relevant endpoints, both listed on /Help with no security scheme declared,
+# both tested with a single cold GET and no session:
+#   - krppAPI/Tender?endDateFrom=2026-09-19&endDateEnd=2026-10-19 -> HTTP 200,
+#     answered promptly, 447 KB, flat JSON array, 301 tenders, every one
+#     status "Active" with tenderPeriod.endDate inside the requested future
+#     window (2026-09-21 through 2026-10-16) - i.e. genuine tender-stage
+#     releases with future deadlines, not a historical archive.
+#   - krppAPI/TenderRelease?endDateFrom=2026-09-19&endDateEnd=2026-10-19&
+#     DataFormat=json -> HTTP 200, but took several minutes to answer (525
+#     KB) - the SAME 301 records (identical id/ocid set, identical min/max
+#     tenderPeriod.startDate of 2026-06-16 to 2026-09-18), wrapped in a
+#     genuine OCDS 1.1 release package: {"publisher":{"name":"Kosovo: Public
+#     Procurement Regulatory Commission (PPRC)"},"version":"1.1",
+#     "publishedDate":...,"releases":[{"ocid":"ocds-uhzcmx-...",
+#     "tag":["tender","award"],"initiationType":"tender","tender":{...,
+#     "documents":[{"documentType":"tenderNotice","format":"text/html",
+#     "language":"sq",...}]},"award":[],"parties":[]}]} - this is what the
+#     register's "OCDS" description refers to literally, not just a KRPP house
+#     style. Note the top-level "publishedDate" is this query's own generation
+#     timestamp, not the date of the latest notice, and "tag":["tender",
+#     "award"] is printed on every release regardless of whether "award" is
+#     actually populated (it was empty, [], on every release checked) - a
+#     connector must read the award array itself, not trust the tag.
+#   RECOMMENDATION FOR THE CONNECTOR: use krppAPI/Tender (flat JSON), not
+#   krppAPI/TenderRelease (OCDS envelope), as the operative endpoint. They
+#   carry the same underlying tender set (cross-checked above) and rule 9 does
+#   not require the literal OCDS envelope to be preserved as the stored
+#   record, only that the original text is kept - Tender's own title/
+#   description fields are that original text either way. TenderRelease's
+#   multi-minute response time for an equivalent query is a real operational
+#   cost the flat endpoint does not carry, for no field this pipeline needs
+#   that isn't already on the flat record.
+#   ACQUISITION SCOPE, NOW BY ENDPOINT NOT BY STRING MATCH: krppAPI/Tender and
+#   krppAPI/TenderRelease are themselves the pre-award listing - award
+#   decisions live in the separate krppAPI/Award endpoint, bid data in
+#   krppAPI/Bid, amendments in krppAPI/TenderUpdate (all listed on the same
+#   /Help page). Reading only Tender/TenderRelease is already scoped to kept
+#   notices the way sources/ejn_ba.yaml's ProcurementNotices entity set is -
+#   exclude_notice_types (a config keyed to the HTML digest's five type
+#   headers) has no equivalent need here and is removed below rather than
+#   carried forward unused.
+#   WINDOWING, LEFT FOR THE CONNECTOR: neither endpoint takes a
+#   publication/start-date filter - only endDateFrom/endDateEnd (deadline),
+#   partyName, tendername, tenderNumber, valueGraterThan are documented on
+#   /Help. A daily run therefore cannot ask "what published since yesterday";
+#   it must ask "what is open with a deadline in some future window" (e.g.
+#   endDateFrom=<today>) and dedupe against previously-seen ocid/id, the same
+#   discipline sources/liberia.yaml and sources/ejn_ba.yaml already record for
+#   their own bursty or window-shaped sources.
+#
+# DOCUMENT DOWNLOAD, NOW RESOLVED RATHER THAN LEFT OPEN: the API's own
+# "documents" array does not reference a PDF at all - every document object
+# sampled (301 of 301) has "format":"text/html" and a "url" pointing back to
+# the same DokumentPodaciFrm.aspx?id=... detail page the original assessment
+# already found returns HTML, not a PDF, on a plain GET. The unresolved
+# "does the tender-document PDF carry a text layer" question from the original
+# assessment does not apply to this route: there is no PDF reference to
+# follow, only a link back to the HTML page already read.
+#
+# CPV: NOT CARRIED BY EITHER API ENDPOINT. Both krppAPI/Tender's and
+# krppAPI/TenderRelease's `tender.items` array was empty ([]) on every one of
+# the 301 releases checked, and neither payload contains the string "cpv"
+# anywhere (checked case-insensitively against the full response). This is a
+# real trade-off, not a wash: the ORIGINAL assessment's search grid
+# (PreglediFrm.aspx?method=ReducedObjavljeniDokumenti, its own "FPP" column)
+# remains the only place CPV was found on this platform, and it was already
+# not the chosen list_url even under the HTML route. A connector wanting CPV
+# per notice still needs that separate grid page regardless of which route
+# (API or digest) supplies the base notice feed - this is an existing gap the
+# API neither closes nor widens.
+#
+# LANGUAGE: sq confirmed again, this time from the API's own structured field
+# rather than inferred from page text - every "documents[].language" value
+# read across 301 releases was "sq", with no other value seen.
+#
+# VOLUME AND RECENCY, measured 2026-09-19 against krppAPI/Tender with
+# endDateFrom=2026-09-19&endDateEnd=2026-10-19 (one call): 301 currently-open
+# tenders, tenderPeriod.startDate ranging 2026-06-16 to 2026-09-18 - i.e. the
+# most recent publication in this snapshot is ONE DAY before this assessment
+# (today is 2026-09-19), not stale. Of those 301, 263 have a startDate within
+# the last 30 calendar days (2026-08-20 to 2026-09-19). THIS IS A PROXY, NOT
+# AN EXACT 30-DAY PUBLICATION COUNT, SAID PLAINLY RATHER THAN LEFT LOOKING
+# MORE PRECISE THAN IT IS: because the API has no start-date filter (see
+# WINDOWING above), this count is bounded to tenders that are BOTH published
+# in the last 30 days AND still open with a deadline inside the next 30 days -
+# a tender published 25 days ago with a typical ~20-day bidding period would
+# already show a past deadline and be excluded from this pull entirely, so 263
+# understates true 30-day publication volume. It is, however, the right order
+# of magnitude: the original assessment's direct daily count from the HTML
+# digest (114 new B05 Contract Notices over 5 business days, 2026-09-05 to
+# -11, daily counts 21,25,18,23,27) implies roughly 16 new tenders per
+# calendar day once weekends are folded in, and at a typical ~20-day open
+# period that predicts on the order of 300 tenders open at any snapshot -
+# matching the 301 measured here almost exactly. The two routes corroborate
+# rather than contradict each other; the health thresholds below are left as
+# originally set on the digest's own direct daily count, which remains the
+# more precise of the two measurements, rather than replaced with this looser
+# API proxy.
+# ============================================================================
 id: kosovo
-name: e-Prokurimi (Kosovo National Public Procurement Portal, operated by KRPP)
+name: KRPP OCDS API (Kosovo National Public Procurement, Tender releases; e-Prokurimi is the same platform's HTML front end)
 country: XK
 admin_level: national
 language: sq
 stream: feed
 wave: 2
-access: public_listing
+access: api
 connector: FeedConnector
 # 12:30 UTC daily = 14:30 in Kosovo (Europe/Belgrade zone; Kosovo has no separate
 # IANA tz entry and uses the same UTC+2/CEST-in-September offset as Serbia,
@@ -268,23 +442,34 @@ connector: FeedConnector
 # 07:30, worldbank 08:00, simap and worldbank_pipeline 08:30, euft and place 09:00,
 # mcc Monday 09:30, ungm 10:00, ebrd 10:30, benin/cote_divoire/liberia/senegal/
 # sierra_leone 11:00, gambia/mali/nigeria 11:30, ghana 12:00). Afternoon rather than
-# morning because the digest's own dates only settle once a full business day has
-# posted; a run any time after the portal's own working day closes reads the same
-# ten-day window.
+# morning because a full business day's postings only settle once the portal's own
+# working day closes, true of the API's own publish rhythm the same way it was true
+# of the digest (see VOLUME AND RECENCY, 2026-09-19, above); unchanged by the
+# 2026-09-19 route re-assessment since the underlying platform's posting rhythm,
+# not the route, sets this.
 schedule: '30 12 * * *'
-list_url: https://e-prokurimi.rks-gov.net/SPIN_PROD/application/ipn/DocumentManagement/NewPreglediDokumenataFrm.aspx
-tos_status: pending          # PPRC ToU clause 28(c) (Copyright) needs legal review; see TERMS OF USE above for the clause and what needs deciding
-exclude_notice_types: ['B08 Njoftim per dhenie te kontrates', 'B52 Njoftimi per nenshkrimin e kontrates', 'B10 Njoftimi per anulimin e aktivitetit te prokurimit', 'B11 Njoftimi per anulimin e dhenies se kontrates']
-enabled: false          # step 25 not yet built; also blocked on legal clearing tos_status pending (see TERMS OF USE above) before any live fetch
+api_url: https://ocdskrpp.rks-gov.net/krppAPI/Tender   # flat JSON, not krppAPI/TenderRelease (OCDS envelope) - see RECOMMENDATION FOR THE CONNECTOR, 2026-09-19, above: same underlying tenders, minutes faster
+tos_status: pending          # re-assessed 2026-09-19: neither an open licence nor an inherited PPRC ToU clause 28(c) - see NET LEGAL POSITION above for what legal needs to decide now
+enabled: false          # step 25 not yet built; also blocked on legal clearing tos_status pending (see NET LEGAL POSITION, 2026-09-19, above) before any live fetch
+# exclude_notice_types removed 2026-09-19: acquisition scope is now by endpoint
+# choice (krppAPI/Tender and krppAPI/TenderRelease are pre-award only; award data
+# lives in the separate krppAPI/Award endpoint), not by string-matching the HTML
+# digest's five type headers. See ACQUISITION SCOPE, NOW BY ENDPOINT NOT BY STRING
+# MATCH, 2026-09-19, above.
 health:
-  # KEPT (B05) counts only, per ACQUISITION SCOPE and VOLUME above: 226 over the
-  # ten-business-day window the digest shows in one fetch on 2026-09-12 (daily
-  # counts 26,16,17,24,29,21,25,18,23,27; never zero on a posting day). Floor set
-  # well below the observed ten-day total to allow for a quiet stretch (the lowest
-  # single day measured was 16), ceiling with headroom for a busier one; both are a
-  # one-snapshot measurement, not a rolling-window statistic, and should be replaced
-  # once a connector has real run history, the same caveat sources/sierra_leone.yaml
-  # records for its own single-day count.
+  # KEPT (pre-award tender) counts, corroborated on two independent measurements
+  # against the same underlying platform: the original 2026-09-12 HTML-digest count
+  # (226 B05 Contract Notices over ten business days, daily counts
+  # 26,16,17,24,29,21,25,18,23,27; never zero on a posting day) and the 2026-09-19
+  # API count (301 currently-open tenders via krppAPI/Tender, consistent with the
+  # digest's own daily rate at a ~20-day typical bidding period - see VOLUME AND
+  # RECENCY above). Bounds below are left as originally set on the digest's more
+  # precise direct daily count rather than replaced by the looser API proxy. Floor
+  # set well below the observed ten-day total to allow for a quiet stretch (the
+  # lowest single day measured was 16), ceiling with headroom for a busier one;
+  # both remain a snapshot measurement, not a rolling-window statistic, and should
+  # be replaced once a connector has real run history, the same caveat
+  # sources/sierra_leone.yaml records for its own single-day count.
   expected_items_per_run: [80, 500]
   max_consecutive_failures: 3
 owner: ryan.dear

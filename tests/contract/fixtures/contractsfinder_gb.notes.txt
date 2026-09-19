@@ -1,0 +1,54 @@
+tests/contract/fixtures/contractsfinder_gb.json
+Recorded live 2026-09-19 from a real call:
+
+  GET https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search
+      ?publishedFrom=2026-09-17T17:28:28&publishedTo=2026-09-19T17:28:28
+      &stages=tender&limit=100
+  User-Agent: the value of MONITOR_USER_AGENT
+  HTTP 200, 14 releases, no pagination cursor.
+
+Stripped before commit, per rule 19 ("Any reviewer name, staff name, contact
+detail ... reaching a model call is blocking") and this task's explicit
+instruction to strip nothing else: the personal contact detail of a named
+individual buyer contact.
+
+Every one of the 14 releases carries exactly one `parties[].contactPoint`
+object. In 12 of the 14, `contactPoint.name` is a named individual (a person's
+first and last name), paired with a work email and sometimes a direct phone
+number. In those 12, `contactPoint.name` was replaced with the literal string
+"REDACTED (named individual, rule 19)", `contactPoint.email` was replaced with
+"redacted@redacted.invalid", and `contactPoint.telephone` (present on 3 of the
+12) was replaced with "REDACTED". Nothing else in the object or the release
+was touched.
+
+The remaining 2 of 14 (`ocds-b5fd17-53e77bcc-...` "Procurement Team" /
+support@multiquote.com, and `ocds-b5fd17-2b56fb66-...` "ICT Category Manager"
+/ procurement@kent.fire-uk.org) name a role or a team, not a person, and their
+mailbox addresses are generic departmental addresses rather than an
+individual's. Those two were left exactly as published.
+
+Redacted (release index in the fixture, ocid, original contactPoint.name):
+  0  ocds-b5fd17-02f878ce-547b-46fd-a840-ddc7c37e1e80  Nikita Chahir
+  1  ocds-b5fd17-d07175be-6023-460c-b319-b9273c66a36a  Katia Lebon
+  2  ocds-b5fd17-9ebb4df7-dd94-4092-9338-ca6b82c9b5ed  Katia Lebon
+  3  ocds-b5fd17-99bdfb74-334b-40ec-9e60-d389955e92ba  Katia Lebon
+  4  ocds-b5fd17-c784039f-3789-433a-a7ec-7b17a9920029  Harry Sims
+  5  ocds-b5fd17-0104c0df-5996-44e2-92ea-ce578146ab12  Harry Sims
+  6  ocds-b5fd17-8cde0ee6-3ace-4d78-bf03-e000bb817a90  Katia Lebon
+  8  ocds-b5fd17-22c262e6-9f52-43d3-9054-6fec036fe46d  Laura Fidler
+  9  ocds-b5fd17-ed323b87-eebb-4ca5-be0b-873f6fe022b2  James Robinson Tillett
+  10 ocds-b5fd17-fecb8352-6372-4c24-a4be-5c1f51ce745b  Claire Howarth
+  12 ocds-b5fd17-71df0a2e-d15b-40ef-9290-309709bb6759  Anna Bachynska
+  13 ocds-b5fd17-b9ed5212-e592-4134-9299-6e8456dc550c  Joe Allen
+
+Nothing else in the fixture was changed: title, description, buyer
+organisation name, buyer address, tender classification, value, tenderPeriod,
+document URLs and every other field are exactly as the API returned them.
+
+Separately, and not a redaction: three of the fourteen releases carry
+`"tag": ["tenderAmendment"]` rather than `["tender"]`, even though the query
+that produced this fixture asked for `stages=tender`. This is a real,
+unedited fact about the live response, not drift introduced here - see the
+connector module's docstring and the report back to the calling agent.
+
+2026-09-19, main session: every remaining e-mail address in this fixture and in ejn_ba.json, iub_lv.json and pcs_gb_sct.json was replaced with redacted@redacted.invalid, institutional mailboxes included, because several local parts were personal names (rule 19) and a fixture needs none of them.

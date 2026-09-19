@@ -1,0 +1,259 @@
+# Bosnia and Herzegovina's national e-procurement system, EJN (Elektronski sistem
+# Javnih Nabavki / e-Nabavke), operated by the Agencija za javne nabavke BiH
+# (Public Procurement Agency of Bosnia and Herzegovina). This entry replaces
+# source register row S003, which was desk research only (18-19 Sep 2026): robots.txt
+# had not been fetched and no terms clause had been quoted. Both are done below,
+# live, 2026-09-19, one polite GET per page, user agent read from
+# MONITOR_USER_AGENT in .env (FreeBalance-OpportunityMonitor/0.1 (+contact
+# email); the .env in this checkout carries a placeholder contact address, which
+# is an operational detail for whoever deploys this, not a finding about the
+# source).
+#
+# THREE HOSTS. The register named ejn.gov.ba (with next.ejn.gov.ba as "the new
+# front end") and open.ejn.gov.ba (API docs). All three were probed:
+#
+#   1. ejn.gov.ba / www.ejn.gov.ba - the OLD front end. ejn.gov.ba redirects
+#      (301, IIS) to http://www.ejn.gov.ba, which itself redirects (301) to
+#      https://www.ejn.gov.ba. That host's home page reset the connection on a
+#      cold GET (`Recv failure: Connection reset by peer`) and was not retried
+#      (rule 2: no retries outside the two documented cases). Its robots.txt,
+#      however, answered cleanly: HTTP 404 with a genuine IIS "the file or
+#      directory does not exist" error page naming the exact physical path
+#      (`C:\inetpub\wwwroot\eps.web\robots.txt`) - a real answer from a real
+#      server, not a proxy failure, so the reset on `/` and the clean 404 on
+#      `/robots.txt` are both read as this legacy host being live but thin, not
+#      as an access barrier. NOT THE ROUTE USED regardless, superseded by (2).
+#   2. next.ejn.gov.ba - the NEW front end, an Angular SPA (bundled
+#      `main-*.js`/`chunk-*.js`, `<app-root>`, `window.prerenderReady = false`).
+#      `curl` on `/` and on `/robots.txt` both return HTTP 200 with the same
+#      app shell - the SPA's catch-all fallback serving `index.html` for any
+#      unmapped path, not an actual robots.txt (there is no robots rule inside
+#      it, just a `<meta name="robots" content="index,follow">` tag). Consistent
+#      with `next.ejn.gov.ba` needing a browser to show anything, which is moot
+#      because the API below makes that unnecessary. NOT THE ROUTE USED.
+#   3. open.ejn.gov.ba - THIS SOURCE. A documented OData v4 API (Swagger UI at
+#      `/docs/index.html`, spec at `/docs/v1/swagger.json`, title "e-Procurement
+#      OpenAPI"), and the actual data host (the entity sets swagger.json
+#      documents live at `open.ejn.gov.ba/<EntitySet>` directly, NOT under
+#      `/docs/v1/` or `/api/` - confirmed by probing `/v1/ProcurementNotices`,
+#      `/api/ProcurementNotices` and `/odata/ProcurementNotices`, all 404, before
+#      `/ProcurementNotices` answered 200; whoever builds this connector should
+#      use the bare-root path, not a path guessed from the docs URL).
+#
+# ROBOTS.TXT, fetched cold, one GET each:
+#   - open.ejn.gov.ba/robots.txt -> HTTP 404, clean IIS response (server:
+#     Microsoft-IIS/10.0, x-frame-options and the other standard security headers
+#     present, no error-page HTML body at all - just an empty 404). No file
+#     exists to disallow anything; absence, not a restriction, the same reading
+#     sources/liberia.yaml and sources/kosovo.yaml give their own hosts' 404s.
+#   - ejn.gov.ba/robots.txt -> 301 to www.ejn.gov.ba, whose own robots.txt is
+#     also a genuine 404 (see host 1 above).
+#   - next.ejn.gov.ba/robots.txt -> HTTP 200 but it is the SPA's index.html
+#     fallback, not a robots file (see host 2 above) - also read as silence,
+#     not a restriction, since there is no actual disallow line anywhere in it.
+#   No crawl-delay is stated anywhere on any of the three hosts.
+#
+# TERMS OF USE / LEGAL NOTICE: NONE FOUND, searched rather than assumed absent.
+#   - swagger.json's `info` block carries only `title`, `description`, `contact`
+#     (name "Public Procurement Agency of Bosnia and Herzegovina", url
+#     https://www.javnenabavke.gov.ba, email kontakt@javnenabavke.gov.ba) and
+#     `version`; no `license` key, no `termsOfService` key. The OData service
+#     document at `open.ejn.gov.ba/` (the `$metadata`-adjacent root) lists every
+#     entity set and nothing else - no license or terms link anywhere in it.
+#   - www.javnenabavke.gov.ba (the Agency's own site, named in the API's contact
+#     block) is ALSO an Angular SPA (`<app-root>`, bundled JS, empty `<title>`) -
+#     `curl` on `/` returns the same kind of app shell as next.ejn.gov.ba, no
+#     server-rendered legal text. Its `robots.txt` is the SPA fallback shell
+#     again (HTTP 200, no real rules). Its `sitemap.xml`, however, IS real (HTTP
+#     200, a genuine urlset, 14,192 lines, one entry per prerendered article in
+#     bs-latn-ba/sr-cyrl-ba/hr-ba/en - which independently confirms the register
+#     row's stated languages bs/hr/sr plus an English UI) - it was read in full
+#     and grepped for uslov(i)/pravila/izjava/legal/privacy/licenc/autorsk/zaštit;
+#     every hit is a procurement-law FAQ article (e.g. "da li svaki clan grupe
+#     ponudaca treba da dostavi izjavu..."), not a terms-of-use, privacy or
+#     copyright page. No such page was found under any of the three hosts.
+#   - CONCLUSION: no clause exists to quote, because no terms-of-use, licence or
+#     legal-notice document was found on the API host, the Agency's own host, or
+#     either procurement front end, despite a real search rather than a missed
+#     link (the sitemap covers every prerendered route on the Agency's site).
+#     This is the same absence sources/liberia.yaml and sources/ebrd.yaml record
+#     for their own hosts, and it is read the same way: reviewed_ok rests on a
+#     permissive/absent robots.txt (above) plus an API that needs no account and
+#     no key to read (below), not on a quoted licence clause, because the
+#     absence is itself the finding.
+tos_status: reviewed_ok
+#
+# ACCESS ROUTE: documented API, first item in CLAUDE.md's order, confirmed to
+# answer anonymously rather than assumed from the docs page. `swagger.json` has
+# no top-level `security` and no `components.securitySchemes` block at all - no
+# API key, no OAuth, no bearer scheme is declared anywhere in the spec - and a
+# cold `curl` (no cookie jar, no prior request to this host) against
+# `https://open.ejn.gov.ba/ProcurementNotices?$top=5` returned HTTP 200 with a
+# real OData payload on the first attempt. No registration was performed and
+# none is needed for reading. Standard OData v4 query support confirmed live:
+# `$filter` (tested with `Announced ge ... and Announced lt ...` date-range
+# filters), `$orderby`, `$count=true`, `$skip`/`$top` for paging. `$top` is
+# capped server-side at 1000 (`$top=5000` returns a 400 naming the limit
+# explicitly: "The limit of '1000' for Top query has been exceeded"), so a full
+# pull is walked in pages of up to 1000 via `$skip`, which is the "bulk
+# download" half of the register's description - there is no separate bulk
+# export endpoint, the OData paging over the same entity set is the bulk route.
+#
+# WHICH ENTITY SET IS THE TENDER-STAGE LISTING: `ProcurementNotices` (there is
+# also a `ProcurementNoticesBase` alongside it and this shape repeats across the
+# API - every entity has a `...Base` sibling, seemingly a raw-table view versus
+# an extended/joined view; `ProcurementNotices` itself already returns the
+# richer `ProcurementNoticeExtendedListDto` shape, e.g. contracting authority
+# name, deadlines, award criterion, so `...Base` was not investigated further).
+# This is a call-for-tenders listing, not a mixed feed needing a type filter the
+# way sources/kosovo.yaml's single digest URL does: award decisions live in the
+# separate `AwardNotices`/`Awards` entity sets, contract terminations in
+# `TerminationNotices`/`Terminations`, prior-information notices in `PiNotices`,
+# annual notices in `AnnualNotices` - each is its own entity set, so
+# `ProcurementNotices` alone is already acquisition-scoped to open calls and
+# `exclude_notice_types` is not needed here.
+#
+# A live sample, `$orderby=Announced desc&$top=5` fetched 2026-09-19 (a
+# Saturday): the five most recent notices spanned 2026-09-18 13:55 to 20:55 UTC,
+# `ProcedureType` values `OpenProcedure` (3) and `CompetitiveRequest` (2), and
+# `ContractingAuthorityAdministrativeUnitType` values `Canton`, `Municipality`,
+# `City` and `Entity` across the five - all fields read directly off the DTO, no
+# join needed for the notice's own fields (title/`ProcedureName`, buyer, dates,
+# procedure type, contract type, award criterion).
+#
+# LOW-VALUE PROCEDURES: CONFIRMED PRESENT IN THIS SAME ENDPOINT.
+# `ProcedureType` is an 8-value enum (`OpenProcedure`, `RestrictedProcedure`,
+# `NegotiatedProcedureWithProcurementNotice`,
+# `NegotiatedProcedureWithoutProcurementNotice`, `CompetitiveDialog`,
+# `ConceptualDesign`, `CompetitiveRequest`, `DirectAgreement`).
+# `CompetitiveRequest` is BiH's "konkurentski zahtjev za dostavu ponuda", the
+# simplified procedure used below the full-procedure value threshold under the
+# Law on Public Procurement of BiH, and it appeared live: 2 of the 5 most recent
+# notices sampled above. `DirectAgreement` (very-low-value direct award) is in
+# the enum but was not observed in this small sample; whether it surfaces
+# through `ProcurementNotices` or only through the separate
+# `AnnouncementProcedureCalls` entity set (which has its own, narrower
+# `ProcedureCallType` enum of `DirectAgreementBidding` /
+# `DirectAgreementBiddingCorrection`) was not resolved and is left for the
+# connector builder - it does not change this entry's answer to the register's
+# question, which `CompetitiveRequest` already settles: yes, BiH low-value
+# procedures appear.
+#
+# CPV: CARRIED, but NOT on the notice DTO itself - `ProcurementNoticeExtendedListDto`
+# has no CPV field at all. It requires a three-hop join, demonstrated live end to
+# end on procedure 2769476 (the sports-equipment tender in the sample above,
+# `HasLots: true`): `GET /Lots?$filter=ProcedureId eq 2769476` (4 lots, each with
+# its own `EstimatedValue` - so per-lot values live here, not on the notice) ->
+# `GET /LotCpvCodeLinks?$filter=LotId eq 3239388` (2 links, one flagged
+# `IsMain: true`) -> `GET /CpvCodes?$filter=Id eq 10448` -> `{"Code":
+# "18000000-9", "Description": "Odjeća, obuća, prtljag i pribor"}` - a genuine,
+# standard 8-digit-plus-check-digit EU CPV code, resolved through the API's own
+# internal numeric ids rather than carried inline. A connector or normaliser
+# wanting CPV-based filtering (the 48/72/79 top-level free filter,
+# config/thresholds.yaml) must do this join per procedure; it is not a
+# single-field read the way it is for TED or BOAMP, and is the single most
+# important thing this entry has to hand the connector builder.
+#
+# DOCUMENTS: no document/attachment/file entity exists anywhere in this OpenAPI
+# (searched every schema name for "ocument"/"ttachment"/"File" - the only two
+# hits are enum-like `*AddressReference` types, unrelated). Tender documents, if
+# ever wanted, live on the web front end (next.ejn.gov.ba, the Angular SPA) and
+# were not investigated - whether they need a session was not established, the
+# same open question sources/liberia.yaml records for its own document links,
+# and it is out of scope for this connector either way: the API's own fields
+# (title, buyer, dates, procedure/contract type, award criterion, CPV via the
+# join above) are the entire read.
+#
+# LANGUAGE: bs primary by the API's own default (`ietfTag` query parameter on
+# every list endpoint defaults to `"bs-latn-ba"`), but hr and sr both appear in
+# the live corpus, confirmed directly rather than assumed from the register row:
+# the sample above included a Cyrillic-script Serbian title ("Реконструкција,
+# рестаурација и адаптација Љетње резиденције..."), and the Agency's own site
+# sitemap (above) prerenders every article in bs-latn-ba, sr-cyrl-ba and hr-ba
+# locale routes. Unlike sources/simap.yaml's `base.creationLanguage`, there is no
+# per-notice language field on `ProcurementNoticeExtendedListDto` - `ietfTag` is
+# a request-time display parameter for the API's own enum-label localisation
+# (e.g. how `ContractingAuthorityType` values are worded), not a stored property
+# of a given notice's submitted text - so the normaliser cannot read a language
+# field the way it does for TED or simap and will need to detect it from the
+# title/description text itself, per rule 9 (original text is the record; a buyer
+# in Republika Srpska is Cyrillic Serbian, a buyer in a Federation canton is
+# Latin-script Bosnian or Croatian, and nothing in the payload states which
+# except the script itself).
+#
+# ADMIN_LEVEL: national describes the platform (Agencija za javne nabavke BiH is
+# the single state-level body running this API for the whole country, per the
+# register row), not a claim every notice is central-government - the opposite,
+# in fact: `ContractingAuthorityAdministrativeUnitType` is a 6-value enum
+# (`Municipality`, `City`, `Canton`, `District`, `Entity`, `Country`) and the
+# five-notice sample above alone hit four of the six. This is genuinely
+# "procedures at all levels of government" as the register row states, and -
+# like sources/simap.yaml's per-notice admin_level read off its office
+# directory - a normaliser could read the true per-notice level straight off
+# `ContractingAuthorityAdministrativeUnitType` rather than defaulting every row
+# to the source-level national tag, which Liberia's OCDS payload cannot do and
+# this one can.
+#
+# VOLUME, measured 2026-09-19 (a Saturday) with seven `$filter=Announced ge
+# ...&Announced lt ...&$count=true` day-boundary queries against
+# `ProcurementNotices`, one call per day, 2026-09-12 through 2026-09-18: 0, 1,
+# 113, 129, 131, 127, 171 = 672 over the seven days. The two near-zero days are
+# the weekend (2026-09-12 and -13 were Saturday/Sunday) - this is the portal's
+# own publishing rhythm, the same "no weekend postings" pattern
+# sources/kosovo.yaml records, not a fetch problem - and every weekday in the
+# window cleared 113. This is a single 7-day snapshot, not a rolling-window
+# statistic, the same caveat sources/kosovo.yaml and sources/sierra_leone.yaml
+# both flag for their own one-day/one-week measurements, and should be replaced
+# once a connector has real run history. IMPORTANT FOR THE CONNECTOR: a run
+# windowed to a single calendar day will legitimately read zero on a Saturday or
+# Sunday, which is exactly the silent-zero rule 4 exists to catch - the window
+# this connector uses should span at least a week, the same requirement
+# sources/liberia.yaml states for its own bursty corpus.
+id: ejn_ba
+name: EJN e-Nabavke BiH Open Data API (Procurement Notices)
+country: BA
+admin_level: national
+language: bs
+stream: feed
+wave: 2
+access: api
+connector: FeedConnector
+# 14:00 UTC daily = 16:00 Europe/Sarajevo (UTC+2, CEST in September). Chosen to
+# collide with nothing already in sources/ (boamp 04:30, doe 05:00, ted 06:00,
+# prozorro 06:30, fts 07:00, undp 07:30, worldbank 08:00, simap/worldbank_pipeline
+# 08:30, euft/place 09:00, mcc Mon 09:30, malta 09:15, ungm 10:00, ebrd 10:30,
+# benin/cote_divoire/liberia/senegal/sierra_leone 11:00, gambia/mali/nigeria
+# 11:30, burkina_faso 11:00 Mon-Fri, ghana 12:00, kosovo 12:30, boad 13:00,
+# opec_fund 13:30). Afternoon local time so a run always reads a business day
+# that has mostly posted, though per the VOLUME note above the window itself
+# needs to span a week regardless of what hour it runs.
+schedule: '0 14 * * *'
+api_url: https://open.ejn.gov.ba/ProcurementNotices
+# The phrasing of `notices.value_note` for the one shape this source publishes
+# that the value columns cannot hold: a procedure split into several lots, each
+# with its own `EstimatedValue` and no separate procedure-level total anywhere in
+# the schema (monitor/connectors/ejn_ba.py's own docstring - the notice DTO has
+# neither a value field nor a lot count; only the Lots join carries one). 116 of
+# the 672 notices recorded 2026-09-19 have more than one Lots row.
+# monitor/normalise/ejn_ba.py never sums them (rule 9): the figures are quoted
+# exactly as measured and only the sentence around them lives here. English,
+# because the reviewer reads it in the review app beside the English sentences of
+# config/record_defaults.yaml. All four keys are required; the normaliser raises
+# naming a missing one rather than supplying a default.
+value_note:
+  lot_only: 'Published per lot, no total: {lots}'
+  lot_valued: 'lot {number} {amount} {currency}'
+  lot_unvalued: 'lot {number} not published'
+  separator: '; '
+enabled: true           # 2026-09-19: connector, a 62-request fixture transcript (672 notices) and 28 contract tests;
+                        # normaliser; one live fetch of the trailing seven days seen 672 / new 670 inside [40, 1200] (decision 72)
+health:
+  # See VOLUME above: single 7-day snapshot (2026-09-12 to 2026-09-18), daily
+  # counts 0, 1, 113, 129, 131, 127, 171, total 672. Floor set well below the
+  # measured weekday floor of 113 to tolerate a weekend-inclusive window (the
+  # measured weekend days) without false-failing on a real quiet stretch;
+  # ceiling with headroom above the measured 7-day total for a busier week.
+  # Should be replaced with rolling-window history once the connector has run.
+  expected_items_per_run: [40, 1200]
+  max_consecutive_failures: 3
+owner: ryan.dear
