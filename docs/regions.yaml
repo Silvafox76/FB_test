@@ -1,0 +1,291 @@
+# Sales regions and country ownership. Draft from FreeBalance_Sales_Regions_&_Countries_DRAFT.xlsx,
+# 19 Sept 2026. One file is the single source for region membership: the stager, the review
+# app's region filter, user region assignments and the metrics all read it. Geography weights
+# stay in thresholds.yaml. Every ISO 3166 alpha-2 code appears exactly once, in a region, in
+# `excluded`, or in `unassigned`; a test asserts it. Codes are quoted because bare NO is a
+# YAML 1.1 boolean.
+#
+# status: pilot     sources run, queue is worked, counted in pilot metrics
+#         inactive  region exists for users, routing and reporting; no sources, no reviewers
+#
+# Held in docs/ until step 22b (BUILD_ORDER.md) moves it to config/regions.yaml. It cannot sit in
+# config/ before then: the registry refuses any config file without a CONFIG_KINDS entry (rule 6),
+# so `make up` would fail. Until 22b, config/thresholds.yaml's `regions:` block drives the stager.
+
+regions:
+  east_southern_africa:
+    name: "East & Southern Africa"
+    lead: "Bridget"
+    team: ["Brian"]
+    status: inactive
+    countries:
+      "BI": Burundi
+      "KM": Comoros
+      "ER": Eritrea
+      "ET": Ethiopia
+      "MW": Malawi
+      "MU": Mauritius
+      "RW": Rwanda
+      "SC": Seychelles
+      "SS": South Sudan
+      "TZ": Tanzania
+      "UG": Uganda
+      "ZM": Zambia
+      "ZW": Zimbabwe
+      "BW": Botswana
+      "SZ": Eswatini
+      "KE": Kenya
+      "LS": Lesotho
+      "NA": Namibia
+      "ZA": South Africa
+  europe_west_africa:
+    name: "Europe & West Africa"
+    lead: "Matthew"
+    team: ["Jakub"]
+    status: pilot
+    countries:
+      "AL": Albania
+      "AD": Andorra
+      "AT": Austria
+      "BE": Belgium
+      "BA": Bosnia and Herzegovina
+      "HR": Croatia
+      "CY": Cyprus
+      "DK": Denmark
+      "EE": Estonia
+      "FI": Finland
+      "FR": France
+      "DE": Germany
+      "GR": Greece
+      "IS": Iceland
+      "IE": Ireland
+      "IT": Italy
+      "XK": Kosovo
+      "LV": Latvia
+      "LI": Liechtenstein
+      "LT": Lithuania
+      "LU": Luxembourg
+      "MT": Malta
+      "MC": Monaco
+      "ME": Montenegro
+      "NL": Netherlands
+      "MK": North Macedonia
+      "NO": Norway
+      "PL": Poland
+      "SI": Slovenia
+      "ES": Spain
+      "SE": Sweden
+      "CH": Switzerland
+      "UA": Ukraine
+      "GB": United Kingdom
+      "AM": Armenia
+      "GE": Georgia
+      "GM": Gambia
+      "GH": Ghana
+      "LR": Liberia
+      "NG": Nigeria
+      "SL": Sierra Leone
+  lusophone:
+    name: "Lusophone Countries"
+    lead: "Marcos"
+    team: []
+    status: inactive
+    countries:
+      "AO": Angola
+      "BR": Brazil
+      "CV": Cabo Verde
+      "GW": Guinea-Bissau
+      "MZ": Mozambique
+      "PT": Portugal
+      "ST": Sao Tome and Principe
+      "GQ": Equatorial Guinea
+  asia_pacific:
+    name: "Asia & the Pacific"
+    lead: "Boon (Ben)"
+    team: ["Ed"]
+    status: inactive
+    countries:
+      "AF": Afghanistan
+      "BD": Bangladesh
+      "BT": Bhutan
+      "IN": India
+      "MV": Maldives
+      "NP": Nepal
+      "LK": Sri Lanka
+      "JP": Japan
+      "MN": Mongolia
+      "KR": South Korea
+      "TW": Taiwan
+      "BN": Brunei Darussalam
+      "KH": Cambodia
+      "ID": Indonesia
+      "LA": Laos
+      "MY": Malaysia
+      "MM": Myanmar
+      "PH": Philippines
+      "SG": Singapore
+      "TH": Thailand
+      "VN": Vietnam
+      "AU": Australia
+      "FJ": Fiji
+      "KI": Kiribati
+      "MH": Marshall Islands
+      "FM": Micronesia, Federated States of
+      "NR": Nauru
+      "NZ": New Zealand
+      "PW": Palau
+      "PG": Papua New Guinea
+      "WS": Samoa
+      "SB": Solomon Islands
+      "TO": Tonga
+      "TV": Tuvalu
+      "VU": Vanuatu
+  mena_francophone_africa:
+    name: "Middle East & North Africa (+Francophone countries in Africa)"
+    lead: "TBD (new hire)"
+    team: []
+    status: inactive
+    countries:
+      "BH": Bahrain
+      "IQ": Iraq
+      "JO": Jordan
+      "KW": Kuwait
+      "LB": Lebanon
+      "OM": Oman
+      "QA": Qatar
+      "SA": Saudi Arabia
+      "SY": Syria
+      "AE": United Arab Emirates
+      "YE": Yemen
+      "DZ": Algeria
+      "EG": Egypt
+      "LY": Libya
+      "MA": Morocco
+      "TN": Tunisia
+      "BJ": Benin
+      "BF": Burkina Faso
+      "CM": Cameroon
+      "TD": Chad
+      "CI": Côte d'Ivoire
+      "DJ": Djibouti
+      "GN": Guinea
+      "MG": Madagascar
+      "ML": Mali
+      "MR": Mauritania
+      "NE": Niger
+      "SN": Senegal
+      "TG": Togo
+      "SO": Somalia
+  caribbean_latin_america:
+    name: "Caribbean & Latin America"
+    lead: "Adrian Waldman (from 1 October)"
+    team: []
+    status: inactive
+    countries:
+      "BZ": Belize
+      "CR": Costa Rica
+      "SV": El Salvador
+      "GT": Guatemala
+      "HN": Honduras
+      "MX": Mexico
+      "NI": Nicaragua
+      "PA": Panama
+      "AR": Argentina
+      "BO": Bolivia
+      "CL": Chile
+      "CO": Colombia
+      "EC": Ecuador
+      "GY": Guyana
+      "PY": Paraguay
+      "PE": Peru
+      "SR": Suriname
+      "UY": Uruguay
+      "VE": Venezuela
+      "AG": Antigua and Barbuda
+      "BS": Bahamas
+      "BB": Barbados
+      "CU": Cuba
+      "DM": Dominica
+      "DO": Dominican Republic
+      "GD": Grenada
+      "HT": Haiti
+      "JM": Jamaica
+      "KN": Saint Kitts and Nevis
+      "LC": Saint Lucia
+      "VC": Saint Vincent and the Grenadines
+      "TT": Trinidad and Tobago
+  north_america:
+    name: "North America"
+    lead: "TBD (new hire)"
+    team: ["Parker", "Sara"]
+    status: inactive
+    countries:
+      "CA": Canada
+      "US": United States
+  pakistan_central_asia_turkiye:
+    name: "Pakistan, Central Asia, Türkiye"
+    lead: "Taimur Malik"
+    team: ["Ilya"]
+    status: inactive
+    countries:
+      "PK": Pakistan
+      "TR": Türkiye
+      "KZ": Kazakhstan
+      "KG": Kyrgyzstan
+      "TJ": Tajikistan
+      "TM": Turkmenistan
+      "UZ": Uzbekistan
+  central_southeast_europe_azerbaijan:
+    name: "Central & Southeast Europe, and Azerbaijan"
+    lead: "Elena Enache"
+    team: []
+    status: inactive
+    countries:
+      "RO": Romania
+      "MD": Moldova
+      "BY": Belarus
+      "BG": Bulgaria
+      "CZ": Czechia
+      "RS": Serbia
+      "SK": Slovakia
+      "HU": Hungary
+      "AZ": Azerbaijan
+  china:
+    name: "China"
+    lead: "TBD"
+    team: []
+    status: inactive
+    countries: {}   # workbook gives no list
+
+# Countries worked by the pilot although another region owns them (D64, 19 Sept 2026). Their
+# candidates carry the owning region; this list decides only that the pilot sources, stages and
+# reviews them. Remove an entry when the owning region goes to status: pilot.
+pilot_exceptions:
+  decided_on: 2026-09-19
+  reason: "Francophone West Africa connectors built and live before the regional split; kept in Matthew's pilot"
+  countries: ["BJ", "BF", "CI", "ML", "MR", "NE", "SN", "TG"]
+
+# Deliberately out of every region. Assumed sanctions exclusions; confirm.
+excluded:
+  "RU": Russia
+  "IR": Iran
+  "KP": North Korea
+
+# Sovereign states the workbook does not place, plus one it places twice. Each needs an owner
+# before the file is final. Until then a notice from one of these stages to no region and is
+# held, never guessed.
+unassigned:
+  "TL": Timor-Leste          # listed under both Lusophone and Asia & the Pacific
+  "CF": Central African Republic
+  "CD": DR Congo
+  "CG": Republic of the Congo
+  "GA": Gabon
+  "SD": Sudan
+  "IL": Israel
+  "PS": Palestine
+  "SM": San Marino
+  "VA": Holy See
+  "CK": Cook Islands
+  "NU": Niue
+  "HK": Hong Kong            # China row has no country list
+  "MO": Macao

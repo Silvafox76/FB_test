@@ -185,14 +185,14 @@ Accept:
 
 Touch: `review/app.py`, `review/decisions.py`, `review/templates/*.html`, `review/static/style.css` (one file, no framework), `monitor/stage/record.py`, `config/record_defaults.yaml`, `tests/unit/test_record.py`, `tests/review/test_decisions.py`, `Makefile` (review target).
 
-This is the permanent reviewer interface for the whole pilot, not a stand-in for a Zoho build in weeks 3 to 5. There is no later surface that absorbs the features you leave out here, which is a reason to build these five pages properly and still a reason not to build a sixth.
+This is the permanent reviewer interface for the whole pilot, not a stand-in for anything built later. There is no later surface that absorbs the features you leave out here, which is a reason to build these five pages properly and still a reason not to build a sixth.
 
 Build:
 - FastAPI app bound to `127.0.0.1:8080`, connects only via `db.connect("review")`. No auth this weekend; the binding is the control. Server-rendered Jinja templates; a single CSS file; no JavaScript except a confirm dialog on Reject.
 - Pages: `/` queue (pending_review sorted by score, region filter Europe / West Africa, count and estimated reviewer minutes); `/candidate/{id}` (score, title_en, buyer, country, language, original title and body when language != en, summary, matched functions with evidence, system names, flags, deadline, value, source links, duplicate cluster with match method, proposed payload JSON, and the decision form with reviewer name required, Approve / Edit then approve / Reject with a reason from a fixed list plus free text); `/decided`; `/sources` (health table); `/audit` (events, newest first, filter by entity).
 - `monitor/stage/record.py`: `build_record(candidate, sources, function_map, record_defaults) -> dict`, a pure function, no database access, no model call. Builds the Opportunity-shaped record field by field per Architecture v0.4 appendix E, which is the export column spec: derived fields (Opportunity Name, Level of Government, Industry, Shipping Country, Funding Source, Partners Involved, Eligibility Requirements Comments, Partner Required Comments, Pricing Notes, FreeBalance Products Required, Next Steps) computed from the candidate and its source cluster; suggested fields (Stage, Proposal Type, Lead Source, Deal Tier, Delivery Model, Customer Type, Eligibility Requirements Met?, Partner Required?, Do we need to register our interest?, Total Opportunity Amount, Probability, Standard or Custom Product Required?, Account Name as a proposed-text field for the reviewer to resolve) computed by the heuristics in appendix E and left fully editable by the reviewer; every BD-only field (Closing Date, Sales Forecasting, Original Closing Date, Legal Support, submission logistics, the whole Pricing Summary except Total Opportunity Amount, everything under Products Required except FreeBalance Products Required, everything under Implementation and Pricing) set to the placeholder from `record_defaults.yaml`. Also sets Product Gaps: any matched function whose `product_status` is not Available, named with its status; empty when every matched product is Available. Round-trips through the same `Score`-derived fields the scorer already produces; no new model call.
 - `review/decisions.py`: `approve(candidate_id, reviewer, edits: dict | None)` in one transaction: refuse if reviewer is blank; apply edits over the built payload (any field, not just title/summary/value) with an `edited` event recording before and after for each changed key; insert the (possibly edited) record into `approved_records` with `edited` set accordingly; set candidate status `approved` and `approved_record_id`; events `approved` (actor reviewer) and `created` on `approved_record` (actor `system (post-approval, as <reviewer>)`). `reject(candidate_id, reviewer, reason)`: refuse blank reviewer or blank reason; status `rejected`; event.
-- The candidate page's decision panel carries a fixed reminder line above the buttons, in the same panel, not a separate banner: "Before approving, check Zoho for an existing Opportunity on this buyer. The Monitor never searches the CRM (D31); this check is the only duplicate control." Under D31 this is permanent for the pilot, not a placeholder for an automated check arriving in week 5, so word it as a standing instruction. It is worth the one line of template given the Ghana record, and every duplicate that reaches an export batch is logged as a finding and counted at the week 14 gate.
+- The candidate page's decision panel carries a fixed reminder line above the buttons, in the same panel, not a separate banner: "Before approving, check the CRM for an existing Opportunity on this buyer. The Monitor never searches the CRM; this check is the only duplicate control." Under D31 this is permanent for the pilot, not a placeholder for an automated check arriving in week 5, so word it as a standing instruction. It is worth the one line of template given the Ghana record, and every duplicate that reaches an export batch is logged as a finding and counted at the week 14 gate.
 - Orange is used for the decision panel and nothing else.
 
 Accept:
@@ -207,8 +207,8 @@ Accept:
 Touch: `monitor/connectors/worldbank.py`, `tests/contract/fixtures/worldbank.json`, `tests/contract/test_worldbank.py`, `review/export.py`, `review/templates/export.html`, `tests/review/test_export.py`, `deploy/systemd/*.timer` and `*.service` (or `docker-compose.cron.yml` for the workstation), `Makefile` (export target), `RUNBOOK.md`, `DEMO.md`.
 
 Build:
-- World Bank procurement notices API filtered to the 47 countries and the last 2 days; `admin_level = donor`; `covers` from the registry.
-- `review/export.py`: `export(range_from, range_to, operator) -> batch_id`, connecting as `monitor_review`. Writes a UTF-8 CSV **with a BOM**, one row per approved record not already exported, columns exactly in the order and naming of Architecture v0.4 appendix E plus `monitor_candidate_id` and `monitor_export_batch`, so Zoho's import mapper matches on headers. Writes a sibling `.manifest.json`: batch id, created_at, operator, row count, date range, reviewer names, and the sha256 of the CSV. Inserts the `export_batches` row and stamps `exported_at` and `export_batch` on each row, all in one transaction. Refuses to export a record twice; re-exporting a named batch is a separate explicit call. One `make export` target and one button on `/export`. No import path, no write-back, no CRM client of any kind: the file is the only thing that leaves the system.
+- World Bank procurement notices API filtered to the pilot countries and the last 2 days; `admin_level = donor`; `covers` from the registry.
+- `review/export.py`: `export(range_from, range_to, operator) -> batch_id`, connecting as `monitor_review`. Writes a UTF-8 CSV **with a BOM**, one row per approved record not already exported, columns exactly in the order and naming of Architecture v0.4 appendix E plus `monitor_candidate_id` and `monitor_export_batch`, so the CRM's import mapper matches on headers. Writes a sibling `.manifest.json`: batch id, created_at, operator, row count, date range, reviewer names, and the sha256 of the CSV. Inserts the `export_batches` row and stamps `exported_at` and `export_batch` on each row, all in one transaction. Refuses to export a record twice; re-exporting a named batch is a separate explicit call. One `make export` target and one button on `/export`. No import path, no write-back, no CRM client of any kind: the file is the only thing that leaves the system.
 - Scheduler: hourly `monitor run` and `monitor status` to a log file this weekend; daily windows on Monday (`sources/*.yaml` schedule field is authoritative).
 - Drills, each written as a short script under `scripts/drills/` and its expected outcome in `RUNBOOK.md`: (1) invalid API key mid-run -> notices parked, no partial writes, run stops; (2) renamed field in a fixture -> that source unhealthy, other sources unaffected; (3) `DAILY_CALL_CAP=2` -> run stops at the third call with a `cap_exceeded` event; (4) approve with blank reviewer via the form -> refused; (5) insert into `approved_records` as pipeline -> permission denied; (6) kill the export halfway -> either a complete CSV with a matching manifest or no file at all, and no row left marked exported.
 - `RUNBOOK.md`: start, stop, add a source (YAML plus fixture plus contract test), read health, change a keyword (edit YAML, `make up`, note the new lexicon version), roll back a prompt (git revert of `prompt.py`, `make golden`), where logs are, where the cost line is.
@@ -275,13 +275,13 @@ Accept: all wave-1 sources (feeds and donor, 16 of the planned 26) run on schedu
 
 Touch: `review/export.py`, `review/templates/export.html`, `tests/review/test_export.py`, `docs/export_spec.md`, `docs/import_mapping.md`.
 
-Under D31 there is no CRM integration in any step of this pilot. No Zoho SDK, no Zoho or Salesforce or HubSpot HTTP client, no OAuth flow, no Deluge script, no webhook, no CRM credential in Secrets Manager or config. Approved records leave as an export file and by no other route. A commit that adds any of the above is out of scope, not ahead of schedule; design-cop rules 15 to 18 treat it as blocking. The integration question returns as a decision after the week 14 gate, with the three options set out in Architecture v0.4 section 9.5.
+Under D31 and D61 there is no CRM integration in any step of this pilot: no CRM SDK or HTTP client, no CRM OAuth flow, no CRM-side script, no webhook, no CRM credential in Secrets Manager or config. Approved records leave as an export file and by no other route. A commit that adds any of the above is out of scope, not ahead of schedule; design-cop rules 15 to 18 treat it as blocking. CRM integration is deferred and has no design in this pilot.
 
 Build:
 - Harden the step 11 export: batch listing and re-export of a named batch on `/export`; export backlog (approved and not yet exported, oldest first) surfaced on the queue page and in `make status`; a CloudWatch alarm when the oldest unexported record is more than seven days old.
 - `docs/export_spec.md`: the column list generated from `record_defaults.yaml` and the appendix E order, so the spec cannot drift from the code. Regenerated by a test that fails if the two disagree.
-- **The dry-run import (D33), the one step that touches Zoho, and it is done by a person with a file.** Five hand-approved records exported to CSV, imported by the named import operator (D32) into a Zoho sandbox using Zoho's standard Opportunities import. The operator maps the columns once and saves the mapping. Every column the mapper rejects is a defect fixed in the exporter, not a field someone hand-keys. Record the saved mapping and any BD amendments in `docs/import_mapping.md`.
-- Confirm at the same session whether "Monitor" is added as a Lead Source picklist value and what the entry Stage should be (the old D28), and that the operator resolves the Account at import using Zoho's own matching rather than anything the exporter proposes (the old D29).
+- **The dry-run import (D33) is BD's, done by a person with a file.** Five hand-approved records exported to CSV, imported by the named import operator (D32) into a CRM sandbox using the CRM's standard Opportunities import. The operator maps the columns once and saves the mapping. Every column the mapper rejects is a defect fixed in the exporter, not a field someone hand-keys. Record the saved mapping and any BD amendments in `docs/import_mapping.md`.
+- Confirm at the same session the Lead Source value and entry Stage BD wants on an imported record, and that the operator resolves the Account at import using the CRM's own matching rather than anything the exporter proposes.
 
 Accept: the dry-run import completes with every appendix E column mapped and nothing hand-keyed; `docs/import_mapping.md` exists and names the operator and the cadence; the export backlog metric appears in `make status`; `test_export.py` fails if a column is added to `record_defaults.yaml` without appearing in `docs/export_spec.md`. This gates shadow-mode entry alongside step 22: do not enter shadow without a proven import path for the records shadow will produce.
 
@@ -365,11 +365,54 @@ Build: secret scan across the whole repository history (not just the current tre
 
 Accept: the review document exists, is dated, and names me as the reviewer under the Acting CSO mandate, with every finding either closed or explicitly deferred with an owner and date. This gates shadow-mode entry; do not proceed to step 23 without it.
 
+### Step 22a. CRM-neutral wording in code, config and templates (week 9, before 22b)
+
+Touch: `review/templates/candidate.html`, `export.html`, `metrics.html`, `review/export.py`, `review/app.py`, `review/decisions.py`, `monitor/stage/record.py`, `monitor/registry/record_defaults.py`, `monitor/health/metrics.py`, `monitor/models.py`, `monitor/normalise/*.py` comments, `config/record_defaults.yaml`, `config/thresholds.yaml`, `config/fx.yaml` comments, `scripts/generate_export_spec.py` and the regenerated `docs/export_spec.md`, `infra/terraform/identity.tf` and `secrets.tf` comments, the tests that assert the reminder text.
+
+Build: replace every reference to a named CRM vendor with "the CRM" or "CRM import", in strings, comments, docstrings and generated docs (D61). The decision-panel reminder reads: "Before approving, check the CRM for an existing Opportunity on this buyer. The Monitor never searches the CRM; this check is the only duplicate control." No behavioural change: export columns, their order and naming, the BOM, the manifest and the rejection-reason list are untouched. Applied migrations are not edited; `001_schema.sql` keeps its comment. `docs/reference/` and `prototype/` are historical and keep theirs. Contract fixtures are recorded data and are never edited.
+
+Accept: a tracked-file search for the vendor name outside `docs/reference/`, `prototype/`, `migrations/` and `tests/contract/fixtures/` returns nothing; `make test` passes; an export of the same three approved test records is byte-identical in its header row before and after.
+
+---
+
+### Step 22b. Regional model (week 9, gates step 23)
+
+Touch: `docs/regions.yaml` moved to `config/regions.yaml`, `monitor/registry/load.py` (`CONFIG_KINDS` gains `regions` and `users`, and the `config_versions` kind vocabulary with it), `config/thresholds.yaml` (the `regions:` block leaves; `geography` stays), `config/record_defaults.yaml` (`industry_by_region` keyed by region id), `migrations/017_regions.sql`, `monitor/registry/load.py`, `monitor/stage/region.py`, `monitor/stage/stager.py`, `monitor/filter/run.py`, `sources/ted.yaml`, `sources/worldbank.yaml`, `sources/worldbank_pipeline.yaml`, `sources/euft.yaml`, `sources/undp.yaml`, `sources/ungm.yaml` (`covers`), `review/app.py` and `queue.html` (region filter), `monitor/health/metrics.py`, `tests/unit/test_regions.py`, `tests/unit/test_stager.py`, `tests/unit/test_filter.py`.
+
+Build:
+- `config/regions.yaml` is the single statement of region membership (D62): ten regions from the sales-regions workbook, each with id, name, lead, team and `status: pilot | inactive`; `pilot_exceptions` naming BJ BF CI ML MR NE SN TG with the date and the decision (D64); `excluded` and `unassigned`. Validated on load with Pydantic, version-hashed into `config_versions` like the other config files. Codes quoted.
+- `017_regions.sql`: `regions(id pk, name, lead, status)`, `region_countries(country pk, region_id fk)`, `pilot_exceptions(country pk, reason, decided_on)`, seeded from the YAML by `make up`. `candidates.region` becomes a foreign key to `regions.id`; existing rows are backfilled from their country, and a row whose country resolves to no region fails the migration rather than being guessed.
+- `monitor/stage/region.py`: `region_for(country) -> RegionId` and `in_pilot(country) -> bool`, both reading the loaded config. Nothing else decides a region.
+- Free filter gains a geography stage ahead of CPV and lexicon: a notice whose country is outside pilot geography is `filtered_out` with reason `outside pilot geography (<region id>)`, or `country unassigned` / `country excluded`, before any model call. Kept, not deleted, so activating a region is a config change and a re-filter.
+- Every source's `covers` must be a subset of pilot geography, asserted at registry load. TED drops BG CZ HU PT RO SK. The World Bank, EU Funding and Tenders, UNDP and UNGM lists add AM and GE where the source publishes for them.
+- Queue region filter lists regions from the table, pilot and exception first. Metrics break down by region.
+
+Accept:
+- `test_regions.py`: every ISO 3166 alpha-2 code appears exactly once across regions, `excluded` and `unassigned`; every key parses as a string (the `NO` trap); every `pilot_exceptions` code belongs to an inactive region; the workbook's 41 Europe & West Africa codes are exactly the pilot region's list.
+- A BG notice is `filtered_out` with the geography reason and `model_calls` is unchanged by it. An SN notice stages with `region = mena_francophone_africa` and appears in the pilot queue.
+- After migration, no candidate has a null region and the pre-existing 152 carry the region their country resolves to.
+
+---
+
+### Step 22c. SSO access and named users (week 9, gates step 23)
+
+Touch: `infra/terraform/verified_access.tf`, `infra/terraform/network.tf`, `config/users.yaml`, `migrations/018_users.sql`, `review/auth.py`, `review/app.py`, `review/decisions.py`, `review/templates/*.html` (the reviewer-name field goes), `scripts/drills/drill4_blank_reviewer.py`, `tests/review/test_auth.py`, `tests/review/test_decisions.py`, `RUNBOOK.md` (add a user, remove a user), `pyproject.toml` (`pyjwt[crypto]`, named in the commit message: the access layer's assertion is an ES256 JWT and verifying it by hand is the wrong kind of boring).
+
+Build:
+- AWS Verified Access in ca-central-1 fronts the review app (D63): an OIDC trust provider on the company identity provider, a group policy admitting only the users in `users.yaml`, an endpoint to the review container on the private instance. No public IP on the instance, no internet-facing load balancer, no port open in the security group except from the Verified Access endpoint. The pipeline keeps no inbound path. Confirm the service's availability and price in ca-central-1 before writing the Terraform, and record both in the commit.
+- `config/users.yaml`: 5 to 10 entries, each with email, display name, `role: admin | reviewer | viewer` and `regions` (region ids, or `all` for admin). Loaded into `users` and `user_regions` by `make up`, version-hashed. Adding a person is a config change.
+- `review/auth.py`: verifies the signed user-context header on every request against the access layer's published key, maps the email to a `users` row; unknown email is 403 and an `events` row. One verification path: tests and local development mint assertions with a local key pair (`scripts/dev_identity.py`); nothing skips verification.
+- Decisions record `reviewer_user_id` and the email as the event actor. `decisions.py` refuses a decision on a candidate outside the user's regions, server side (rule 25). Viewers read everything and decide nothing.
+
+Accept: a request with no assertion is 401; a forged or expired assertion is 401; a valid assertion for an email not in `users.yaml` is 403 and logged; a reviewer for `europe_west_africa` can decide a GH candidate and an SN exception candidate (the exception grants pilot reviewers authority over the eight codes; `users.yaml` says so explicitly) and is refused on a candidate from any inactive region; drill 4 is rewritten to these cases and passes; the step 22 checks for inbound paths are re-run against the deployed host and the result appended to the security review.
+
 ---
 
 ### Step 23. Shadow mode entry (week 9)
 
 Touch: `monitor/cli.py` (`monitor mode shadow`), scheduler config (daily windows replace the weekend's hourly), `RUNBOOK.md` (shadow-mode section).
+
+Steps 22a to 22c are met before this step starts.
 
 Build: a mode flag that gates live operation while still staging candidates to the review queue in Postgres (nothing is notified in any mode this phase, per D31 and design-cop rule 18, so what the flag gates is real export batches, not notifications); the reviewer and backup are trained this week (five sessions, per architecture §9.2's user-acceptance test) on real shadow-mode data, including French and translated candidates.
 
@@ -401,9 +444,9 @@ Accept: each connector is added to the enabled set only when its own fixture and
 
 Touch: `monitor/cli.py` (`monitor mode live`), scheduler config, `docs/import_mapping.md` (cadence confirmed).
 
-Build: entry gate checked, not assumed: five consecutive shadow days above 30 percent precision in both region views, translation sample accepted, the step 16 dry-run import accepted by BD, and Matthew's sign-off recorded. Only then does `monitor mode live` release real export batches on the agreed cadence, recommended Monday alongside the metrics job. Notifications remain off for the whole pilot (D31).
+Build: entry gate checked, not assumed: five consecutive shadow days above 30 percent precision in the pilot region and in the francophone exception, each measured separately, translation sample accepted, the step 16 dry-run import accepted by BD, and Matthew's sign-off recorded. Only then does `monitor mode live` release real export batches on the agreed cadence, recommended Monday alongside the metrics job. Notifications remain off for the whole pilot (D31).
 
-Accept: the gate's four conditions are each recorded with a date and a number, not just asserted in a status message; live mode, once entered, produces its first real export batch and the named operator imports it into Zoho within the agreed cadence, with the batch id and the import date recorded.
+Accept: the gate's four conditions are each recorded with a date and a number, not just asserted in a status message; live mode, once entered, produces its first real export batch and the named operator imports it into the CRM within the agreed cadence, with the batch id and the import date recorded.
 
 ---
 
@@ -419,9 +462,9 @@ Accept: four consecutive weekly cycles (11 through 14) each produce a dated tuni
 
 ### Step 28. D25 reviewer-load check (week 10, executed by week 12 if triggered)
 
-Touch: nothing unless the split is triggered. If it is: a second reviewer name and a saved region filter on the queue page, no code change.
+Touch: nothing unless the split is triggered. If it is: `config/users.yaml` gains a second reviewer on that region or on the exception countries, no code change.
 
-Build: measure reviewer minutes per region from the audit log (already recorded on every decision since the weekend). If either region exceeds three hours a week, split to a second reviewer for that region.
+Build: measure reviewer minutes per region from the audit log (already recorded on every decision since the weekend). If the pilot region or the francophone exception exceeds three hours a week, add a second reviewer for it.
 
 Accept: a measured number exists at week 10, cited in the week 14 gate report either way.
 
@@ -441,7 +484,7 @@ Accept: the measured rate is in the week 14 gate report; if embeddings were buil
 
 Touch: `docs/gate_report_week14.md`, generated from `metrics.py`'s history, not written free-hand.
 
-Build: the seven numbers from Full Build Plan v1.0 §4 (Live phase): back-test recall overall and non-English, precision at the queue, translation-wrong rate, time to detect, reviewer load by region, connector break rate by class, and qualified opportunities and pipeline value sourced by the Monitor by country. The last of these cannot come from the pipeline's own tables under D31, because nothing is written back after export: BD supplies it at the gate from Zoho, joined on `monitor_candidate_id`, and the report says so rather than implying the Monitor measured it. Add two numbers D31 makes necessary: the duplicate count (approved records that turned out to duplicate an existing Opportunity) and export health (batches produced, records imported, columns rejected). Plus the D4 and D25 decisions from steps 28 and 29, and the integration decision per Architecture v0.4 section 9.5: keep the export, build the Creator app and Deluge write, or take the narrow read-only duplicate search first. The duplicate count is what decides it.
+Build: the seven numbers from Full Build Plan v1.0 §4 (Live phase): back-test recall overall and non-English, precision at the queue, translation-wrong rate, time to detect, reviewer load by region, connector break rate by class, and qualified opportunities and pipeline value sourced by the Monitor by country. The last of these cannot come from the pipeline's own tables under D31, because nothing is written back after export: BD supplies it at the gate from the CRM, joined on `monitor_candidate_id`, and the report says so rather than implying the Monitor measured it. Add two numbers D31 makes necessary: the duplicate count (approved records that turned out to duplicate an existing Opportunity) and export health (batches produced, records imported, columns rejected). Plus the D4 and D25 decisions from steps 28 and 29, reviewer load and precision by region, and a recommendation on which inactive region activates next. Whether CRM integration is taken up at all is a separate piece of work after the gate, and the duplicate count is its first input.
 
 Accept: the report exists, every number traces to a query against the pipeline's own tables (no number is asserted without a query attached in an appendix), and the business owner named in week 0 has a documented decision: scale, extend, or stop.
 

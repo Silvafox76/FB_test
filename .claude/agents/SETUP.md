@@ -1,10 +1,12 @@
-# Subagent set for the PFM Opportunity Monitor, Postgres-only scope
+# Subagent set for the PFM Opportunity Monitor, standalone application
 
-Seven project subagents, weeks 0 to 14, with no CRM integration in scope. Approved records live in Postgres and leave as an export file.
+Seven project subagents, weeks 0 to 14. The Monitor is a standalone application with its own database, organised by sales region, used by 5 to 10 people through company SSO. Approved records live in Postgres and leave as an export file shaped to the CRM Opportunity record. CRM integration is deferred.
 
 ## What changed from the previous set
 
-`creator-builder` is gone. `review-app-builder` takes its place and is now the permanent review interface rather than a weekend stand-in, and it owns the export as well as the queue and the write path. `design-cop` gains a scope block that treats any CRM client, OAuth flow, Deluge script or webhook as a blocking finding, so the boundary is enforced by review rather than by memory. `eval-harness` swaps the Creator drills for export integrity drills and a second role-boundary drill. `ops-analyst` reads the queue from Postgres directly and gains export backlog to its daily check. `source-onboarder` and the two connector builders are unchanged.
+19 September 2026: `review-app-builder` gains `review/auth.py` and the region check on decisions. `design-cop` gains rules 23 to 25 (region is data, identity from the access layer only, authority follows region) and restates rule 17 for the SSO access layer. The main session owns `config/regions.yaml`, `config/users.yaml` and migrations 017 and 018.
+
+11 September 2026: `review-app-builder` became the permanent review interface and owns the export as well as the queue and the write path. `design-cop` treats any CRM client, CRM OAuth flow, CRM-side script or webhook as a blocking finding. `eval-harness` runs export integrity drills and a second role-boundary drill. `ops-analyst` reads the queue from Postgres directly and gains export backlog to its daily check. `source-onboarder` and the two connector builders are unchanged.
 
 ## Table naming
 

@@ -1,10 +1,12 @@
 # PFM Opportunity Monitor
 
-Pipeline that reads public procurement and donor notices, filters and scores them against FreeBalance's PFM function map with Claude, deduplicates them into candidates, and stages them in a review queue held in PostgreSQL. A named human reviewer approves a candidate; only that approval can create an approved record. The pipeline can never create one. Approved records leave the system as a one-way CSV export that a named person imports into Zoho CRM by hand.
+Pipeline that reads public procurement and donor notices, filters and scores them against FreeBalance's PFM function map with Claude, deduplicates them into candidates, and stages them in a review queue held in PostgreSQL. A named human reviewer approves a candidate; only that approval can create an approved record. The pipeline can never create one. Approved records leave the system as a one-way CSV export shaped to FreeBalance's CRM Opportunity record, which BD imports by hand.
+
+The Monitor is a standalone application with its own database, used by 5 to 10 named people who sign in through company SSO, and organised by sales region. Every country belongs to exactly one sales region (`config/regions.yaml` from step 22b; the draft sits in `docs/regions.yaml` until then). The pilot works one region, Europe & West Africa (Matthew), plus the eight francophone West African countries as a recorded pilot exception. The other nine regions exist in the data model, in the users table and in reporting from day one, with no sources and no reviewers.
 
 This brief covers the full 14-week pilot, not only the opening weekend. BUILD_ORDER.md has 31 steps: 1 to 11 are the weekend slice on Postgres and the direct Anthropic API; 12 to 31 carry the same repository through Terraform, the Bedrock cutover, the remaining wave-1 feeds, translation, the export and its dry-run import, the West African portals, wave 2, shadow, live, and the week 14 gate. Every rule below holds for all 31 steps, not just the weekend ones.
 
-**Scope, in one paragraph, because it has changed and older documents say otherwise.** Review and approval live in Postgres for the whole pilot. The review app in `review/` is the permanent reviewer interface, not a weekend stand-in. There is no CRM integration in any of the 31 steps: no Zoho SDK, no Zoho or Salesforce or HubSpot HTTP client, no OAuth flow, no Deluge script, no webhook, no CRM credential in Secrets Manager or config. Approved records leave as an export file and by no other route. This is decision D31 in Architecture v0.4, and it supersedes D2 (Deluge write path), D3 (Creator review UI), D11 as a payload spec, D28 (Lead Source picklist), D29 (Account resolution at approval), D30 (read scope for duplicate detection) and D10 (notifications). Any Zoho Creator, Deluge or CRM API instruction you find in a document dated before 11 September 2026, including Pilot Plan v0.2 and Architecture v0.2 or v0.3, is superseded. Architecture v0.4, Pilot Plan v0.4 and Weekend Build Plan v1.3 are current. The integration question returns as a separate decision after the week 14 gate; until then, building any part of it is out of scope, not ahead of schedule.
+**Scope, in one paragraph, because it has changed and older documents say otherwise.** The Monitor is a standalone application. Review, approval and the approved record live in its own Postgres database for the whole pilot, and the review app in `review/` is the permanent interface for every user. CRM integration is deferred and is not designed in this pilot: no CRM SDK or HTTP client, no CRM OAuth flow, no CRM-side script, no webhook, no CRM credential in Secrets Manager or config. Approved records leave as an export file shaped to the CRM Opportunity record and by no other route (D31, restated by D61). Decisions D61 to D64 in `docs/open_decisions.md` (19 September 2026) add the standalone framing, the regional model, SSO access for named users and the pilot geography; where Pilot Plan v0.4 or Architecture v0.4 disagree with them, `docs/change_record_v0_5.md` says which section is superseded. Any instruction in an older document to build a CRM-side component is superseded. Weekend Build Plan v1.3 is historical.
 
 Read `BUILD_ORDER.md` for what to build next and in what order. Do one step per session. Do not start a step until the previous step's acceptance tests pass.
 
@@ -27,15 +29,21 @@ These are properties of the system, not preferences. If a change would break one
 
 11. Two runtime roles and only two, plus `monitor_readonly` for reporting. `monitor_pipeline` has no privilege on `approved_records`. `monitor_review` has insert on `approved_records` and update on `candidates`. Code that connects the pipeline as `monitor_review`, or that uses a superuser or owner connection at runtime, is blocking.
 12. Exactly one code path inserts into `approved_records`: `review/decisions.py`, inside the reviewer's decision transaction. Any other module referencing that table for write is blocking.
-13. No candidate reaches `approved` status without a named reviewer recorded on the decision and a matching `events` row. A status transition written by the pipeline is blocking.
+13. No candidate reaches `approved` status without an authenticated reviewer (the SSO identity, from step 22c) recorded on the decision and a matching `events` row. A status transition written by the pipeline is blocking.
 14. Rejection reason is enforced server side. Client-side-only validation is a finding.
 
 ## Scope rules for this phase, all blocking
 
 15. **No CRM integration exists.** The list in the scope paragraph above is exhaustive and none of it is built. A commit that adds any of it is out of scope, not ahead of schedule.
 16. **The export is one way and it is a file.** No import path, no reconciliation job, no write-back from a CRM. Postgres is the system of record up to approval and never after.
-17. **No inbound network path.** No listener, no webhook receiver, no public endpoint. The review app binds to localhost or the SSM tunnel.
+17. **No public inbound path.** No webhook receiver, no public endpoint, no listener on the pipeline. The review app is reached only through the SSO access layer (D63) or, in development, on localhost. The pipeline has no inbound path of any kind.
 18. **Nothing is notified.** Any notification call, email send or chat post is blocking in this phase. The reviewer works the queue on a schedule they set.
+
+## Region and identity rules, all blocking
+
+23. **Region is data.** A country's region comes from `config/regions.yaml` and nowhere else. A region name, country list or region check written into a `.py` file or a template is blocking. Every ISO 3166 code sits in exactly one region, in `excluded` or in `unassigned`; a test asserts it.
+24. **Identity comes from the access layer only.** The review app trusts one signed identity assertion from the SSO access layer and verifies its signature on every request. No login form, no local password, no typed reviewer name, no identity taken from a query string or a cookie the app issued itself.
+25. **Authority follows region, server side.** A user may approve, edit or reject only candidates in a region their role covers (`config/users.yaml`, loaded into `users` and `user_regions`). Anyone signed in may read every region. A decision check done only in the template is blocking.
 
 ## Data and secrets rules, all blocking
 
@@ -62,17 +70,18 @@ monitor/
   score/         prompt.py, client.py, schema.py, caps.py
   dedupe/        cluster.py
   fx/            config.py, nbu.py (the one rate publisher), store.py, convert.py
-  stage/         stager.py, record.py (the record builder, appendix E)
+  stage/         stager.py, record.py (the record builder, appendix E), region.py (country -> region, step 22b)
   health/        source_health.py, metrics.py
   db.py          connection factory; role chosen by env var, never by code path
   cli.py         `monitor fetch <source>|all`, `monitor score`, `monitor stage`, `monitor status`, `monitor golden`
 review/
   app.py         FastAPI, connects as monitor_review only
+  auth.py        verifies the access layer's signed identity; maps it to a user and their regions (step 22c)
   decisions.py   the single write path: approve, edit_then_approve, reject
   export.py      the only way out: CSV plus manifest, one way, no import path
   templates/     queue.html, candidate.html, decided.html, sources.html, audit.html, export.html
 sources/         one YAML per source
-config/          function_map.yaml, lexicon_en.yaml, lexicon_fr.yaml, thresholds.yaml, record_defaults.yaml, fx.yaml
+config/          function_map.yaml, lexicon_en.yaml, lexicon_fr.yaml, thresholds.yaml, record_defaults.yaml, fx.yaml, regions.yaml, users.yaml
 migrations/      001_schema.sql, 002_roles.sql, ...
 tests/           unit/, contract/ (fixtures/), golden/ (golden.csv), roles/, review/
 .claude/agents/  the seven subagent files
@@ -127,17 +136,18 @@ make export        # produce a CSV batch and its manifest from approved, unexpor
 
 - PFM = public financial management. The function map has 33 functions across 8 pillars; scoring runs at function level. Type weights: Government Controls and Process Execution 1.2 to 1.5; Policy and Fiscal Transparency 0.6 to 0.9. The Type column in the component map workbook resolves these, so the weight is a lookup, not a judgement call.
 - System names that add signal: IFMIS, GIFMIS, IPPIS, TSA, HRMIS, ITAS, e-procurement, SIGIF, SIGFiP, AGFIS, ISFU, SIGMAP, RACHAD, KFMIS.
-- Priority geography: West Africa 1.0 (BJ BF CI GM GH LR ML MR NE NG SN SL TG); Ukraine and Western Balkans 0.8 (UA AL BA XK ME MK); EU, EEA, UK, CH 0.6. From `config/thresholds.yaml`.
+- Pilot geography (D64): the 41 countries of the Europe & West Africa region plus the pilot exception BJ BF CI ML MR NE SN TG, 49 in all. The exception countries are owned by the MENA & Francophone Africa region and carry that region on every candidate; the exception decides only that the pilot works them. BG CZ HU RO SK (Central & Southeast Europe) and PT (Lusophone) left the pilot on 19 September; their notices are held, not staged. AD MC AM GE joined.
+- Priority geography weights: West Africa 1.0 (BJ BF CI GM GH LR ML MR NE NG SN SL TG); Ukraine and Western Balkans 0.8 (UA AL BA XK ME MK); everything else in the pilot 0.6, including AM and GE until Matthew sets them. From `config/thresholds.yaml`.
 - CPV top-level codes that pass the free filter: 48 (software), 72 (IT services), 79 (business and consultancy). Everything else with a CPV code is dropped before any model call.
 - Staging threshold: 25. Per-source daily staging cap: 15. Lowered from 60 on 2026-09-12, deliberately, to put borderline work in front of a reviewer rather than discard it. 60 could not be nudged: every value from 43 to 68 staged the same 12 candidates, because the scores take only 18 distinct values and pile on round ones, so a threshold can only land between two buckets (decision 39). What made 25 safe was the lexicon change made the same day — most of what used to arrive scoring 5 to 28 was not marginal PFM, it was waste disposal and vehicle repair passing the free filter on a bare word (decision 44). `config/thresholds.yaml` is authoritative and carries the reasoning; this line is a summary and will go stale before that file does.
 - Kosovo uses ISO code XK.
 
-## Export target: the CRM's Opportunity columns, not a lead
+## Export target: the CRM Opportunity record, not a lead
 
-A live CRM record (Ghana GIFMIS Modernisation and EU PFM Reform, Ministry of Finance Ghana, created by a BD person, owned by a regional BD lead) shows the account already runs these tenders through the Opportunities module, with roughly 60 fields across Opportunity Information, Deal Classification, Eligibility, Partner and Legal, Submission Information, Pricing Summary, Products Required and Implementation and Pricing. `approved_records.record` is shaped like that record, and the export writes those columns in that order and naming so Zoho's import mapper matches on headers. The field-by-field spec, with what is derived, what is a reviewer-editable suggestion and what stays a BD-only placeholder, is **Architecture v0.4 appendix E**. `monitor/stage/record.py` builds to it and nothing else invents a field. Four things this implies:
+A live CRM record (Ghana GIFMIS Modernisation and EU PFM Reform, Ministry of Finance Ghana, created by a BD person, owned by a regional BD lead) shows the account already runs these tenders through the Opportunities module, with roughly 60 fields across Opportunity Information, Deal Classification, Eligibility, Partner and Legal, Submission Information, Pricing Summary, Products Required and Implementation and Pricing. `approved_records.record` is shaped like that record, and the export writes those columns in that order and naming so the CRM's import mapper matches on headers. The field-by-field spec, with what is derived, what is a reviewer-editable suggestion and what stays a BD-only placeholder, is **Architecture v0.4 appendix E**. `monitor/stage/record.py` builds to it and nothing else invents a field. Four things this implies:
 
 - Every BD-only field (pricing structure, warranty, number of users, legal support, bid bond, evaluation weighting) is set to the same placeholder the CRM already shows for an unfilled field: `TBD`, `Unknown`, a bare dash or `0`. Never a database `NULL` that renders as blank with no explanation, and never a plausible-looking invented value. An imported Monitor record should read like an early-stage record a person started, not a machine's guess dressed up as fact. It should just arrive a day after publication instead of whenever someone notices it.
 - **FreeBalance Products Required is a set, not a string.** It comes from the component map workbook's New Marketecture sheet: 20 products across 578 mapping rows for 559 components, so some functions map to more than one product. Product Gaps is populated from the same sheet's status column, naming any matched product whose status is not Available. Pillar 8 has no product mapping in the workbook; write an empty set and say so.
 - **A value is carried in the currency published, and the USD figure beside it says how it was derived.** `notices.estimated_value` and `value_currency` hold the amount exactly as the source stated it; `candidates.estimated_value_usd` is derived at staging and stored with `value_rate` and `value_rate_date`, so `estimated_value / value_rate` returns the figure on the record. One rate publisher, named in `config/fx.yaml`, plus the statutory CFA pegs. A currency no rate covers gets no USD figure and keeps its own amount rather than rendering blank. The scorer is NOT asked for a value and its schema has no field for one: it invented all eight it ever reported, none of which appeared in the notice text it was given.
 - **Account resolution happens at import, not at approval.** The record builder proposes the buyer name as text and nothing more. The pipeline never creates, guesses or looks up an Account link, and it has no CRM scope with which to try.
-- **There is no automated duplicate check and there will not be one in this pilot.** The candidate page's decision panel carries a standing reminder to check Zoho by hand for an existing Opportunity on the buyer. This is proven necessary, not theoretical: the Ghana tender the Monitor would surface already has a live Opportunity from December 2025. Under D31 the reviewer is the only duplicate control, every duplicate that reaches an export batch is logged as a finding, and the count is a week 14 gate number that decides whether a read-only CRM search is the first integration taken afterwards.
+- **There is no automated duplicate check and there will not be one in this pilot.** The candidate page's decision panel carries a standing reminder to check the CRM by hand for an existing Opportunity on the buyer. This is proven necessary, not theoretical: the Ghana tender the Monitor would surface already has a live Opportunity from December 2025. Under D31 the reviewer is the only duplicate control, every duplicate that reaches an export batch is logged as a finding, and the count is a week 14 gate number.

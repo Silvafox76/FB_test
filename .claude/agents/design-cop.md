@@ -26,15 +26,21 @@ Run `git diff` and `git diff --staged`. Review what changed against the rules be
 
 11. Two database roles and only two. `monitor_pipeline` has no privilege on `approved_records`. `monitor_review` has insert on `approved_records` and update on `candidates`. Any code that connects the pipeline as `monitor_review`, or that uses a superuser or owner connection at runtime, is blocking.
 12. Exactly one code path inserts into `approved_records`: `review/decisions.py`, inside the reviewer's decision transaction. Any other module referencing that table for write is blocking.
-13. No candidate reaches `approved` status without a named reviewer recorded on the decision and a matching `events` row. A status transition written by the pipeline is blocking.
+13. No candidate reaches `approved` status without an authenticated reviewer (the SSO identity) recorded on the decision and a matching `events` row. A status transition written by the pipeline is blocking.
 14. Rejection reason is enforced server side. Client-side-only validation is a finding.
 
 ## Scope rules for this phase, all blocking
 
-15. **No CRM integration exists.** No Zoho SDK, no Zoho or Salesforce or HubSpot HTTP client, no OAuth flow, no CRM credential in Secrets Manager or config, no Deluge, no webhook. Approved records leave the system as an export file and no other way. A commit that adds any of this is out of scope, not ahead of schedule.
+15. **No CRM integration exists.** No CRM SDK or HTTP client, no CRM OAuth flow, no CRM credential in Secrets Manager or config, no CRM-side script, no webhook. Approved records leave the system as an export file and no other way. A commit that adds any of this is out of scope, not ahead of schedule.
 16. **The export is one way and it is a file.** No import path, no reconciliation job, no write-back from a CRM. Postgres is the system of record up to approval and never after.
-17. **No inbound network path.** No listener, no webhook receiver, no public endpoint. The review app binds to localhost or the tunnel.
+17. **No public inbound path.** No webhook receiver, no public endpoint, no listener on the pipeline. The review app is reached only through the SSO access layer, or on localhost in development. An internet-facing load balancer, a public IP on the instance or a security-group rule open beyond the access layer's endpoint is blocking.
 18. **Nothing is notified before shadow mode proves precision.** Any notification call, email send or chat post is blocking in this phase.
+
+## Region and identity rules, all blocking
+
+23. **Region is data.** A country's region comes from `config/regions.yaml` and nowhere else. A region name, country list or region check in a `.py` file or a template is blocking.
+24. **Identity comes from the access layer only.** The review app verifies the SSO access layer's signed assertion on every request. A login form, a local password, a typed reviewer name, or an identity read from a query string or an app-issued cookie is blocking. A code path that skips verification, including for development or tests, is blocking.
+25. **Authority follows region, server side.** Approve, edit and reject are refused for a candidate outside the user's regions. A check made only in a template is blocking.
 
 ## Data and secrets rules, all blocking
 

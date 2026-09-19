@@ -53,7 +53,7 @@ For each export batch: row count against approved records in range, every row tr
 
 ## Weekly metrics, shadow and live
 
-Produce `reports/week-NN.md`: precision at the queue by region and language, recall against the back-test, translation rejection rate, time to detect, reviewer load in hours, connector break rate and time to repair by connector class, model cost, and approved records exported with their estimated value by country.
+Produce `reports/week-NN.md`: precision at the queue by region (the pilot region and the francophone exception reported separately) and language, recall against the back-test, translation rejection rate, time to detect, reviewer load in hours, connector break rate and time to repair by connector class, model cost, and approved records exported with their estimated value by country.
 
 Rejections grouped by reason with three example candidates each, so the tuning session starts from evidence rather than impression.
 

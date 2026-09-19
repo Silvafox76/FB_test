@@ -15,7 +15,7 @@ Read CLAUDE.md, BUILD_ORDER.md and the source's `sources/<id>.yaml` before writi
 - `tests/fixtures/<source_id>.json`
 - `tests/contract/test_<source_id>.py`
 
-You do not touch the normaliser, translator, filter, scorer, deduper, stager, Creator app, migrations or any other connector. If the task appears to require it, stop and report why.
+You do not touch the normaliser, translator, filter, scorer, deduper, stager, review app, migrations or any other connector. If the task appears to require it, stop and report why.
 
 ## Procedure
 

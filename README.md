@@ -1,13 +1,18 @@
 # PFM Opportunity Monitor
 
-Reads public procurement and donor notices from 47 countries, filters and scores them against
-FreeBalance's PFM function map with Claude, deduplicates them into candidates, and stages them in a
-review queue held in PostgreSQL. A named human reviewer approves a candidate; only that approval can
-create an approved record. The pipeline can never create one. Approved records leave the system as a
-one-way CSV export that a named person imports into Zoho CRM by hand.
+A standalone application with its own database. It reads public procurement and donor notices,
+filters and scores them against FreeBalance's PFM function map with Claude, deduplicates them into
+candidates, and stages them in a review queue held in PostgreSQL. A named reviewer, signed in through
+company SSO, approves a candidate; only that approval can create an approved record. The pipeline can
+never create one. Approved records leave as a one-way CSV export shaped to the CRM Opportunity record,
+which BD imports by hand. CRM integration is deferred (D31, D61) and enforced by review: `CLAUDE.md`
+scope rules 15 to 18.
 
-There is no CRM integration in any step of this pilot. That is decision D31 in Architecture v0.4 and
-it is enforced by review, not by memory: see `CLAUDE.md` scope rules 15 to 18.
+The application is organised by FreeBalance's ten sales regions (`docs/regions.yaml`, moving to
+`config/` at step 22b). The pilot works one of them, Europe & West Africa (41 countries), plus eight
+francophone West African countries as a recorded exception: 49 countries. The other nine regions
+exist in the data model and reporting with no sources and no reviewers. Decisions 61 to 64 in
+`docs/open_decisions.md` (19 September 2026) set this out.
 
 ## Start here
 
@@ -17,7 +22,9 @@ it is enforced by review, not by memory: see `CLAUDE.md` scope rules 15 to 18.
 | `BUILD_ORDER.md` | 31 steps, one per session, each with the acceptance tests that gate its commit. |
 | `RUNBOOK.md` | Operate it: start, stop, add a source, read health, roll back a prompt. Arrives at step 11. |
 | `docs/reference/` | Architecture v0.4, Weekend Build Plan v1.3 and the component map workbook, the documents the steps cite. |
-| `docs/open_decisions.md` | Questions a step raised, open and closed, each with the step that settles it. |
+| `docs/open_decisions.md` | Questions a step raised, open and closed, each with the step that settles it. Decisions 61 to 64 (standalone, regions, SSO, geography) sit at the top. |
+| `docs/change_record_v0_5.md` | Which sections of Pilot Plan v0.4 and Architecture v0.4 decisions 61 to 64 supersede. |
+| `docs/regions.yaml` | The ten sales regions and every country's owner, draft; moves to `config/` at step 22b. |
 | `docs/design_inputs.md` | What the workbook and the prototypes are each allowed to decide. |
 | `.claude/agents/` | The seven subagent definitions and the ownership table, per `.claude/agents/SETUP.md`. |
 
@@ -113,7 +120,8 @@ been approved or exported: the pilot has not entered shadow mode. These counts m
 | Steps | State |
 | --- | --- |
 | 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
-| 16, export | Built, **not met**. The dry-run import needs a person with a Zoho sandbox. It gates shadow entry. |
+| 16, export | Built, **not met**. The dry-run import needs a BD operator with a CRM sandbox. It gates shadow entry. |
+| 22a to 22c, CRM-neutral wording, regional model, SSO access | **Not started.** Added 2026-09-19 (decisions 61 to 64). They gate shadow entry. |
 | Operations | **No host runs the pipeline.** The `deploy/systemd` timers have never fired: the build environment has no init system and no pilot host is provisioned, so every pass to date was started by hand and nothing published between sessions has been seen. Five of six "missed" notices traced on 2026-09-18 come back to this (decision 59). One small host with the timers enabled, per the RUNBOOK, is the item above every other. |
 | 17 to 19, West Africa | Built, **mostly met**. Six of ten West African portals are live with a recorded fixture, a passing contract test, a normaliser and a clean live pass (Burkina Faso, Ghana, Liberia, Mali, Senegal, Sierra Leone). Burkina Faso's daily bulletin needed the acquire stage to take one PDF holding thirty-odd notices (decision 51) and a mapper measured against six real issues; its 126 notices from four issues yielded 3 free-filter passes and no candidate, the yield the 284-notice sample predicted. Of the four remaining: Benin is cleared on terms and needs a person at a real browser to record its row selector; Nigeria is a retrospective register measured at zero live tenders, dropped from wave 1 pending a named person's decision; Gambia and Côte d'Ivoire have no terms page to clear and stay `pending`. The connector classes BUILD_ORDER assumed were wrong for three of the four in step 17 and are corrected there. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
