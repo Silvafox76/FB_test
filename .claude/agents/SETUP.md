@@ -4,7 +4,7 @@ Seven project subagents, weeks 0 to 14. The Monitor is a standalone application 
 
 ## What changed from the previous set
 
-19 September 2026: `review-app-builder` gains `review/auth.py` and the region check on decisions. `design-cop` gains rules 23 to 25 (region is data, identity from the access layer only, authority follows region) and restates rule 17 for the SSO access layer. The main session owns `config/regions.yaml`, `config/users.yaml` and migrations 017 and 018.
+19 September 2026: `review-app-builder` gains `review/auth.py` and the region check on decisions, both deferred to R0 the same day (decision 67; the pilot keeps the typed reviewer name and the tunnel). `design-cop` gains rules 23 to 25 (region is data, identity from the access layer only, authority follows region) and restates rule 17 for the SSO access layer. The main session owns `config/regions.yaml`, `config/users.yaml` and migrations 017 and 018.
 
 11 September 2026: `review-app-builder` became the permanent review interface and owns the export as well as the queue and the write path. `design-cop` treats any CRM client, CRM OAuth flow, CRM-side script or webhook as a blocking finding. `eval-harness` runs export integrity drills and a second role-boundary drill. `ops-analyst` reads the queue from Postgres directly and gains export backlog to its daily check. `source-onboarder` and the two connector builders are unchanged.
 

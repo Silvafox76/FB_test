@@ -8,6 +8,12 @@ The decisions are 61 to 65 in `docs/open_decisions.md`. `CLAUDE.md` and `BUILD_O
 to 22c) already carry them; this file exists so that someone reading the leadership documents knows
 which parts no longer hold.
 
+**Amended the same day by decision 67.** SSO access (63) is deferred to R0, after the week 14 gate. For
+the pilot the review app stays on localhost over the administrative tunnel with a typed reviewer name,
+as Architecture v0.4 sections 4 to 6 describe, and has at most two users, Matthew and Sara, who are
+also the default reviewers for any region without a named lead or reviewer. The rows below that name
+Verified Access, `users.yaml` or the identity matrix describe R0, not the pilot.
+
 ## What changed, in five lines
 
 1. **Standalone application (61).** The Monitor is its own application with its own database, for 5
@@ -15,9 +21,10 @@ which parts no longer hold.
    is deferred and has no design in this pilot; the three integration options are withdrawn.
 2. **Regional model (62).** Ten sales regions, every country in exactly one. One region is worked in
    the pilot; nine exist in the data model, users and reporting with no sources and no reviewers.
-3. **SSO access (63).** Users sign in with the company identity provider through AWS Verified Access.
-   The review app has no public listener. The typed reviewer name and the SSM port forward for users
-   are gone. Identity provider (Entra ID or Google Workspace) is open.
+3. **SSO access (63), deferred to R0 by 67.** After the gate, users sign in with the company identity
+   provider through AWS Verified Access, the review app has no public listener, and the typed reviewer
+   name and the SSM port forward for users go. For the pilot both stay, with at most two users.
+   Identity provider (Entra ID or Google Workspace) is open and is an R0 question.
 4. **Pilot geography (64).** Europe & West Africa (41 countries) plus eight francophone West African
    countries as a recorded exception: 49. Bulgaria, Czechia, Hungary, Romania, Slovakia and Portugal
    leave; Andorra, Monaco, Armenia and Georgia join.
@@ -59,7 +66,7 @@ region is activated.
 | --- | --- | --- |
 | 1, 3 System context | 47 countries; "Zoho appears exactly once in this design" | 49 countries; the CRM appears only as the destination of a file |
 | 4 "How an approved record reaches Zoho" | Title and vendor wording | "How an approved record leaves the system": unchanged mechanism, CRM-neutral |
-| 4, 5 Review app | Bound to localhost, reached over an SSM port forward, reviewer name typed | Private instance behind AWS Verified Access with OIDC to the company identity provider; identity from the signed assertion; authority by region (rules 23 to 25) |
+| 4, 5 Review app | Bound to localhost, reached over an SSM port forward, reviewer name typed | Unchanged for the pilot (67). At R0: private instance behind AWS Verified Access with OIDC to the company identity provider; identity from the signed assertion; authority by region (rules 23 to 25) |
 | 6 Deployment | "No inbound network path at all"; reviewer reaches the app through SSM | No public inbound path. The Verified Access endpoint is the only route to the review app. SSM stays for administration only |
 | 7 Data model | No region or user entities | `regions`, `region_countries`, `pilot_exceptions` (migration 017); `users`, `user_regions` (018); `candidates.region` a foreign key; decisions record `reviewer_user_id` |
 | 9.3 Pilot operations | One reviewer, two region views | Reviewers by region; the pilot region and the exception measured separately |
@@ -77,4 +84,4 @@ region is activated.
 The checkpoint (one write path, two runtime roles, the database grant and its test), the export
 file and its column specification, the acquisition-ethics rules, the model caps, the staging
 threshold, the West African geography weights, the step order before 22a, and every gate from step 23
-onward except that 22a to 22c now also gate shadow entry.
+onward except that 22a and 22b now also gate shadow entry (22c was to, until 67 moved it to R0).

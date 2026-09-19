@@ -395,7 +395,9 @@ Accept:
 
 ---
 
-### Step 22c. SSO access and named users (week 9, gates step 23)
+### Step 22c. SSO access and named users (deferred to R0 by decision 67; does not gate step 23)
+
+Decision 67 (19 September 2026): the pilot runs with at most two users, Matthew and Sara, on localhost over the tunnel with a typed reviewer name, exactly as steps 3 to 22 built it. Nothing below is built before the week 14 gate; it is the first item of R0 in `docs/regional_rollout.md`. Kept here unchanged so R0 does not have to rediscover it.
 
 Touch: `infra/terraform/verified_access.tf`, `infra/terraform/network.tf`, `config/users.yaml`, `migrations/018_users.sql`, `review/auth.py`, `review/app.py`, `review/decisions.py`, `review/templates/*.html` (the reviewer-name field goes), `scripts/drills/drill4_blank_reviewer.py`, `tests/review/test_auth.py`, `tests/review/test_decisions.py`, `RUNBOOK.md` (add a user, remove a user), `pyproject.toml` (`pyjwt[crypto]`, named in the commit message: the access layer's assertion is an ES256 JWT and verifying it by hand is the wrong kind of boring).
 
@@ -413,7 +415,7 @@ Accept: a request with no assertion is 401; a forged or expired assertion is 401
 
 Touch: `config/regions.yaml` (`europe_west_africa: status: shadow`), `review/export.py` (a batch includes only regions in `live`; shadow exports are dry runs), `monitor/health/status.py` (each region's status), scheduler config (daily windows replace the weekend's hourly), `RUNBOOK.md` (shadow-mode section). There is no global `monitor mode` command: mode is per region and lives in config (decision 65), so every later region uses the mechanism the pilot builds here.
 
-Steps 22a to 22c are met before this step starts.
+Steps 22a and 22b are met before this step starts; 22c is deferred to R0 (decision 67).
 
 Build: the region status gates live operation while still staging candidates to the review queue in Postgres (nothing is notified in any mode this phase, per D31 and design-cop rule 18, so what the status gates is real export batches, not notifications); the reviewer and backup are trained this week (five sessions, per architecture §9.2's user-acceptance test) on real shadow-mode data, including French and translated candidates.
 
@@ -463,7 +465,7 @@ Accept: four consecutive weekly cycles (11 through 14) each produce a dated tuni
 
 ### Step 28. D25 reviewer-load check (week 10, executed by week 12 if triggered)
 
-Touch: nothing unless the split is triggered. If it is: `config/users.yaml` gains a second reviewer on that region or on the exception countries, no code change.
+Touch: nothing unless the split is triggered. If it is: the second reviewer (Sara, by decision 67's default) takes that region or the exception countries by agreement, no code change; `config/users.yaml` records it once 22c exists.
 
 Build: measure reviewer minutes per region from the audit log (already recorded on every decision since the weekend). If the pilot region or the francophone exception exceeds three hours a week, add a second reviewer for it.
 

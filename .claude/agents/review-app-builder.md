@@ -34,7 +34,7 @@ Anything not on that list is not built. If a page seems necessary, report it and
 - **Edit then approve:** the edited fields are what goes into the record, and an edited event captures before and after.
 - **Reject:** reason mandatory, enforced server side, event written.
 
-The reviewer is the signed-in user. `auth.py` verifies the SSO access layer's assertion on every request and maps it to a `users` row; there is no reviewer-name field, no login form and no local password. A decision on a candidate outside the user's regions is refused in `decisions.py`, not in the template. Viewers read every region and decide nothing. Region names and memberships come from the `regions` table, never from a literal in your code.
+For the pilot the reviewer is the name typed on the decision form, required and checked server side, and the app binds to localhost behind the tunnel (decision 67, at most two users). From step 22c in R0 the reviewer is the signed-in user: `auth.py` verifies the SSO access layer's assertion on every request and maps it to a `users` row; there is no reviewer-name field, no login form and no local password. A decision on a candidate outside the user's regions is refused in `decisions.py`, not in the template. Viewers read every region and decide nothing. Region names and memberships come from the `regions` table, never from a literal in your code.
 
 The candidate detail page carries a standing line telling the reviewer to check the CRM for an existing opportunity on this buyer before approving. There is no automated duplicate check in this phase and the reviewer is the only control.
 

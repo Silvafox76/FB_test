@@ -2,7 +2,7 @@
 
 Pipeline that reads public procurement and donor notices, filters and scores them against FreeBalance's PFM function map with Claude, deduplicates them into candidates, and stages them in a review queue held in PostgreSQL. A named human reviewer approves a candidate; only that approval can create an approved record. The pipeline can never create one. Approved records leave the system as a one-way CSV export shaped to FreeBalance's CRM Opportunity record, which BD imports by hand.
 
-The Monitor is a standalone application with its own database, used by 5 to 10 named people who sign in through company SSO, and organised by sales region. Every country belongs to exactly one sales region (`config/regions.yaml` from step 22b; the draft sits in `docs/regions.yaml` until then). The pilot works one region, Europe & West Africa (Matthew), plus the eight francophone West African countries as a recorded pilot exception. The other nine regions exist in the data model, in the users table and in reporting from day one, with no sources and no reviewers. After the week 14 gate they come online one at a time, each through `onboarding`, `build`, `shadow` and `live` (`docs/regional_rollout.md`, decision 65).
+The Monitor is a standalone application with its own database, organised by sales region. It is designed for 5 to 10 named people signing in through company SSO; for the pilot it has at most two users, Matthew and Sara, who reach it on localhost over the administrative tunnel and type their name on the decision, and the SSO layer arrives with R0 after the gate (decision 67, 19 September 2026, deferring D63). Matthew and Sara are the default reviewers for any region without a named lead or reviewer. Every country belongs to exactly one sales region (`config/regions.yaml` from step 22b; the draft sits in `docs/regions.yaml` until then). The pilot works one region, Europe & West Africa (Matthew), plus the eight francophone West African countries as a recorded pilot exception. The other nine regions exist in the data model, in the users table and in reporting from day one, with no sources and no reviewers. After the week 14 gate they come online one at a time, each through `onboarding`, `build`, `shadow` and `live` (`docs/regional_rollout.md`, decision 65).
 
 This brief covers the full 14-week pilot, not only the opening weekend. BUILD_ORDER.md has 31 steps: 1 to 11 are the weekend slice on Postgres and the direct Anthropic API; 12 to 31 carry the same repository through Terraform, the Bedrock cutover, the remaining wave-1 feeds, translation, the export and its dry-run import, the West African portals, wave 2, shadow, live, and the week 14 gate. Every rule below holds for all 31 steps, not just the weekend ones.
 
@@ -29,17 +29,19 @@ These are properties of the system, not preferences. If a change would break one
 
 11. Two runtime roles and only two, plus `monitor_readonly` for reporting. `monitor_pipeline` has no privilege on `approved_records`. `monitor_review` has insert on `approved_records` and update on `candidates`. Code that connects the pipeline as `monitor_review`, or that uses a superuser or owner connection at runtime, is blocking.
 12. Exactly one code path inserts into `approved_records`: `review/decisions.py`, inside the reviewer's decision transaction. Any other module referencing that table for write is blocking.
-13. No candidate reaches `approved` status without an authenticated reviewer (the SSO identity, from step 22c) recorded on the decision and a matching `events` row. A status transition written by the pipeline is blocking.
+13. No candidate reaches `approved` status without a named reviewer recorded on the decision and a matching `events` row (the typed name for the pilot; the SSO identity once step 22c lands in R0, decision 67). A status transition written by the pipeline is blocking.
 14. Rejection reason is enforced server side. Client-side-only validation is a finding.
 
 ## Scope rules for this phase, all blocking
 
 15. **No CRM integration exists.** The list in the scope paragraph above is exhaustive and none of it is built. A commit that adds any of it is out of scope, not ahead of schedule.
 16. **The export is one way and it is a file.** No import path, no reconciliation job, no write-back from a CRM. Postgres is the system of record up to approval and never after.
-17. **No public inbound path.** No webhook receiver, no public endpoint, no listener on the pipeline. The review app is reached only through the SSO access layer (D63) or, in development, on localhost. The pipeline has no inbound path of any kind.
+17. **No public inbound path.** No webhook receiver, no public endpoint, no listener on the pipeline. The review app binds to localhost and is reached over the SSM or SSH tunnel for the whole pilot (decision 67); the SSO access layer (D63) replaces the tunnel for users at R0. The pipeline has no inbound path of any kind.
 18. **Nothing is notified.** Any notification call, email send or chat post is blocking in this phase. The reviewer works the queue on a schedule they set.
 
 ## Region and identity rules, all blocking
+
+Rules 24 and 25 take effect with step 22c, which decision 67 moved to R0 after the gate. Until then the reviewer is the typed name on the decision, at most two people use the app, and both may decide in every region. Rules 23 and 26 hold now.
 
 23. **Region is data.** A country's region comes from `config/regions.yaml` and nowhere else. A region name, country list or region check written into a `.py` file or a template is blocking. Every ISO 3166 code sits in exactly one region, in `excluded` or in `unassigned`; a test asserts it.
 24. **Identity comes from the access layer only.** The review app trusts one signed identity assertion from the SSO access layer and verifies its signature on every request. No login form, no local password, no typed reviewer name, no identity taken from a query string or a cookie the app issued itself.

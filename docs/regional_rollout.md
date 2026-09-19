@@ -47,8 +47,10 @@ discover under a second region's load.
   on an inactive region in a staging database.
 - **Reporting by region.** The weekly metrics and the gate report template produce every number per
   region without hand-work.
-- **Access.** Verified Access policy and `users.yaml` handle users across regions; a viewer role for
-  regional VPs who want visibility before their region is live.
+- **Access.** Step 22c, deferred here by decision 67: Verified Access in front of the review app,
+  `users.yaml` with roles and regions, identity from the signed assertion, authority by region. During
+  the pilot the app has at most two users on localhost over the tunnel. A viewer role for regional VPs
+  who want visibility before their region is live.
 
 Exit: all six done, and the pilot region has run live for four consecutive weeks with no connector
 down longer than its repair target.
@@ -57,7 +59,9 @@ down longer than its repair target.
 
 1. **Entry gate (`inactive` to `onboarding`).**
    - A named regional lead is in post.
-   - At least one named reviewer is committed at 30 minutes a day.
+   - At least one named reviewer is committed at 30 minutes a day. Until a region names one, Matthew
+     and Sara are its reviewers by default (decision 67); the gate still asks whether the default is
+     the right answer for that region.
    - The previous region is `live`, or in `shadow` with no open blocking finding.
    - The maintenance owner confirms the break rate and repair time across all live regions are inside
      the targets set at the week 14 gate.
@@ -120,6 +124,6 @@ apply identically in every region. Each region's reviewers decide only in their 
 - Belarus sits in Central & Southeast Europe. Canada, the EU and the UK sanction Belarus as they do
   Russia, which the draft treats as excluded. It needs the same explicit decision before R1.
 - The MENA VP hire sets the real position of MENA & Francophone Africa.
-- North America's entry gate needs a named reviewer at 30 minutes a day. That cannot be the CEO;
-  Parker or Sara is the natural choice. Manuel's go-live sign-off can be delegated to a named person,
-  recorded as such, so the gate does not wait on the CEO's calendar.
+- North America's entry gate needs a named reviewer at 30 minutes a day. That cannot be the CEO; by
+  decision 67's default it is Sara unless Manuel names Parker. Manuel's go-live sign-off can be
+  delegated to a named person, recorded as such, so the gate does not wait on the CEO's calendar.

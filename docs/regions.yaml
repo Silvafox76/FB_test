@@ -13,9 +13,14 @@
 # At most one region is in build or shadow at a time; a test asserts it. The order regions come
 # online is in docs/regional_rollout.md (decision 65), not here.
 #
+# Reviewers: until a region names its own, `default_reviewers` below review it (decision 67,
+# 19 Sept 2026). The pilot has at most two users, and they are these two.
+#
 # Held in docs/ until step 22b (BUILD_ORDER.md) moves it to config/regions.yaml. It cannot sit in
 # config/ before then: the registry refuses any config file without a CONFIG_KINDS entry (rule 6),
 # so `make up` would fail. Until 22b, config/thresholds.yaml's `regions:` block drives the stager.
+
+default_reviewers: ["Matthew", "Sara"]
 
 regions:
   east_southern_africa:

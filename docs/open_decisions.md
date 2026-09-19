@@ -17,7 +17,7 @@ different kind of answer: five of those sources have **no terms at all** to read
 
 ## Decided 19 September 2026: standalone application, regional model, access, pilot geography, rollout
 
-Five decisions taken by Ryan Dear on 2026-09-19. They change scope, so they sit above the build's bookkeeping. `docs/change_record_v0_5.md` names the sections of Pilot Plan v0.4 and Architecture v0.4 each one supersedes.
+Six decisions taken by Ryan Dear on 2026-09-19, the sixth amending the third. They change scope, so they sit above the build's bookkeeping. `docs/change_record_v0_5.md` names the sections of Pilot Plan v0.4 and Architecture v0.4 each one supersedes.
 
 | # | Decision | What it means for the build |
 | --- | --- | --- |
@@ -26,16 +26,17 @@ Five decisions taken by Ryan Dear on 2026-09-19. They change scope, so they sit 
 | 63 | **Access through company SSO behind a private endpoint.** Users sign in with the company identity provider; the review app is reachable only through AWS Verified Access in ca-central-1 and has no public listener. Identity comes from the signed assertion, never a typed name. Authority to decide follows the user's regions. | Step 22c. Rule 17 restated, rules 23 to 25 added. **Open: Entra ID or Google Workspace** (the provider choice changes one Terraform block). |
 | 64 | **Pilot geography is Matthew's region plus a francophone exception.** Europe & West Africa: 41 countries (34 Europe, AM, GE, and GM GH LR NG SL). Exception: BJ BF CI ML MR NE SN TG, owned by MENA & Francophone Africa, worked by the pilot because their connectors were built and live before the split. 49 countries in all. BG CZ HU RO SK and PT leave the pilot; AD MC AM GE join. Supersedes the 47-country scope and decision 26's proposed 53. | TED `covers` drops six codes; donor `covers` gain AM and GE where published. West African weights unchanged. Precision and reviewer load are reported for the region and the exception separately. |
 | 65 | **Phased rollout, one region at a time, after the pilot.** No second region before the week 14 gate decides to scale. Then R0 platform readiness (production shape, per-region model budgets, a named maintenance owner, an activation runbook), then regions one at a time through `onboarding`, `build`, `shadow`, `live`, each with the same entry and go-live gates. A region never starts without a named lead and reviewer. Order: North America first (owner Manuel, CEO, set 19 Sept), then recommended Caribbean & Latin America, Central & Southeast Europe, MENA & Francophone Africa, East & Southern Africa, Lusophone, Asia & the Pacific, Pakistan/Central Asia/Türkiye; China unscheduled. | `docs/regional_rollout.md`. Region status replaces the global mode flag in step 23, so the pilot builds the mechanism every region uses. Rule 26. Supersedes Pilot Plan v0.4 phases 4 and 5. |
+| 67 | **Access stays as built for the pilot; SSO is deferred to R0.** At most two users until the week 14 gate, Matthew and Sara, on localhost over the administrative tunnel with the reviewer name typed on the decision, exactly as steps 3 to 22 built it. D63 is not withdrawn: the SSO layer, `users.yaml`, `auth.py` and authority by region are the first item of R0. Matthew and Sara are the default reviewers for any region that has no named lead or reviewer, which for the pilot is the francophone exception and, until Manuel says otherwise, North America. Reason: with two people the identity layer costs a Terraform service, a dependency, an IT decision and a week of build for a property the tunnel already gives, and the pilot's job is to measure the pipeline, not the login. | Step 22c moves after the gate and no longer gates step 23; rules 24 and 25 apply from R0; rule 13 and rule 17 read as before D63 for the pilot; the identity-provider question moves to R0. Nothing built changes. |
 
-**Still open from these five, each needing a named person:**
+**Still open from these six, each needing a named person:**
 
-- Identity provider for D63: Entra ID or Google Workspace. Owner: IT, via Ryan.
+- Identity provider for D63: Entra ID or Google Workspace. Deferred to R0 with step 22c (decision 67); not needed for the pilot. Owner: IT, via Ryan.
 - Sales-regions workbook: Timor-Leste is listed under both Lusophone and Asia & the Pacific; CF CD CG GA SD IL PS SM VA CK NU HK MO are in no region; RU IR KP are assumed excluded. East & Southern Africa states 20 and lists 19. Until answered these sit in `unassigned` or `excluded` and stage nowhere. Owner: whoever owns the workbook.
 - Geography weights for AM and GE (0.6 by default), and whether the five anglophone West African countries stay at 1.0. Owner: Matthew.
-- The first `config/users.yaml`: names, roles and regions for the 5 to 10 users, and who reviews the francophone exception. Owner: Matthew and Ryan.
+- The first `config/users.yaml`, at R0: names, roles and regions for the 5 to 10 users. For the pilot the users are Matthew and Sara and both review the francophone exception (decision 67). Owner: Matthew and Ryan.
 - Belarus sits in Central & Southeast Europe but is sanctioned by Canada, the EU and the UK. Excluded like Russia, or kept? Needed before that region reaches `onboarding`. Owner: Ryan with Legal.
 - The rollout order after North America (decision 65), confirmed or changed, and the MENA VP hire that moves position 4. Owner: Gerard and the regional VPs.
-- North America: a named reviewer (Parker or Sara) and whether Manuel delegates the go-live sign-off. Owner: Manuel, via Ryan.
+- North America: Sara is its reviewer by decision 67's default unless Manuel names Parker; whether Manuel delegates the go-live sign-off. Owner: Manuel, via Ryan.
 - Repository: public under a personal account, D14 transfer to the FreeBalance organisation not done. Make it private, then transfer. Owner: Ryan.
 
 ## Decisions needing a named person, not a commit

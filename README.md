@@ -2,8 +2,8 @@
 
 A standalone application with its own database. It reads public procurement and donor notices,
 filters and scores them against FreeBalance's PFM function map with Claude, deduplicates them into
-candidates, and stages them in a review queue held in PostgreSQL. A named reviewer, signed in through
-company SSO, approves a candidate; only that approval can create an approved record. The pipeline can
+candidates, and stages them in a review queue held in PostgreSQL. A named reviewer approves a
+candidate; only that approval can create an approved record. The pipeline can
 never create one. Approved records leave as a one-way CSV export shaped to the CRM Opportunity record,
 which BD imports by hand. CRM integration is deferred (D31, D61) and enforced by review: `CLAUDE.md`
 scope rules 15 to 18.
@@ -122,7 +122,7 @@ been approved or exported: the pilot has not entered shadow mode. These counts m
 | --- | --- |
 | 1 to 15 | Met. Registry, connectors, normaliser, free filter, scorer, deduper, stager, the review app and the single write path; Terraform, the Bedrock route, the translation stage, the Europe and donor feeds. |
 | 16, export | Built, **not met**. The dry-run import needs a BD operator with a CRM sandbox. It gates shadow entry. |
-| 22a to 22c, CRM-neutral wording, regional model, SSO access | **Not started.** Added 2026-09-19 (decisions 61 to 64). They gate shadow entry. |
+| 22a and 22b, CRM-neutral wording, regional model | **Not started.** Added 2026-09-19 (decisions 61 to 64). They gate shadow entry. 22c, SSO access, is deferred to R0 after the gate (decision 67): the pilot has at most two users on localhost over the tunnel. |
 | Operations | **No host runs the pipeline.** The `deploy/systemd` timers have never fired: the build environment has no init system and no pilot host is provisioned, so every pass to date was started by hand and nothing published between sessions has been seen. Five of six "missed" notices traced on 2026-09-18 come back to this (decision 59). One small host with the timers enabled, per the RUNBOOK, is the item above every other. |
 | 17 to 19, West Africa | Built, **mostly met**. Six of ten West African portals are live with a recorded fixture, a passing contract test, a normaliser and a clean live pass (Burkina Faso, Ghana, Liberia, Mali, Senegal, Sierra Leone). Burkina Faso's daily bulletin needed the acquire stage to take one PDF holding thirty-odd notices (decision 51) and a mapper measured against six real issues; its 126 notices from four issues yielded 3 free-filter passes and no candidate, the yield the 284-notice sample predicted. Of the four remaining: Benin is cleared on terms and needs a person at a real browser to record its row selector; Nigeria is a retrospective register measured at zero live tenders, dropped from wave 1 pending a named person's decision; Gambia and Côte d'Ivoire have no terms page to clear and stay `pending`. The connector classes BUILD_ORDER assumed were wrong for three of the four in step 17 and are corrected there. |
 | 20, escalation and cross-language dedupe | Met, against real data and real Sonnet calls. |
