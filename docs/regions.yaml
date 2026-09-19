@@ -221,7 +221,7 @@ regions:
       "TT": Trinidad and Tobago
   north_america:
     name: "North America"
-    lead: "TBD (new hire)"
+    lead: "Manuel (CEO)"
     team: ["Parker", "Sara"]
     status: inactive
     countries:

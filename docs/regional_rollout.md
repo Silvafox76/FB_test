@@ -10,7 +10,8 @@ platform-readiness phase (R0), then regions come online one at a time, each thro
 statuses and the same two gates. Only one region is ever in build or shadow. The next region's source
 onboarding, which is paperwork and not code, may run while the current region is in shadow. A region
 never starts without a named lead and a named reviewer, whatever its place in the order. The order
-below is a recommendation; the gates decide.
+below is set with North America first, per Manuel's priority (19 September 2026); the rest is a
+recommendation and the gates decide.
 
 ## Region statuses
 
@@ -90,14 +91,14 @@ down longer than its repair target.
 | # | Region | Lead | Why this position | Indicative span |
 | --- | --- | --- | --- | --- |
 | 0 | Europe & West Africa, plus the francophone exception | Matthew | The pilot | Weeks 0 to 14 |
-| 1 | Central & Southeast Europe, and Azerbaijan | Elena Enache | Five of nine countries are already on TED, so the region tests that activation is mostly a config change, at the lowest cost, before a heavy build. Serbia, Moldova and Azerbaijan need portals. | 6 to 8 weeks |
-| 2 | Caribbean & Latin America | Adrian Waldman | The problem the initiative started from: a state-level Mexico deal missed. Highest expected value. Needs a LATAM worksheet, which does not exist yet, and sub-national Mexico. Onboarding overlaps R1's shadow. | 14 to 18 weeks |
-| 3 | MENA & Francophone Africa | TBD (new hire) | Eight countries already running under the pilot exception, so the build is the Arabic-language and North African half. Cannot start until the VP is hired; if the hire lands early, this moves to position 2. The exception ends here. | 10 to 14 weeks |
-| 4 | East & Southern Africa | Bridget | English-language, portals already watched by hand from the BD worksheet, reuses the pilot's West African connector patterns. | 10 to 12 weeks |
-| 5 | Lusophone | Marcos | Portugal is a TED flip. Brazil's national procurement portal is large; Mozambique and Angola need portals. Portuguese through translation first. | 10 to 14 weeks |
-| 6 | Asia & the Pacific | Boon (Ben) | 35 countries, many languages, ADB as the anchor donor feed. The largest single build. | 14 to 20 weeks |
-| 7 | Pakistan, Central Asia, Türkiye | Taimur Malik | Seven countries, five scripts and languages, portals of mixed openness. | 10 to 12 weeks |
-| 8 | North America | TBD (new hire) | Cheap to build on open federal data, but no lead and the smallest PFM tender volume. Moves up the moment a lead exists and BD wants it. | 6 to 8 weeks |
+| 1 | North America | Manuel (CEO), set 19 Sept 2026 | Executive priority. Also the cheapest proof that activation is mostly config: English and French, both lexicons already built by the pilot, open federal data in both countries, and hosting already in Canada Central. The real work is sub-national: provinces, territories and states run their own ERP and financial-systems tenders, so the build takes federal feeds first and then the sub-national portals in the order the region names. | 8 to 12 weeks |
+| 2 | Caribbean & Latin America | Adrian Waldman | The problem the initiative started from: a state-level Mexico deal missed. Highest expected value. Needs a LATAM worksheet, which does not exist yet, and sub-national Mexico. Onboarding overlaps R1's shadow. Moved ahead of Central & Southeast Europe because North America now provides the low-cost mechanism test that region was first for. | 14 to 18 weeks |
+| 3 | Central & Southeast Europe, and Azerbaijan | Elena Enache | Five of nine countries are already on TED, so most of it is a config change. Serbia, Moldova and Azerbaijan need portals; Belarus needs a sanctions decision first. | 6 to 8 weeks |
+| 4 | MENA & Francophone Africa | TBD (new hire) | Eight countries already running under the pilot exception, so the build is the Arabic-language and North African half. Cannot start until the VP is hired; if the hire lands early, this moves to position 3. The exception ends here. | 10 to 14 weeks |
+| 5 | East & Southern Africa | Bridget | English-language, portals already watched by hand from the BD worksheet, reuses the pilot's West African connector patterns. | 10 to 12 weeks |
+| 6 | Lusophone | Marcos | Portugal is a TED flip. Brazil's national procurement portal is large; Mozambique and Angola need portals. Portuguese through translation first. | 10 to 14 weeks |
+| 7 | Asia & the Pacific | Boon (Ben) | 35 countries, many languages, ADB as the anchor donor feed. The largest single build. | 14 to 20 weeks |
+| 8 | Pakistan, Central Asia, Türkiye | Taimur Malik | Seven countries, five scripts and languages, portals of mixed openness. | 10 to 12 weeks |
 | – | China | TBD | No country list, no lead. Not scheduled. | – |
 
 Serially, with onboarding overlapping the previous shadow, positions 1 to 8 take roughly 18 to 24
@@ -118,4 +119,7 @@ apply identically in every region. Each region's reviewers decide only in their 
   reaches `onboarding`.
 - Belarus sits in Central & Southeast Europe. Canada, the EU and the UK sanction Belarus as they do
   Russia, which the draft treats as excluded. It needs the same explicit decision before R1.
-- The MENA and North America VP hires set the real order for positions 3 and 8.
+- The MENA VP hire sets the real position of MENA & Francophone Africa.
+- North America's entry gate needs a named reviewer at 30 minutes a day. That cannot be the CEO;
+  Parker or Sara is the natural choice. Manuel's go-live sign-off can be delegated to a named person,
+  recorded as such, so the gate does not wait on the CEO's calendar.
