@@ -276,13 +276,46 @@ def approved(owner, review):
 @pytest.fixture
 def exported(approved, exports_dir) -> str:
     """One batch, produced from the three approved records, its file on disk. Returns the batch id."""
-    return export(*today_range(), approved.operator)
+    return export(*today_range(), approved.operator, list(approved.record_ids))
 
 
 def today_range() -> tuple[datetime, datetime]:
-    """The range an operator types on the day they approve and export: today at both ends."""
+    """The range an operator types on the day they approve and export: today at both ends.
+
+    Every call site below also names its own fixture records explicitly through
+    `record_ids`, so this range restricts nothing by itself - it exists only because
+    `export()` requires a range, and "today" is what an operator would actually type on
+    the day they approve and export. The one exception is `record_ids=None`, tested
+    deliberately in the handful of places below that use `PINNED_DAY_RANGE` instead,
+    precisely because "today" is shared with whatever else a real reviewer approved
+    today in the same database.
+    """
     today = datetime.now(UTC).date().isoformat()
     return day_range(today, today)
+
+
+# A day no real approval can ever have, for the tests that must exercise the
+# `record_ids=None` "export everything in the range" path itself rather than naming
+# ids: passing `record_ids` explicitly would test the subset path instead, and that is
+# not what these specific tests are about. Pinning the fixture's own rows to this day
+# (via `pin_approval_day` below) is what makes "the whole range" safe to select.
+PINNED_DAY = "2000-01-01"
+
+
+def pin_approval_day(owner, record_ids) -> tuple[datetime, datetime]:
+    """Move this fixture's own approved records onto `PINNED_DAY` and return that range.
+
+    Only for the tests that must call `export()` with `record_ids=None` (or the HTTP
+    form's equivalent, no `record_ids` field at all) and still assert something about
+    exactly which records were selected. Every other test in this module passes
+    `record_ids` explicitly instead, which is what rule 1 of the isolation fix asks for
+    and does not need this at all.
+    """
+    owner.execute(
+        "update approved_records set created_at = %s where id = any(%s::text[])",
+        (datetime.fromisoformat(PINNED_DAY).replace(tzinfo=UTC), list(record_ids)),
+    )
+    return day_range(PINNED_DAY, PINNED_DAY)
 
 
 def csv_rows(directory: Path, batch_id: str) -> list[list[str]]:
@@ -313,7 +346,7 @@ def stamps(conn, record_ids) -> list[tuple]:
 
 
 def test_the_header_row_is_appendix_e_exactly_and_in_order(approved, exports_dir):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     header = csv_rows(exports_dir, batch_id)[0]
     assert header == [column["name"] for column in record_defaults()["columns"]]
@@ -323,7 +356,7 @@ def test_the_header_row_is_appendix_e_exactly_and_in_order(approved, exports_dir
 
 
 def test_the_file_begins_with_a_byte_order_mark(approved, exports_dir):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     csv_path, _ = batch_paths(exports_dir, batch_id)
     assert csv_path.read_bytes()[:3] == b"\xef\xbb\xbf"
@@ -331,7 +364,7 @@ def test_the_file_begins_with_a_byte_order_mark(approved, exports_dir):
 
 def test_an_accented_buyer_survives_the_round_trip(approved, exports_dir):
     """Without the BOM this file reads as the local codepage and this name arrives mangled."""
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     accounts = values_of(csv_rows(exports_dir, batch_id), "Account Name")
     assert any("Ministère de l'Économie" in account for account in accounts)
@@ -341,7 +374,7 @@ def test_an_accented_buyer_survives_the_round_trip(approved, exports_dir):
 
 
 def test_the_manifest_sha256_is_the_file_as_written(approved, exports_dir):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     csv_path, _ = batch_paths(exports_dir, batch_id)
     manifest = manifest_of(exports_dir, batch_id)
@@ -354,7 +387,7 @@ def test_the_manifest_sha256_is_the_file_as_written(approved, exports_dir):
 
 def test_the_manifest_carries_the_batch_the_operator_and_the_reviewers(approved, exports_dir):
     range_from, range_to = today_range()
-    batch_id = export(range_from, range_to, approved.operator)
+    batch_id = export(range_from, range_to, approved.operator, list(approved.record_ids))
 
     manifest = manifest_of(exports_dir, batch_id)
     assert manifest["batch_id"] == batch_id
@@ -367,7 +400,7 @@ def test_the_manifest_carries_the_batch_the_operator_and_the_reviewers(approved,
 
 
 def test_the_batch_row_matches_the_manifest(approved, exports_dir, review):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     row = review.execute(
         "select operator, row_count, file_path, manifest_path, sha256 from export_batches where batch_id = %s",
@@ -384,7 +417,7 @@ def test_the_batch_row_matches_the_manifest(approved, exports_dir, review):
 
 
 def test_three_rows_are_stamped_with_the_batch_id(approved, exports_dir, review):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     for record_id, batch, exported_at in stamps(review, approved.record_ids):
         assert batch == batch_id, f"{record_id} is not stamped with its batch"
@@ -397,7 +430,7 @@ def test_three_rows_are_stamped_with_the_batch_id(approved, exports_dir, review)
 
 
 def test_every_exported_record_gets_an_event(approved, exports_dir, review):
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(*today_range(), approved.operator, list(approved.record_ids))
 
     events = review.execute(
         "select entity_id, action, actor, after from events where entity_id = any(%s::text[]) and action = 'exported'",
@@ -411,9 +444,15 @@ def test_every_exported_record_gets_an_event(approved, exports_dir, review):
 # --- a record leaves once -------------------------------------------------------
 
 
-def test_a_second_export_in_the_same_range_produces_zero_rows(approved, exports_dir, review):
-    first = export(*today_range(), approved.operator)
-    second = export(*today_range(), approved.operator)
+def test_a_second_export_in_the_same_range_produces_zero_rows(approved, exports_dir, review, owner):
+    """Deliberately the `record_ids=None`, whole-range path: passing explicit ids on the
+    second call would be refused as "not waiting" rather than return zero rows, which is a
+    different assertion than the one this test makes. The fixture's own records are moved
+    onto a day no real approval can share, so "the range" is safe to mean literally that.
+    """
+    range_from, range_to = pin_approval_day(owner, approved.record_ids)
+    first = export(range_from, range_to, approved.operator)
+    second = export(range_from, range_to, approved.operator)
 
     assert second != first
     assert csv_rows(exports_dir, second) == [csv_rows(exports_dir, first)[0]], "a header row and nothing else"
@@ -425,16 +464,22 @@ def test_a_second_export_in_the_same_range_produces_zero_rows(approved, exports_
 
 
 def test_a_record_approved_outside_the_range_stays_in_the_backlog(approved, exports_dir, owner, review):
-    """The range is on the approval moment, and it selects rather than decorates."""
+    """The range is on the approval moment, and it selects rather than decorates.
+
+    Deliberately the `record_ids=None`, whole-range path, so the fixture's own records are
+    first moved onto a day no real approval can share (`pin_approval_day`) before one of
+    them is moved out of that day again.
+    """
+    range_from, range_to = pin_approval_day(owner, approved.record_ids)
     left_behind = approved.record_ids[0]
     owner.execute(
         "update approved_records set created_at = %s where id = %s",
-        (datetime.now(UTC) - timedelta(days=365), left_behind),
+        (range_from - timedelta(days=365), left_behind),
     )
 
-    batch_id = export(*today_range(), approved.operator)
+    batch_id = export(range_from, range_to, approved.operator)
 
-    assert len(csv_rows(exports_dir, batch_id)) == 3, "a header and the two records approved today"
+    assert len(csv_rows(exports_dir, batch_id)) == 3, "a header and the two records left in range"
     exported = dict((row[0], row[1]) for row in stamps(review, approved.record_ids))
     assert exported[left_behind] is None
     assert set(exported.values()) == {None, batch_id}
@@ -462,7 +507,7 @@ def test_a_record_taken_between_the_select_and_the_stamp_stops_the_whole_batch(
     monkeypatch.setattr(export_module, "write_batch_files", steal_one)
 
     with pytest.raises(ExportRefused, match="3 records were selected and 2 could be stamped"):
-        export(*today_range(), approved.operator)
+        export(*today_range(), approved.operator, list(approved.record_ids))
 
     assert [row[1] for row in stamps(review, approved.record_ids)] == [None, None, None], "no batch was claimed"
     assert (
@@ -518,7 +563,7 @@ def test_a_failure_after_the_file_is_written_leaves_a_whole_file_and_no_stamp(
     monkeypatch.setattr(export_module, "write_event", refuse)
 
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        export(*today_range(), approved.operator)
+        export(*today_range(), approved.operator, list(approved.record_ids))
 
     assert (
         review.execute("select count(*) from export_batches where operator = %s", (approved.operator,)).fetchone()[0]
@@ -546,8 +591,14 @@ def test_the_export_page_shows_the_backlog_and_the_form(approved, exports_dir, c
     assert "no CRM connection here" in page, "the page says what it does not do"
 
 
-def test_the_button_produces_a_batch_and_shows_it(approved, exports_dir, client, review):
-    range_from, range_to = (datetime.now(UTC).date().isoformat(),) * 2
+def test_the_button_produces_a_batch_and_shows_it(approved, exports_dir, client, review, owner):
+    """Posted with no `record_ids` field at all: the older-client fallback (the route's own
+    docstring calls it `make export`, a script, an older client), so the fixture's own
+    records are moved onto a day no real approval can share before the whole range is
+    trusted to mean only them.
+    """
+    pin_approval_day(owner, approved.record_ids)
+    range_from, range_to = (PINNED_DAY,) * 2
 
     posted = client.post(
         "/export",
@@ -631,7 +682,7 @@ def test_the_backlog_is_every_approved_record_not_yet_exported_oldest_first(appr
 
 
 def test_exporting_takes_the_records_out_of_the_backlog(approved, exports_dir, review):
-    export(*today_range(), approved.operator)
+    export(*today_range(), approved.operator, list(approved.record_ids))
 
     waiting = {record.record_id for record in backlog(review).records}
     assert not waiting & set(approved.record_ids), "a record that has left is not waiting to leave"
@@ -861,10 +912,16 @@ def test_the_spec_table_is_the_csv_header_row():
 # --- decision 69: the export page as the reconfirmation step -------------------
 
 
-def test_export_with_none_is_unchanged(approved, exports_dir, review):
+def test_export_with_none_is_unchanged(approved, exports_dir, review, owner):
     """The explicit case the step requires: passing `record_ids=None` behaves exactly as
-    calling `export` without it, which is every test above this one."""
-    batch_id = export(*today_range(), approved.operator, None)
+    calling `export` without it.
+
+    The `None` path selects on the range alone, with nothing narrowing it to this fixture's
+    own rows, so this is one of the few tests in this module that pins the fixture's records
+    onto a day no real approval can share (`pin_approval_day`) rather than naming them by id.
+    """
+    range_from, range_to = pin_approval_day(owner, approved.record_ids)
+    batch_id = export(range_from, range_to, approved.operator, None)
 
     assert {row[1] for row in stamps(review, approved.record_ids)} == {batch_id}
     assert len(csv_rows(exports_dir, batch_id)) == 4, "a header and all three records"
@@ -1010,3 +1067,37 @@ def test_a_category_appendix_e_does_not_define_is_refused(monkeypatch):
 
     with pytest.raises(ExportRefused, match="appendix E does not define"):
         spec_markdown()
+
+
+# --- the guard: this module never exports a record it did not create ------------
+#
+# Kept last in the file on purpose. Pytest runs a module's tests in the order they are
+# written, so placing this here means every test above has already run by the time it
+# reads the database - the closest a single test can get to "after the whole module's
+# fixtures run" without a session-scoped hook of its own. `real_exported_baseline`
+# (`tests/review/conftest.py`) takes the same reading once, before this session's first
+# test writes anything.
+
+
+def test_no_real_record_was_exported_by_this_modules_tests(owner, real_exported_baseline):
+    """2026-09-19: `test_same_origin_export_still_works` and its re-export sibling in
+    `tests/review/test_csrf.py` posted to `/export` with `record_ids` absent and a range of
+    "today", which is `export()`'s whole-range selection - and every approved record in the
+    shared pilot database that happened to be approved that day went into two test export
+    batches. This is the check that would have caught it immediately instead of by someone
+    noticing the pilot's approved records had gone missing.
+
+    A candidate id below `FIXTURE_ID_FLOOR` (`C900000`) is never one this module's fixtures
+    created, so if this count has moved, some test above exported one anyway - almost
+    certainly a `export(...)` or `client.post("/export"` / `"/export/re-export"`) call in
+    this file missing the `record_ids` restriction the rest of this module now uses
+    throughout.
+    """
+    after = owner.execute(
+        "select count(*) from approved_records where candidate_id < 'C900000' and exported_at is not null"
+    ).fetchone()[0]
+    assert after == real_exported_baseline, (
+        "a test in tests/review/test_export.py exported a real approved record "
+        "(candidate_id < 'C900000'); audit every export(...) call and every POST to "
+        "/export or /export/re-export in this module for a missing record_ids restriction"
+    )

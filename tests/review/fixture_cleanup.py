@@ -28,6 +28,14 @@ reach the rows that hang off them:
     itself, as `tests/unit/test_stager.py::seeded` and
     `tests/unit/test_rescore.py::seeded` both do - leaves an orphan the first
     marker alone cannot find. Only its source can.
+
+A third, narrower step below removes stale `export_batches` rows: batches a killed
+export test left behind, named by the operator strings the export tests themselves
+use - `csrf-test-` (`operator_name` in `tests/review/test_csrf.py`) and
+`Export Operator ` (the `approved` fixture in `tests/review/test_export.py`). A
+batch row is never deleted while any `approved_records` row still references it -
+`approved_records.export_batch` is a foreign key to it - so this only ever removes
+a batch whose file, if any, nothing in the database still points at.
 """
 
 from __future__ import annotations
@@ -39,6 +47,12 @@ from monitor.stage.stager import FIXTURE_ID_FLOOR
 log = structlog.get_logger(__name__)
 
 FIXTURE_SOURCE_PATTERN = "test-%"
+
+# The export tests' own operator-string prefixes (see the docstring above). Not a
+# marker used to find candidates or sources - only to find `export_batches` rows
+# those tests produced and never cleaned up because the process that created them
+# was killed before its fixture's teardown ran.
+TEST_OPERATOR_PATTERNS = ("csrf-test-%", "Export Operator %")
 
 
 def safe_execute(conn, sql: str, params: tuple = (), *, context: str = "") -> int:
@@ -185,6 +199,22 @@ def sweep_fixture_leftovers(conn) -> dict[str, int]:
     # 10. sources last: nothing above still references it.
     removed["sources"] = safe_execute(
         conn, "delete from sources where id = any(%s::text[])", (sources,), context="sources"
+    )
+
+    # 11. export_batches: a batch a killed export test never got to tear down. Named by
+    #     operator prefix, never by anything the candidate/source markers above found, and
+    #     only when no approved_records row still names it (the foreign key would refuse
+    #     the delete anyway, but checking here means a batch a live record still needs is
+    #     never even attempted).
+    removed["export_batches"] = safe_execute(
+        conn,
+        """
+        delete from export_batches eb
+        where (eb.operator like any(%(patterns)s::text[]))
+          and not exists (select 1 from approved_records ar where ar.export_batch = eb.batch_id)
+        """,
+        {"patterns": list(TEST_OPERATOR_PATTERNS)},
+        context="export_batches",
     )
 
     log.info("fixture_sweep", candidates_found=len(ids), sources_found=len(sources), **removed)

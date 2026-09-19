@@ -32,6 +32,24 @@ def url(env_var: str) -> str:
     return value
 
 
+@pytest.fixture(scope="session")
+def real_exported_baseline() -> int:
+    """How many real approved records were already exported before this session touched
+    anything - a candidate id below `FIXTURE_ID_FLOOR` (`C900000`), so no fixture in this
+    repository can have created it.
+
+    Session-scoped and read once, before any test writes: `tests/review/test_export.py`'s
+    guard test compares this against the same count taken again after every test in that
+    module has run. This is the number that must never move; a test that lets an export
+    reach a real record moves it, which is exactly the incident this fixture exists to catch
+    a second time before it reaches production data instead of after.
+    """
+    with psycopg.connect(url("DATABASE_URL_OWNER"), autocommit=True) as conn:
+        return conn.execute(
+            "select count(*) from approved_records where candidate_id < 'C900000' and exported_at is not null"
+        ).fetchone()[0]
+
+
 @pytest.fixture
 def owner():
     with psycopg.connect(url("DATABASE_URL_OWNER"), autocommit=True) as conn:

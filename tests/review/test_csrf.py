@@ -147,7 +147,10 @@ def test_same_origin_export_still_works(client, owner, review, exports_dir, appr
     today = today_str()
     posted = client.post(
         "/export",
-        data={"range_from": today, "range_to": today, "operator": operator_name},
+        # record_ids names this test's own fixture record explicitly, so the batch can
+        # only ever be this one row - never whatever else a real reviewer approved today
+        # in the same shared database (the incident this restriction exists to prevent).
+        data={"range_from": today, "range_to": today, "operator": operator_name, "record_ids": approved_record},
         headers={"origin": allowed_origin()},
         follow_redirects=False,
     )
@@ -168,7 +171,7 @@ def test_same_origin_re_export_still_works(client, owner, exports_dir, approved_
     today = today_str()
     first = client.post(
         "/export",
-        data={"range_from": today, "range_to": today, "operator": operator_name},
+        data={"range_from": today, "range_to": today, "operator": operator_name, "record_ids": approved_record},
         headers={"origin": allowed_origin()},
         follow_redirects=False,
     )
@@ -222,7 +225,7 @@ def test_hostile_origin_export_is_refused_and_produces_no_batch(
     today = today_str()
     posted = client.post(
         "/export",
-        data={"range_from": today, "range_to": today, "operator": operator_name},
+        data={"range_from": today, "range_to": today, "operator": operator_name, "record_ids": approved_record},
         headers={"origin": HOSTILE_ORIGIN},
         follow_redirects=False,
     )
@@ -242,7 +245,7 @@ def test_hostile_origin_re_export_is_refused(client, owner, exports_dir, approve
     today = today_str()
     real = client.post(
         "/export",
-        data={"range_from": today, "range_to": today, "operator": operator_name},
+        data={"range_from": today, "range_to": today, "operator": operator_name, "record_ids": approved_record},
         headers={"origin": allowed_origin()},
         follow_redirects=False,
     )
