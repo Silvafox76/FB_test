@@ -7,7 +7,7 @@
 # one candidate cluster instead of two.
 #
 # THE ROUTE, measured 2026-09-12. Verified live, not against documentation:
-# `curl -A "FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com)"`
+# `curl -A "FreeBalance-OpportunityMonitor/0.1 (+contact email)"`
 # against `list_url` below returns 200 OK and a single server-rendered
 # `<table>`, 49 `<tr>` (one header, 48 data rows), columns Date, Country,
 # Project / Notice, Sector, Closing Date, Type. No pagination, no archive link,

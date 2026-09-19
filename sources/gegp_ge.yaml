@@ -1,0 +1,203 @@
+# Georgia's state e-procurement portal, "Ge-GP" (State Procurement Agency /
+# Competition and State Procurement Agency), register row S065. Georgia is in
+# the pilot geography (decision 64) and is, as of this assessment, one of
+# three pilot countries with no source at all.
+#
+# NOT BUILT, AND NOT BUILDABLE WHILE RULE 21 STANDS. There is no
+# monitor/connectors/gegp_ge.py, no monitor/normalise/gegp_ge.py and no
+# tests/contract/fixtures/gegp_ge.json. The host's own robots.txt disallows
+# every path for every client, and CLAUDE.md's onboarding procedure step 1 is
+# explicit: if robots.txt disallows the path, stop and report, the source is
+# not onboarded. That is what this entry does.
+#
+# THE MEASUREMENT, taken 2026-09-19, https://tenders.procurement.gov.ge, one
+# polite request per page, MONITOR_USER_AGENT
+# (FreeBalance-OpportunityMonitor/0.1, +contact email):
+#
+#   1. https://tenders.procurement.gov.ge/robots.txt -> HTTP 200, 26 bytes,
+#      text/plain, Last-Modified Thu, 09 Jul 2026, ETag "1a-6562f4e22227a" (0x1a
+#      = 26, matching the body's own byte count - the origin's own static
+#      file, not a proxy or WAF artefact; the same proxy returned
+#      www.iub.gov.lv's own documented Drupal robots.txt byte-for-byte in the
+#      same session, so the path is not being rewritten). In full:
+#
+#          User-agent: *
+#          Disallow: /
+#
+#      One group, the wildcard agent, no Allow line, no agent-specific group,
+#      no Crawl-delay, no Sitemap - the same unconditional shape
+#      sources/place.yaml and sources/undp.yaml record for their own hosts.
+#      It disallows every path, which includes whatever listing, search
+#      endpoint or JS bundle the portal serves, so there is no polite subset
+#      left to read and no design that avoids it. PER THIS RULE, NOTHING
+#      BEYOND ROBOTS.TXT AND ONE LANDING-PAGE REQUEST (below, made in the same
+#      batch and carrying no body content) WAS FETCHED FROM THIS HOST: no
+#      search page, no JS bundle, no JSON endpoint, no notice detail page, no
+#      terms or privacy-policy page, and NOT the login page's own HTML either
+#      - checking a login form for a CAPTCHA or a second factor is still an
+#      automated request against a disallow-all file, and rule 21 does not
+#      carve out inspection requests. That check has to be made by a person
+#      opening the page in a browser, not by this agent or by a connector.
+#
+#   2. https://tenders.procurement.gov.ge/ -> HTTP 302, `location: login.php`,
+#      Set-Cookie SPA=... and a bot-management cookie, zero-byte body. This
+#      request happened in the same tool call as the robots.txt fetch above
+#      (a sequencing slip on this agent's part, noted rather than hidden); no
+#      content was retrieved beyond response headers, and nothing past this
+#      one redirect was requested once robots.txt's blanket disallow was read.
+#      What it establishes: the portal root itself, not just some deeper
+#      listing path, redirects an anonymous request straight to a login form.
+#      This is a stronger and different finding from sources/undp.yaml's and
+#      sources/place.yaml's own robots-walls, where the notices are otherwise
+#      known or believed to be public - here the front door is also gated,
+#      independently of robots.txt. Two separate blockers stack: the operator
+#      disallows bots, and the operator also appears to require a session to
+#      see anything at all.
+#
+#   3. TERMS. The register's evidence URL,
+#      https://tenders.procurement.gov.ge/privacy_policy.html, sits under the
+#      same disallowed root and was NOT fetched, for the same reason the
+#      login page's HTML was not fetched - reading it would be the exact
+#      automated request robots.txt refuses. No clause is quoted from it here
+#      because none was read; a person opening that URL in an ordinary
+#      browser (not this agent, not a script) is the only way to see what it
+#      says, and that reading still would not itself permit an automated
+#      connector against a disallow-all robots.txt without either a written
+#      exception from the operator or a robots.txt change - a reuse licence
+#      does not amend robots.txt (the same distinction sources/place.yaml
+#      draws for Spain's Ley 37/2007 against PLACE's own robots.txt).
+#
+#   4. THE OPEN-DATA QUESTION. The task brief asks whether the SPA's separate
+#      open-data portal (data.gov.ge) carries current notices under a
+#      licence. Checked and INCONCLUSIVE, not answered: data.gov.ge returned
+#      an empty TLS reply direct (`curl: (52) Empty reply from server`) and a
+#      503 through the fetch tool, on 2026-09-19. This reads as the host being
+#      unreachable or actively refusing this session rather than as a
+#      documented answer either way, and is left open rather than guessed.
+#      The one open-data trace of Georgian state procurement this registry
+#      already knows about is register row S081, odapi.spa.ge - the SPA's own
+#      former OCDS API, CC0-licensed, but DISCONTINUED: its data ends June
+#      2019. It is not a current source and this entry does not build on it;
+#      it is recorded here only as history, per the task brief, in case a
+#      later session is tempted to treat it as live.
+#
+# ACCESS ROUTE, in CLAUDE.md's order: no documented current API was found (the
+# only API-shaped thing on record, S081, is seven years stale); no structured
+# feed; the anonymous landing page redirects to a login form rather than
+# showing a listing, so this is not an open public HTML listing either; what
+# it looks like from outside is a listing behind a login (`access: registered`
+# below) - consistent with BD's own account list showing this portal
+# presenting a login page. Whether that login sits behind free self-service
+# registration, a Georgian tax/company registration, or is available to a
+# FreeBalance corporate account is UNESTABLISHED: none of it could be checked
+# without fetching disallowed pages to find out (the same bind
+# sources/place.yaml records for PLACE's own licitantes registration).
+#
+# DECISION 74, APPLIED. An existing FreeBalance account could only be proposed
+# as the access route once three things are true: the identity is corporate
+# (a shared mailbox, not a person), the terms permit automated reading with
+# it, and login is username/password with no CAPTCHA or second factor. None
+# of the three could be checked here - not the account's own nature (this
+# agent does not have it and must not ask for it), not the terms (blocked
+# under TERMS above), and not the CAPTCHA/2FA question (blocked under
+# measurement 1 above, and requires a human eyeballing the login page in a
+# real browser, not an automated fetch of any kind). So the account route is
+# neither recommended nor ruled out here - it is UNEVALUATED, and evaluating
+# it is a person's job, not a re-run of this assessment with a different
+# excuse to fetch the same disallowed host.
+#
+# WHAT A PERSON WOULD HAVE TO DO, and none of it is this file's to take
+# (rule 1):
+#   a. Ask the State Procurement Agency (Competition and State Procurement
+#      Agency) for a written exception naming
+#      FreeBalance-OpportunityMonitor/0.1 and the listing path, the same ask
+#      sources/place.yaml recommends first for PLACE. This is the only option
+#      that ends with an anonymous or registered connector built as normal.
+#   b. If FreeBalance holds (or BD can obtain) a corporate account: a named
+#      person - not this agent - opens the login page in an ordinary browser
+#      to see whether it is username/password only, and separately obtains or
+#      reads the account's own terms of use for a clause on automated access.
+#      Both must clear before this stops being a robots.txt problem, because a
+#      valid login does not itself permit a bot to make requests robots.txt
+#      refuses - (a) or a robots.txt change is still needed on top of a clean
+#      account and clean terms, not instead of them.
+#   c. Decide Georgia's pilot coverage is not worth pursuing on this portal
+#      and look for a different Georgian route (e.g. a government gazette,
+#      donor notices financed in Georgia already on sources/worldbank.yaml or
+#      sources/ebrd.yaml, or a resolved data.gov.ge once reachable). Georgia
+#      currently has no source of any kind, so this closes a real, named gap
+#      rather than a duplicate.
+#
+# Reading any page on this host beyond robots.txt and the one landing-page
+# redirect already fetched would be routing around an access control, which
+# is a hard rule regardless of what a corporate account might unlock.
+id: gegp_ge
+name: Ge-GP State Procurement Portal (Georgia)
+country: GE
+admin_level: national
+# Per the register (S065): Georgian with some English. NOT independently
+# confirmed - no listing or notice-detail content was reachable to check
+# against, because the landing page redirects to login and robots.txt
+# disallows everything past it (measurements 1-2 above). Carried as the
+# register's own claim, not as an observation.
+language: ka
+stream: portal
+# What this looks like from outside: a listing behind a login (measurement 2),
+# not a public HTML listing and not a documented API. Whether "registered"
+# ultimately means free self-service, local tax/company registration, or a
+# corporate account already held is unresolved (see ACCESS ROUTE above).
+access: registered
+# The conservative reading, not a measured one - the same choice
+# sources/undp.yaml and sources/place.yaml make for their own robots-walled
+# hosts. Nothing here was checked for whether the listing needs JavaScript to
+# render (that would need fetching the post-login page, which was not
+# fetched), so BrowserConnector is not ruled in or out either; PageConnector
+# is recorded as the register's own proposal and not overridden without
+# evidence.
+connector: PageConnector
+wave: 2
+# 14:15 UTC daily, provisional and unused while enabled is false. Checked
+# against every schedule in sources/ (2026-09-19): free between ejn_ba/
+# tenderned_nl 14:00 and nothing else at :15 that hour.
+schedule: '15 14 * * *'
+# The portal root, because Source requires a list_url or an api_url and this
+# is where the source is. IT IS DISALLOWED BY ITS OWN robots.txt AND MUST NOT
+# BE FETCHED while tos_status is pending - the same guard sources/undp.yaml
+# and sources/place.yaml record for their own list_url. No deeper path
+# (search endpoint, notice detail) is recorded here, because none was found:
+# recording an unverified URL on a disallowed host would be trusted twice
+# over by a later session, the exact reasoning sources/undp.yaml gives for
+# leaving its own advertised feed URLs out.
+list_url: https://tenders.procurement.gov.ge/
+# PENDING, not reviewed_restricted, and deliberately not the same verdict as
+# sources/undp.yaml or sources/place.yaml. Those two files know their
+# underlying notices are public and can name the review as "reviewed and the
+# answer is no" on robots.txt alone. Here the front door itself redirects to
+# a login (measurement 2), so it is not established that the notices are
+# public at all, and the terms page named as this row's own evidence
+# (privacy_policy.html) sits under the same disallowed root and was not read
+# (measurement 3). Two separate unknowns - what the terms say, and whether an
+# account of any kind (free, local-registration, or corporate) is even the
+# right characterisation of the login - are both unresolved. CLAUDE.md's own
+# rule: "Anything you are not certain of is pending and goes to legal, not to
+# a guess." This goes to legal and to BD (for the account question), not to a
+# default.
+tos_status: pending
+# Blocked on two independent findings, either of which alone would already
+# keep this disabled: robots.txt's blanket Disallow (rule 21, a hard stop
+# regardless of what any account terms permit), and tos_status: pending (no
+# clause reviewed). A commit that flips this needs, at minimum, (a) written
+# permission or a robots.txt change from the State Procurement Agency, and
+# separately (b) a named person's review of whatever terms actually govern
+# reading this portal (public or via account) - see WHAT A PERSON WOULD HAVE
+# TO DO above. Until then there is nothing to build against: no confirmed
+# listing shape, no confirmed language, no confirmed volume.
+enabled: false
+health:
+  # UNMEASURED and unmeasurable while the host may not be read past its own
+  # login redirect (rule 4's zero-yield concern does not apply to a source
+  # that was never fetched for content). Placeholders only, stated because
+  # Source requires them; replaced with real numbers once a route exists.
+  expected_items_per_run: [1, 100]
+  max_consecutive_failures: 3
+owner: ryan.dear

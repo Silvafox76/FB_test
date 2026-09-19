@@ -112,7 +112,7 @@
 # client is monitor/connectors/ebrd.py's shape, not a paging PageConnector's.
 #
 # CONNECTOR CLASS: FeedConnector, proved rather than assumed. `curl -A
-# "FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com)"
+# "FreeBalance-OpportunityMonitor/0.1 (+contact email)"
 # https://nppa.gov.sl/bid/` with no browser returns all 32 rows of
 # `table#tablepress-1 tbody tr` in the response body - organisation
 # (`td.column-1`), date posted (`td.column-2`, `DD-MM-YYYY`, two rows carry a stray

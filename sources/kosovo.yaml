@@ -6,7 +6,7 @@
 #
 # THREE HOSTS, because the brief named two and DNS turned up a third that is
 # actually the one that matters. Probed 2026-09-12, one polite GET per page
-# (rule 21), user agent FreeBalance-OpportunityMonitor/0.1 (+ryan.dear@freebalance.com).
+# (rule 21), user agent FreeBalance-OpportunityMonitor/0.1 (+contact email).
 # DNS resolved independently of the session's HTTPS proxy (`getent hosts`, which
 # does not go through the HTTPS CONNECT tunnel), so host-down and proxy-denial are
 # not conflated here the way sources/senegal.yaml and sources/sierra_leone.yaml flag

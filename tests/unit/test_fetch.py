@@ -50,7 +50,9 @@ def test_only_sources_with_a_recorded_fixture_are_wired():
 
     fixtures = Path(__file__).resolve().parents[1] / "contract" / "fixtures"
     for source_id in CONNECTORS:
-        assert (fixtures / f"{source_id}.json").exists(), f"{source_id} is wired but has no fixture"
+        # ejn_ba's fixture is gzipped because the recorded week is 5 MB (decision 72).
+        recorded = (fixtures / f"{source_id}.json").exists() or (fixtures / f"{source_id}.json.gz").exists()
+        assert recorded, f"{source_id} is wired but has no fixture"
 
 
 def test_every_wired_source_is_enabled_and_every_enabled_source_is_wired():
