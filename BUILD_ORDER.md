@@ -380,12 +380,13 @@ Accept: a tracked-file search for the vendor name outside `docs/reference/`, `pr
 Touch: `docs/regions.yaml` moved to `config/regions.yaml`, `monitor/registry/load.py` (`CONFIG_KINDS` gains `regions` and `users`, and the `config_versions` kind vocabulary with it), `config/thresholds.yaml` (the `regions:` block leaves; `geography` stays), `config/record_defaults.yaml` (`industry_by_region` keyed by region id), `migrations/017_regions.sql`, `monitor/registry/load.py`, `monitor/stage/region.py`, `monitor/stage/stager.py`, `monitor/filter/run.py`, `sources/ted.yaml`, `sources/worldbank.yaml`, `sources/worldbank_pipeline.yaml`, `sources/euft.yaml`, `sources/undp.yaml`, `sources/ungm.yaml` (`covers`), `review/app.py` and `queue.html` (region filter), `monitor/health/metrics.py`, `tests/unit/test_regions.py`, `tests/unit/test_stager.py`, `tests/unit/test_filter.py`.
 
 Build:
-- `config/regions.yaml` is the single statement of region membership (D62): ten regions from the sales-regions workbook, each with id, name, lead, team and `status: pilot | inactive`; `pilot_exceptions` naming BJ BF CI ML MR NE SN TG with the date and the decision (D64); `excluded` and `unassigned`. Validated on load with Pydantic, version-hashed into `config_versions` like the other config files. Codes quoted.
+- `config/regions.yaml` is the single statement of region membership (D62): ten regions from the sales-regions workbook, each with id, name, lead, team and `status: inactive | onboarding | build | shadow | live` (decision 65; Europe & West Africa starts at `build`); `pilot_exceptions` naming BJ BF CI ML MR NE SN TG with the date and the decision (D64); `excluded` and `unassigned`. Validated on load with Pydantic, version-hashed into `config_versions` like the other config files. Codes quoted.
 - `017_regions.sql`: `regions(id pk, name, lead, status)`, `region_countries(country pk, region_id fk)`, `pilot_exceptions(country pk, reason, decided_on)`, seeded from the YAML by `make up`. `candidates.region` becomes a foreign key to `regions.id`; existing rows are backfilled from their country, and a row whose country resolves to no region fails the migration rather than being guessed.
-- `monitor/stage/region.py`: `region_for(country) -> RegionId` and `in_pilot(country) -> bool`, both reading the loaded config. Nothing else decides a region.
+- `monitor/stage/region.py`: `region_for(country) -> RegionId` and `region_status(country) -> Status` (an exception country takes the status of the pilot region), both reading the loaded config. Nothing else decides a region.
 - Free filter gains a geography stage ahead of CPV and lexicon: a notice whose country is outside pilot geography is `filtered_out` with reason `outside pilot geography (<region id>)`, or `country unassigned` / `country excluded`, before any model call. Kept, not deleted, so activating a region is a config change and a re-filter.
 - Every source's `covers` must be a subset of pilot geography, asserted at registry load. TED drops BG CZ HU PT RO SK. The World Bank, EU Funding and Tenders, UNDP and UNGM lists add AM and GE where the source publishes for them.
-- Queue region filter lists regions from the table, pilot and exception first. Metrics break down by region.
+- Queue region filter lists regions from the table, active regions and the exception first. Metrics break down by region.
+- Validation rejects a file with more than one region in `build` or `shadow` (decision 65).
 
 Accept:
 - `test_regions.py`: every ISO 3166 alpha-2 code appears exactly once across regions, `excluded` and `unassigned`; every key parses as a string (the `NO` trap); every `pilot_exceptions` code belongs to an inactive region; the workbook's 41 Europe & West Africa codes are exactly the pilot region's list.
@@ -410,11 +411,11 @@ Accept: a request with no assertion is 401; a forged or expired assertion is 401
 
 ### Step 23. Shadow mode entry (week 9)
 
-Touch: `monitor/cli.py` (`monitor mode shadow`), scheduler config (daily windows replace the weekend's hourly), `RUNBOOK.md` (shadow-mode section).
+Touch: `config/regions.yaml` (`europe_west_africa: status: shadow`), `review/export.py` (a batch includes only regions in `live`; shadow exports are dry runs), `monitor/health/status.py` (each region's status), scheduler config (daily windows replace the weekend's hourly), `RUNBOOK.md` (shadow-mode section). There is no global `monitor mode` command: mode is per region and lives in config (decision 65), so every later region uses the mechanism the pilot builds here.
 
 Steps 22a to 22c are met before this step starts.
 
-Build: a mode flag that gates live operation while still staging candidates to the review queue in Postgres (nothing is notified in any mode this phase, per D31 and design-cop rule 18, so what the flag gates is real export batches, not notifications); the reviewer and backup are trained this week (five sessions, per architecture §9.2's user-acceptance test) on real shadow-mode data, including French and translated candidates.
+Build: the region status gates live operation while still staging candidates to the review queue in Postgres (nothing is notified in any mode this phase, per D31 and design-cop rule 18, so what the status gates is real export batches, not notifications); the reviewer and backup are trained this week (five sessions, per architecture §9.2's user-acceptance test) on real shadow-mode data, including French and translated candidates.
 
 Accept: daily runs across all 26 wave-1 sources for five consecutive days with no export batch released to BD (dry-run exports only, discarded); reviewer completes the five acceptance sessions, approving, editing and rejecting a real candidate in under two minutes without help.
 
@@ -442,9 +443,9 @@ Accept: each connector is added to the enabled set only when its own fixture and
 
 ### Step 26. Live-mode entry (week 10 to 11)
 
-Touch: `monitor/cli.py` (`monitor mode live`), scheduler config, `docs/import_mapping.md` (cadence confirmed).
+Touch: `config/regions.yaml` (`europe_west_africa: status: live`, committed with the gate evidence in the message), scheduler config, `docs/import_mapping.md` (cadence confirmed).
 
-Build: entry gate checked, not assumed: five consecutive shadow days above 30 percent precision in the pilot region and in the francophone exception, each measured separately, translation sample accepted, the step 16 dry-run import accepted by BD, and Matthew's sign-off recorded. Only then does `monitor mode live` release real export batches on the agreed cadence, recommended Monday alongside the metrics job. Notifications remain off for the whole pilot (D31).
+Build: entry gate checked, not assumed: five consecutive shadow days above 30 percent precision in the pilot region and in the francophone exception, each measured separately, translation sample accepted, the step 16 dry-run import accepted by BD, and Matthew's sign-off recorded. Only then does the status change to `live` release real export batches on the agreed cadence, recommended Monday alongside the metrics job. Notifications remain off for the whole pilot (D31).
 
 Accept: the gate's four conditions are each recorded with a date and a number, not just asserted in a status message; live mode, once entered, produces its first real export batch and the named operator imports it into the CRM within the agreed cadence, with the batch id and the import date recorded.
 
@@ -484,7 +485,7 @@ Accept: the measured rate is in the week 14 gate report; if embeddings were buil
 
 Touch: `docs/gate_report_week14.md`, generated from `metrics.py`'s history, not written free-hand.
 
-Build: the seven numbers from Full Build Plan v1.0 §4 (Live phase): back-test recall overall and non-English, precision at the queue, translation-wrong rate, time to detect, reviewer load by region, connector break rate by class, and qualified opportunities and pipeline value sourced by the Monitor by country. The last of these cannot come from the pipeline's own tables under D31, because nothing is written back after export: BD supplies it at the gate from the CRM, joined on `monitor_candidate_id`, and the report says so rather than implying the Monitor measured it. Add two numbers D31 makes necessary: the duplicate count (approved records that turned out to duplicate an existing Opportunity) and export health (batches produced, records imported, columns rejected). Plus the D4 and D25 decisions from steps 28 and 29, reviewer load and precision by region, and a recommendation on which inactive region activates next. Whether CRM integration is taken up at all is a separate piece of work after the gate, and the duplicate count is its first input.
+Build: the seven numbers from Full Build Plan v1.0 §4 (Live phase): back-test recall overall and non-English, precision at the queue, translation-wrong rate, time to detect, reviewer load by region, connector break rate by class, and qualified opportunities and pipeline value sourced by the Monitor by country. The last of these cannot come from the pipeline's own tables under D31, because nothing is written back after export: BD supplies it at the gate from the CRM, joined on `monitor_candidate_id`, and the report says so rather than implying the Monitor measured it. Add two numbers D31 makes necessary: the duplicate count (approved records that turned out to duplicate an existing Opportunity) and export health (batches produced, records imported, columns rejected). Plus the D4 and D25 decisions from steps 28 and 29, reviewer load and precision by region, and the readiness of the first rollout region against the entry gate in `docs/regional_rollout.md`. Whether CRM integration is taken up at all is a separate piece of work after the gate, and the duplicate count is its first input.
 
 Accept: the report exists, every number traces to a query against the pipeline's own tables (no number is asserted without a query attached in an appendix), and the business owner named in week 0 has a documented decision: scale, extend, or stop.
 
@@ -500,5 +501,5 @@ Accept: a new reader (not me) can follow the runbook to add a source, read healt
 
 ## After the pilot (not this build)
 
-Q1 2027: remaining wave-3 portals, a second aggregator if a coverage gap was measured, full donor stream automation, Stream C research automation if the notebooks were used, a named maintenance owner. Q2 to Q3 2027: the LATAM wave. Neither is planned at the step level here; Pilot Plan v0.4 phases 4 and 5 describe the shape, and this file gets a new set of steps once the week 14 gate decides to proceed. Any CRM integration is part of that new set, never a late addition to this one.
+`docs/regional_rollout.md` (decision 65) is the plan: R0 platform readiness, then one region at a time through `onboarding`, `build`, `shadow` and `live`, each with the same entry and go-live gates. Recommended order: Central & Southeast Europe, Caribbean & Latin America, MENA & Francophone Africa (gated on the VP hire), East & Southern Africa, Lusophone, Asia & the Pacific, Pakistan, Central Asia and Türkiye, North America. This file gets a new set of steps for R0 and for each region once the week 14 gate decides to proceed. CRM integration is not part of any region's activation.
 Weeks 3 to 8: translation stage, West African portal connectors, French lexicon tuning, golden set to 150.

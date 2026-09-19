@@ -41,6 +41,7 @@ Run `git diff` and `git diff --staged`. Review what changed against the rules be
 23. **Region is data.** A country's region comes from `config/regions.yaml` and nowhere else. A region name, country list or region check in a `.py` file or a template is blocking.
 24. **Identity comes from the access layer only.** The review app verifies the SSO access layer's signed assertion on every request. A login form, a local password, a typed reviewer name, or an identity read from a query string or an app-issued cookie is blocking. A code path that skips verification, including for development or tests, is blocking.
 25. **Authority follows region, server side.** Approve, edit and reject are refused for a candidate outside the user's regions. A check made only in a template is blocking.
+26. **Region status is config, changed by commit.** Status (`inactive`, `onboarding`, `build`, `shadow`, `live`) lives in `config/regions.yaml`; a commit changing it cites the gate evidence. A global mode flag, a status set from the CLI or the database, or two regions in `build` or `shadow` at once is blocking.
 
 ## Data and secrets rules, all blocking
 

@@ -1,14 +1,14 @@
-# Change record v0.5: standalone application, regional model, SSO access, pilot geography
+# Change record v0.5: standalone application, regional model, SSO access, pilot geography, rollout
 
 19 September 2026. Ryan Dear. Applies to EMEA Pilot Plan v0.4 and Technology and Architecture v0.4
 (`docs/reference/`), which stay as issued. Where a section below is named, this record governs.
 Weekend Build Plan v1.3 is historical and is not amended.
 
-The decisions are 61 to 64 in `docs/open_decisions.md`. `CLAUDE.md` and `BUILD_ORDER.md` (steps 22a
+The decisions are 61 to 65 in `docs/open_decisions.md`. `CLAUDE.md` and `BUILD_ORDER.md` (steps 22a
 to 22c) already carry them; this file exists so that someone reading the leadership documents knows
 which parts no longer hold.
 
-## What changed, in four lines
+## What changed, in five lines
 
 1. **Standalone application (61).** The Monitor is its own application with its own database, for 5
    to 10 named users. The export shaped to the CRM Opportunity record is unchanged. CRM integration
@@ -21,6 +21,8 @@ which parts no longer hold.
 4. **Pilot geography (64).** Europe & West Africa (41 countries) plus eight francophone West African
    countries as a recorded exception: 49. Bulgaria, Czechia, Hungary, Romania, Slovakia and Portugal
    leave; Andorra, Monaco, Armenia and Georgia join.
+5. **Phased rollout (65).** After the week 14 gate, a readiness phase, then one region at a time
+   through the same statuses and gates (`docs/regional_rollout.md`).
 
 ## Pilot geography
 
@@ -45,7 +47,7 @@ region is activated.
 | 3 Daily workflow | Reviewer "checks Zoho by hand"; import operator "loads it into Zoho" | Reviewer checks the CRM by hand; BD's import operator loads the file into the CRM |
 | 5 Sources, "What the BD worksheets change" | D26 proposal to grow to 53 countries; country owners as listed | Scope is set by the regional model; country owners follow the sales-regions workbook |
 | 6 Plan, phase 1 exit | Dry-run import "into a Zoho sandbox" | Into a CRM sandbox, by BD |
-| 6 Plan, phase 4 | "Zoho integration if the gate takes it" | Removed; any integration is new work after the gate |
+| 6 Plan, phases 4 and 5 | Harden in Q1 2027 then a LATAM wave and APAC in Q2 to Q3 2027; "Zoho integration if the gate takes it" | R0 platform readiness, then one region at a time in the order and with the gates in `docs/regional_rollout.md`; integration removed |
 | 7 Costs | Zoho line; one reviewer | No CRM line; 5 to 10 users; add AWS Verified Access (confirm price in ca-central-1 at step 22c) |
 | 8 Risks | "Named reviewer with real time" as a single person | Named reviewers per region in `config/users.yaml`, including a reviewer for the francophone exception |
 | 9 Decisions requested | Approve 47 countries; endorse D31 in its Zoho wording | Approve 49 countries by region; D31 stands as restated by 61 |
@@ -66,6 +68,7 @@ region is activated.
 | 10 Open, reviewer rows | "One reviewer for EMEA; one per region"; "Keep 47" | Resolved by 62 and 64 |
 | 11 From Matthew | Checking Zoho by hand | Checking the CRM by hand; the open items for Matthew in `docs/open_decisions.md` |
 | 12 Risks | "A column the Zoho import mapper rejects" | A column the CRM import mapper rejects |
+| 9.6 Implement and scale | Scale-up by wave | One region at a time, `docs/regional_rollout.md` |
 | Appendix D, identity matrix | No user identities | Add the Verified Access trust provider and the `users` table; no identity holds a CRM credential |
 | Appendix E, export columns | Vendor wording on Account, Owner and import | Columns, order, naming and placeholders unchanged |
 

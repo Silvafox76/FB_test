@@ -24,6 +24,7 @@ exist in the data model and reporting with no sources and no reviewers. Decision
 | `docs/reference/` | Architecture v0.4, Weekend Build Plan v1.3 and the component map workbook, the documents the steps cite. |
 | `docs/open_decisions.md` | Questions a step raised, open and closed, each with the step that settles it. Decisions 61 to 64 (standalone, regions, SSO, geography) sit at the top. |
 | `docs/change_record_v0_5.md` | Which sections of Pilot Plan v0.4 and Architecture v0.4 decisions 61 to 64 supersede. |
+| `docs/regional_rollout.md` | How regions come online after the pilot: R0, then one region at a time through the same gates, in a recommended order. |
 | `docs/regions.yaml` | The ten sales regions and every country's owner, draft; moves to `config/` at step 22b. |
 | `docs/design_inputs.md` | What the workbook and the prototypes are each allowed to decide. |
 | `.claude/agents/` | The seven subagent definitions and the ownership table, per `.claude/agents/SETUP.md`. |

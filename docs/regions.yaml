@@ -5,8 +5,13 @@
 # `excluded`, or in `unassigned`; a test asserts it. Codes are quoted because bare NO is a
 # YAML 1.1 boolean.
 #
-# status: pilot     sources run, queue is worked, counted in pilot metrics
-#         inactive  region exists for users, routing and reporting; no sources, no reviewers
+# status: inactive    exists for users, routing and reporting; no sources, notices held at the filter
+#         onboarding  source inventory and ToS work; no connector code
+#         build       connectors enabled one by one; candidates staged for testing, not worked
+#         shadow      queue worked daily; exports are dry runs only
+#         live        export batches released to BD
+# At most one region is in build or shadow at a time; a test asserts it. The order regions come
+# online is in docs/regional_rollout.md (decision 65), not here.
 #
 # Held in docs/ until step 22b (BUILD_ORDER.md) moves it to config/regions.yaml. It cannot sit in
 # config/ before then: the registry refuses any config file without a CONFIG_KINDS entry (rule 6),
@@ -42,7 +47,7 @@ regions:
     name: "Europe & West Africa"
     lead: "Matthew"
     team: ["Jakub"]
-    status: pilot
+    status: build
     countries:
       "AL": Albania
       "AD": Andorra
@@ -259,7 +264,7 @@ regions:
 
 # Countries worked by the pilot although another region owns them (D64, 19 Sept 2026). Their
 # candidates carry the owning region; this list decides only that the pilot sources, stages and
-# reviews them. Remove an entry when the owning region goes to status: pilot.
+# reviews them. Remove an entry when the owning region reaches status: shadow.
 pilot_exceptions:
   decided_on: 2026-09-19
   reason: "Francophone West Africa connectors built and live before the regional split; kept in Matthew's pilot"
